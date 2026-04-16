@@ -980,10 +980,10 @@ function App() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
                       <div>
                         <h3 style={{ fontSize: '15px', marginBottom: '4px' }}>
-                          Rotación: <span style={{color: 'var(--negative)'}}>{trade.ventaTicker}</span> → <span style={{color: 'var(--positive)'}}>{trade.compraTicker}</span>
+                          {trade.compraFecha} · Rotación: <span style={{color: 'var(--negative)'}}>{trade.ventaTicker}</span> → <span style={{color: 'var(--positive)'}}>{trade.compraTicker}</span>
                         </h3>
                         <p className="hint">
-                          Venta {trade.ventaTicker} {fmt(trade.ventaCantidad, 0)} @ ${fmt(trade.ventaPrecio)} ({trade.ventaFecha}) &nbsp;|&nbsp; Compra {trade.compraTicker} {fmt(trade.compraCantidad, 0)} @ ${fmt(trade.compraPrecio)} ({trade.compraFecha})
+                          Venta {trade.ventaTicker} {fmt(trade.ventaCantidad, 0)} @ ${fmt(trade.ventaPrecio)} &nbsp;|&nbsp; Compra {trade.compraTicker} {fmt(trade.compraCantidad, 0)} @ ${fmt(trade.compraPrecio)}
                         </p>
                       </div>
                       <button className="btn btn-sm btn-danger" onClick={() => eliminarTrade(trade.id)} style={{flexShrink: 0, marginLeft: '12px'}}>✕</button>
