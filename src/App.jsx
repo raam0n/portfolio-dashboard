@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import './index.css';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('portfolio'); // 'portfolio', 'operaciones', 'watchlist'
+  const [activeTab, setActiveTab] = useState('portfolio'); // 'portfolio', 'operaciones', 'watchlist', 'trades'
   
   const [holdings, setHoldings] = useState(() => JSON.parse(localStorage.getItem('portfolio_holdings') || '[]'));
   const [operaciones, setOperaciones] = useState(() => JSON.parse(localStorage.getItem('portfolio_operaciones') || '[]'));
   const [watchlist, setWatchlist] = useState(() => JSON.parse(localStorage.getItem('portfolio_watchlist') || '[]'));
+  const [trades, setTrades] = useState(() => JSON.parse(localStorage.getItem('portfolio_trades') || '[]'));
   
   const [prices, setPrices] = useState(() => JSON.parse(localStorage.getItem('cached_prices') || '{}'));
   const [dailyStats, setDailyStats] = useState(() => JSON.parse(localStorage.getItem('cached_stats') || '{}'));
@@ -19,6 +20,11 @@ function App() {
   const [showAddOp, setShowAddOp] = useState(false);
   const [showAddWatchlist, setShowAddWatchlist] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAddTrade, setShowAddTrade] = useState(false);
+
+  // Trade form state
+  const [tradeVentaId, setTradeVentaId] = useState('');
+  const [tradeCompraId, setTradeCompraId] = useState('');
 
   // Form states
   const [newTipo, setNewTipo] = useState('accion');
@@ -51,7 +57,8 @@ function App() {
     localStorage.setItem('portfolio_holdings', JSON.stringify(holdings));
     localStorage.setItem('portfolio_operaciones', JSON.stringify(operaciones));
     localStorage.setItem('portfolio_watchlist', JSON.stringify(watchlist));
-  }, [holdings, operaciones, watchlist]);
+    localStorage.setItem('portfolio_trades', JSON.stringify(trades));
+  }, [holdings, operaciones, watchlist, trades]);
 
   // Persist prices separately whenever they are successfully updated
   useEffect(() => {
@@ -298,6 +305,36 @@ function App() {
     setOperaciones(operaciones.filter(o => o.id !== id));
   };
 
+  // --- TRADES BUSINESS LOGIC ---
+  const agregarTrade = () => {
+    const opVenta = operaciones.find(o => o.id === tradeVentaId);
+    const opCompra = operaciones.find(o => o.id === tradeCompraId);
+    if (!opVenta || !opCompra) return alert('Seleccioná una operación de venta y una de compra.');
+    if (opVenta.id === opCompra.id) return alert('Seleccioná dos operaciones distintas.');
+
+    const trade = {
+      id: Date.now().toString(),
+      ventaOpId: opVenta.id,
+      ventaTicker: opVenta.ticker,
+      ventaCantidad: opVenta.cantidad,
+      ventaPrecio: opVenta.precio,
+      ventaFecha: opVenta.fecha,
+      compraTicker: opCompra.ticker,
+      compraCantidad: opCompra.cantidad,
+      compraPrecio: opCompra.precio,
+      compraFecha: opCompra.fecha,
+    };
+    setTrades([...trades, trade]);
+    setTradeVentaId('');
+    setTradeCompraId('');
+    setShowAddTrade(false);
+  };
+
+  const eliminarTrade = (id) => {
+    if (!window.confirm('¿Eliminar este análisis de trade?')) return;
+    setTrades(trades.filter(t => t.id !== id));
+  };
+
 
   // --- IMP/EXP LOGIC ---
   const exportar = () => {
@@ -384,6 +421,7 @@ function App() {
         <button className={`tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`} onClick={() => setActiveTab('portfolio')}>Mi Portfolio</button>
         <button className={`tab-btn ${activeTab === 'operaciones' ? 'active' : ''}`} onClick={() => setActiveTab('operaciones')}>Histórico</button>
         <button className={`tab-btn ${activeTab === 'watchlist' ? 'active' : ''}`} onClick={() => setActiveTab('watchlist')}>Watchlist</button>
+        <button className={`tab-btn ${activeTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveTab('trades')}>Trades</button>
       </nav>
 
       {/* Settings Panel (Global Drawer) */}
@@ -844,6 +882,134 @@ function App() {
               </div>
               <button className="btn btn-primary" onClick={agregarWatchlist}>Guardar en Watchlist</button>
               <button className="btn" style={{marginLeft: '8px'}} onClick={() => setShowAddWatchlist(false)}>Cancelar</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* --- TAB 4: TRADES --- */}
+      {activeTab === 'trades' && (
+        <div className="glass-panel">
+          <div className="panel-header">
+            <div className="panel-title">Análisis de Trades y Rotaciones ({trades.length})</div>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowAddTrade(!showAddTrade)}>+ Agregar Trade</button>
+          </div>
+
+          {/* Add Trade Form */}
+          {showAddTrade && (
+            <div className="collapsible-content active">
+              <div className="panel-title" style={{marginBottom: '12px', fontSize: '14px'}}>Nueva Rotación</div>
+              {operaciones.length < 2 ? (
+                <div className="empty-state" style={{padding: '1rem'}}>
+                  Necesitás al menos dos operaciones registradas en el Histórico para crear un análisis.
+                </div>
+              ) : (
+                <>
+                  <div className="form-row">
+                    <div>
+                      <label>Operación Vendida (¿Qué vendiste?)</label>
+                      <select value={tradeVentaId} onChange={e => setTradeVentaId(e.target.value)}>
+                        <option value="">— Seleccioná una venta —</option>
+                        {operaciones.filter(o => o.tipo === 'venta').map(o => (
+                          <option key={o.id} value={o.id}>
+                            {o.fecha} · {o.ticker} · Venta {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Operación Comprada (¿Qué compraste?)</label>
+                      <select value={tradeCompraId} onChange={e => setTradeCompraId(e.target.value)}>
+                        <option value="">— Seleccioná una compra —</option>
+                        {operaciones.filter(o => o.tipo === 'compra').map(o => (
+                          <option key={o.id} value={o.id}>
+                            {o.fecha} · {o.ticker} · Compra {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <button className="btn btn-primary" onClick={agregarTrade}>Guardar Rotación</button>
+                  <button className="btn" style={{marginLeft: '8px'}} onClick={() => setShowAddTrade(false)}>Cancelar</button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Trade Cards */}
+          {trades.length === 0 && !showAddTrade ? (
+            <div className="empty-state">
+              Sin análisis de trades todavía. Agregá uno para comenzar.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
+              {trades.map(trade => {
+                const ventaBase = trade.ventaTicker.replace(/\.BA$/i, '');
+                const compraBase = trade.compraTicker.replace(/\.BA$/i, '');
+                const pVenta = prices[trade.ventaTicker] ?? prices[ventaBase] ?? null;
+                const pCompra = prices[trade.compraTicker] ?? prices[compraBase] ?? null;
+
+                // Opportunity cost: what you gave up by selling
+                const ventaDiff = pVenta !== null ? (pVenta - trade.ventaPrecio) * trade.ventaCantidad : null;
+                // Actual gain/loss: what you got by buying
+                const compraDiff = pCompra !== null ? (pCompra - trade.compraPrecio) * trade.compraCantidad : null;
+                // Net: did the switch beat doing nothing?
+                const netOutcome = (ventaDiff !== null && compraDiff !== null) ? compraDiff - ventaDiff : null;
+
+                return (
+                  <div key={trade.id} className="glass-panel" style={{ background: 'rgba(0,0,0,0.2)', position: 'relative' }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
+                      <div>
+                        <h3 style={{ fontSize: '15px', marginBottom: '4px' }}>
+                          Rotación: <span style={{color: 'var(--negative)'}}>{trade.ventaTicker}</span> → <span style={{color: 'var(--positive)'}}>{trade.compraTicker}</span>
+                        </h3>
+                        <p className="hint">
+                          Venta {trade.ventaTicker} {fmt(trade.ventaCantidad, 0)} @ ${fmt(trade.ventaPrecio)} ({trade.ventaFecha}) &nbsp;|&nbsp; Compra {trade.compraTicker} {fmt(trade.compraCantidad, 0)} @ ${fmt(trade.compraPrecio)} ({trade.compraFecha})
+                        </p>
+                      </div>
+                      <button className="btn btn-sm btn-danger" onClick={() => eliminarTrade(trade.id)} style={{flexShrink: 0, marginLeft: '12px'}}>✕</button>
+                    </div>
+
+                    {/* Scenario output */}
+                    {(pVenta === null || pCompra === null) ? (
+                      <div className="empty-state" style={{padding: '1rem'}}>Cargando cotizaciones...</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '14px' }}>
+                        {/* Line 1: Opportunity cost */}
+                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                          Si hubieras conservado <strong>{trade.ventaTicker}</strong>, ahora tendrías {ventaDiff >= 0 ? 'una ganancia' : 'una pérdida'} de:{' '}
+                          <strong className={ventaDiff >= 0 ? 'positive' : 'negative'}>
+                            {ventaDiff >= 0 ? '+' : '-'}${fmt(Math.abs(ventaDiff))}
+                          </strong>
+                          <div className="hint" style={{marginTop: '4px'}}>
+                            (Precio de venta: ${fmt(trade.ventaPrecio)} vs Valor actual: ${fmt(pVenta)})
+                          </div>
+                        </div>
+
+                        {/* Line 2: Actual trade result */}
+                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                          Al haber comprado <strong>{trade.compraTicker}</strong>, obtuviste {compraDiff >= 0 ? 'una ganancia' : 'una pérdida'} de:{' '}
+                          <strong className={compraDiff >= 0 ? 'positive' : 'negative'}>
+                            {compraDiff >= 0 ? '+' : '-'}${fmt(Math.abs(compraDiff))}
+                          </strong>
+                          <div className="hint" style={{marginTop: '4px'}}>
+                            (Precio de compra: ${fmt(trade.compraPrecio)} vs Valor actual: ${fmt(pCompra)})
+                          </div>
+                        </div>
+
+                        {/* Line 3: Net impact */}
+                        <div style={{ padding: '16px', background: 'rgba(94, 106, 210, 0.1)', border: '1px solid rgba(94, 106, 210, 0.3)', borderRadius: '8px' }}>
+                          En resumen, el impacto de la Rotación es:{' '}
+                          <strong className={netOutcome >= 0 ? 'positive' : 'negative'} style={{fontSize: '18px'}}>
+                            {netOutcome >= 0 ? '+' : '-'}${fmt(Math.abs(netOutcome))}
+                          </strong>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
