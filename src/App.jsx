@@ -287,11 +287,16 @@ function App() {
 
   // --- OPERATIONS BUSINESS LOGIC ---
   const agregarOperacion = () => {
-    const ticker = opTicker.trim().toUpperCase();
+    let ticker = opTicker.trim().toUpperCase();
     const cant = parseFloat(opCantidad);
     const prec = parseFloat(opPrecio);
 
     if (!ticker || isNaN(cant) || isNaN(prec) || !opFecha) return alert('Datos incompletos.');
+
+    // Auto-append .BA for Argentine assets so we fetch BCBA prices, not ADRs
+    if ((opAssetTipo === 'accion' || opAssetTipo === 'cedear') && !ticker.endsWith('.BA')) {
+      ticker = ticker + '.BA';
+    }
 
     const op = { id: Date.now().toString(), ticker, assetTipo: opAssetTipo, tipo: opTipo, cantidad: cant, precio: prec, fecha: opFecha };
     setOperaciones([...operaciones, op]);
