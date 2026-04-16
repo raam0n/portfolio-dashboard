@@ -418,10 +418,17 @@ function App() {
 
       {/* Tabs Navigation */}
       <nav className="tabs-nav">
-        <button className={`tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`} onClick={() => setActiveTab('portfolio')}>Mi Portfolio</button>
-        <button className={`tab-btn ${activeTab === 'operaciones' ? 'active' : ''}`} onClick={() => setActiveTab('operaciones')}>Histórico</button>
-        <button className={`tab-btn ${activeTab === 'watchlist' ? 'active' : ''}`} onClick={() => setActiveTab('watchlist')}>Watchlist</button>
-        <button className={`tab-btn ${activeTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveTab('trades')}>Trades</button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button className={`tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`} onClick={() => setActiveTab('portfolio')}>Mi Portfolio</button>
+          <button className={`tab-btn ${activeTab === 'operaciones' ? 'active' : ''}`} onClick={() => setActiveTab('operaciones')}>Histórico</button>
+          <button className={`tab-btn ${activeTab === 'watchlist' ? 'active' : ''}`} onClick={() => setActiveTab('watchlist')}>Watchlist</button>
+          <button className={`tab-btn ${activeTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveTab('trades')}>Trades</button>
+        </div>
+        {dolarMep && (
+          <div style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>
+            Dólar MEP: <span style={{ color: 'var(--text-main)' }}>${fmt(dolarMep)}</span>
+          </div>
+        )}
       </nav>
 
       {/* Settings Panel (Global Drawer) */}
@@ -981,6 +988,11 @@ function App() {
                           Si hubieras conservado <strong>{trade.ventaTicker}</strong>, ahora tendrías {ventaDiff >= 0 ? 'una ganancia' : 'una pérdida'} de:{' '}
                           <strong className={ventaDiff >= 0 ? 'positive' : 'negative'}>
                             {ventaDiff >= 0 ? '+' : '-'}${fmt(Math.abs(ventaDiff))}
+                            {dolarMep && (
+                              <span style={{ fontSize: '13px', fontWeight: '400', opacity: 0.8, marginLeft: '8px' }}>
+                                ≈ US$ {fmt(Math.abs(ventaDiff) / dolarMep)}
+                              </span>
+                            )}
                           </strong>
                           <div className="hint" style={{marginTop: '4px'}}>
                             (Precio de venta: ${fmt(trade.ventaPrecio)} vs Valor actual: ${fmt(pVenta)})
@@ -992,6 +1004,11 @@ function App() {
                           Al haber comprado <strong>{trade.compraTicker}</strong>, obtuviste {compraDiff >= 0 ? 'una ganancia' : 'una pérdida'} de:{' '}
                           <strong className={compraDiff >= 0 ? 'positive' : 'negative'}>
                             {compraDiff >= 0 ? '+' : '-'}${fmt(Math.abs(compraDiff))}
+                            {dolarMep && (
+                              <span style={{ fontSize: '13px', fontWeight: '400', opacity: 0.8, marginLeft: '8px' }}>
+                                ≈ US$ {fmt(Math.abs(compraDiff) / dolarMep)}
+                              </span>
+                            )}
                           </strong>
                           <div className="hint" style={{marginTop: '4px'}}>
                             (Precio de compra: ${fmt(trade.compraPrecio)} vs Valor actual: ${fmt(pCompra)})
@@ -1003,6 +1020,11 @@ function App() {
                           En resumen, el impacto de la Rotación es:{' '}
                           <strong className={netOutcome >= 0 ? 'positive' : 'negative'} style={{fontSize: '18px'}}>
                             {netOutcome >= 0 ? '+' : '-'}${fmt(Math.abs(netOutcome))}
+                            {dolarMep && (
+                              <span style={{ fontSize: '14px', fontWeight: '400', opacity: 0.8, marginLeft: '10px' }}>
+                                ≈ US$ {fmt(Math.abs(netOutcome) / dolarMep)}
+                              </span>
+                            )}
                           </strong>
                         </div>
                       </div>
