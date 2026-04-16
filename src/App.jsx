@@ -91,6 +91,64 @@ function PieChart({ data, title }) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Multi-Check Dropdown ───────────────────────────────────────────────────────
+function MultiCheckDropdown({ placeholder, options, selected, onChange }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const toggle = (val) =>
+    onChange(selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val]);
+
+  const displayLabel =
+    selected.length === 0
+      ? placeholder
+      : selected.length === 1
+      ? (options.find(o => o.value === selected[0])?.label ?? selected[0])
+      : `${selected.length} seleccionados`;
+
+  return (
+    <div className="mcd-wrapper" ref={ref}>
+      <button
+        type="button"
+        className={`mcd-trigger${open ? ' mcd-trigger--open' : ''}${selected.length > 0 ? ' mcd-trigger--active' : ''}`}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span className="mcd-label">{displayLabel}</span>
+        <span className="mcd-arrow">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && (
+        <div className="mcd-dropdown">
+          {selected.length > 0 && (
+            <button type="button" className="mcd-clear" onClick={() => onChange([])}>
+              Limpiar ×
+            </button>
+          )}
+          {options.length === 0 && (
+            <div style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>Sin opciones</div>
+          )}
+          {options.map(opt => (
+            <label key={opt.value} className="mcd-option">
+              <input
+                type="checkbox"
+                checked={selected.includes(opt.value)}
+                onChange={() => toggle(opt.value)}
+              />
+              <span>{opt.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 
 function App() {
   const [activeTab, setActiveTab] = useState('portfolio'); // 'portfolio', 'operaciones', 'watchlist', 'trades'
@@ -138,8 +196,9 @@ function App() {
   const [wlMercado, setWlMercado] = useState('BCBA');
   const [wlNombre, setWlNombre] = useState('');
   const [wlCategoria, setWlCategoria] = useState('');
-  const [wlFilter, setWlFilter] = useState('Todos');
-  const [wlCatFilter, setWlCatFilter] = useState('Todas');
+  const [wlTypeFilters, setWlTypeFilters] = useState([]);
+  const [wlCatFilters, setWlCatFilters] = useState([]);
+  const [wlExcludedTickers, setWlExcludedTickers] = useState([]);
 
   const [importJson, setImportJson] = useState('');
 
@@ -488,6 +547,11 @@ function App() {
 
   const pnlT = totalValor - totalCosto;
   const pnlTP = totalCosto > 0 ? (pnlT / totalCosto) * 100 : 0;
+
+  // Watchlist: items visible after type + category filters (before per-ticker exclusion)
+  const wlVisibleBeforeExclude = watchlist
+    .filter(w => wlTypeFilters.length === 0 || wlTypeFilters.includes(w.tipo))
+    .filter(w => wlCatFilters.length === 0 || wlCatFilters.includes(w.categoria || ''));
 
   // Sort utility for unified grouping: type then alphabetical
   const typePriority = { 'accion': 1, 'bono': 2, 'cedear': 3, 'stock': 4 };
@@ -867,31 +931,33 @@ function App() {
         <div className="glass-panel">
           <div className="panel-header" style={{ alignItems: 'center' }}>
             <div className="panel-title">Lista de Seguimiento ({watchlist.length})</div>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filtros:</span>
-              {/* Type Filter */}
-              <select 
-                value={wlFilter} 
-                onChange={e => setWlFilter(e.target.value)}
-                style={{ height: '32px', fontSize: '12px', background: 'rgba(255,255,255,0.05)', color: 'white', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', padding: '0 8px', outline: 'none' }}
-              >
-                <option value="Todos" style={{background: '#1a1d24', color: 'white'}}>Todos los tipos</option>
-                <option value="accion" style={{background: '#1a1d24', color: 'white'}}>Acciones</option>
-                <option value="cedear" style={{background: '#1a1d24', color: 'white'}}>CEDEARs</option>
-                <option value="stock" style={{background: '#1a1d24', color: 'white'}}>Stocks US</option>
-              </select>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0 }}>Filtros:</span>
 
-              {/* Category Filter */}
-              <select 
-                value={wlCatFilter} 
-                onChange={e => setWlCatFilter(e.target.value)}
-                style={{ height: '32px', fontSize: '12px', background: 'rgba(255,255,255,0.05)', color: 'white', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', padding: '0 8px', outline: 'none' }}
-              >
-                <option value="Todas" style={{background: '#1a1d24', color: 'white'}}>Todas las categorías</option>
-                {[...new Set(watchlist.map(w => w.categoria).filter(Boolean))].sort().map(cat => (
-                  <option key={cat} value={cat} style={{background: '#1a1d24', color: 'white'}}>{cat}</option>
-                ))}
-              </select>
+              <MultiCheckDropdown
+                placeholder="Todos los tipos"
+                options={[
+                  { value: 'accion', label: 'Acciones AR' },
+                  { value: 'cedear', label: 'CEDEARs' },
+                  { value: 'stock', label: 'Stocks US' },
+                ]}
+                selected={wlTypeFilters}
+                onChange={setWlTypeFilters}
+              />
+
+              <MultiCheckDropdown
+                placeholder="Todas las categorías"
+                options={[...new Set(watchlist.map(w => w.categoria).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
+                selected={wlCatFilters}
+                onChange={setWlCatFilters}
+              />
+
+              <MultiCheckDropdown
+                placeholder="Ocultar activo..."
+                options={wlVisibleBeforeExclude.map(w => ({ value: `${w.ticker}-${w.mercado || 'BCBA'}`, label: w.ticker }))}
+                selected={wlExcludedTickers}
+                onChange={setWlExcludedTickers}
+              />
 
               <button className="btn btn-primary btn-sm" onClick={() => setShowAddWatchlist(!showAddWatchlist)}>+ Suscribir</button>
             </div>
@@ -970,9 +1036,8 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...watchlist]
-                    .filter(w => wlFilter === 'Todos' || w.tipo === wlFilter)
-                    .filter(w => wlCatFilter === 'Todas' || w.categoria === wlCatFilter)
+                  {wlVisibleBeforeExclude
+                    .filter(w => !wlExcludedTickers.includes(`${w.ticker}-${w.mercado || 'BCBA'}`))
                     .sort(sortUnified).map(w => {
                     const yt = getYahooTicker(w) || w.ticker;
                     const pc = prices[yt] ?? null;
