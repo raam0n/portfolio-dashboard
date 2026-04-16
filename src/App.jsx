@@ -928,7 +928,7 @@ function App() {
                       <label>Operación Vendida (¿Qué vendiste?)</label>
                       <select value={tradeVentaId} onChange={e => setTradeVentaId(e.target.value)}>
                         <option value="">— Seleccioná una venta —</option>
-                        {operaciones.filter(o => o.tipo === 'venta').map(o => (
+                        {operaciones.filter(o => o.tipo === 'venta').sort((a, b) => b.fecha.localeCompare(a.fecha)).map(o => (
                           <option key={o.id} value={o.id}>
                             {o.fecha} · {o.ticker} · Venta {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
                           </option>
@@ -939,7 +939,7 @@ function App() {
                       <label>Operación Comprada (¿Qué compraste?)</label>
                       <select value={tradeCompraId} onChange={e => setTradeCompraId(e.target.value)}>
                         <option value="">— Seleccioná una compra —</option>
-                        {operaciones.filter(o => o.tipo === 'compra').map(o => (
+                        {operaciones.filter(o => o.tipo === 'compra').sort((a, b) => b.fecha.localeCompare(a.fecha)).map(o => (
                           <option key={o.id} value={o.id}>
                             {o.fecha} · {o.ticker} · Compra {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
                           </option>
