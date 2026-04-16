@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/market/(.*)",
+      "destination": "https://query2.finance.yahoo.com/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

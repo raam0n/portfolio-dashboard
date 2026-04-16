@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portfolio Tracker AR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: radial-gradient(circle at top right, #1a1b35, #0a0a12);
+      --glass-bg: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --glass-border-hover: rgba(255, 255, 255, 0.15);
+      --text-main: #f0f0f5;
+      --text-muted: #a0a0b5;
+      --accent: #5e6ad2;
+      --accent-hover: #737fe6;
+      --positive: #22c55e;
+      --negative: #ef4444;
+      --positive-bg: rgba(34, 197, 94, 0.1);
+      --negative-bg: rgba(239, 68, 68, 0.1);
+      --warning: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      font-size: 14px;
+      min-height: 100vh;
+      line-height: 1.5;
+      padding: 2rem 1rem;
+    }
+
+    .app-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #fff, #a0a0b5);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .refresh-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text-muted);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      padding: 6px 12px;
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--positive);
+      flex-shrink: 0;
+      box-shadow: 0 0 8px var(--positive);
+    }
+
+    .dot.loading {
+      background: var(--warning);
+      box-shadow: 0 0 8px var(--warning);
+      animation: pulse 1s infinite;
+    }
+
+    .dot.error {
+      background: var(--negative);
+      box-shadow: 0 0 8px var(--negative);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* UI Components */
+    .glass-panel {
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: border-color 0.3s ease;
+    }
+    
+    .glass-panel:hover {
+      border-color: var(--glass-border-hover);
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+
+    .metric-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 500;
+    }
+
+    .metric-value {
+      font-size: 32px;
+      font-weight: 600;
+      letter-spacing: -1px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Dashboard Layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    /* Tables */
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 12px;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+      vertical-align: middle;
+      font-size: 14px;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr {
+      transition: background-color 0.2s;
+    }
+
+    tr:hover {
+      background-color: rgba(255,255,255,0.02);
+    }
+
+    /* Typography Utilities */
+    .positive { color: var(--positive); text-shadow: 0 0 10px rgba(34, 197, 94, 0.3); }
+    .negative { color: var(--negative); text-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+    .neutral { color: var(--text-muted); }
+    .ticker-name { font-weight: 600; font-size: 15px; }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-accion { background: rgba(94, 106, 210, 0.15); color: #8c9eff; border: 1px solid rgba(94, 106, 210, 0.3); }
+    .badge-cedear { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-bono { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-compra { background: var(--positive-bg); color: var(--positive); }
+    .badge-venta { background: var(--negative-bg); color: var(--negative); }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      cursor: pointer;
+      background: var(--glass-bg);
+      color: var(--text-main);
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .btn:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: var(--glass-border-hover);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      box-shadow: 0 4px 12px rgba(94, 106, 210, 0.3);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 11px;
+      border-radius: 6px;
+    }
+
+    .btn-danger {
+      color: var(--negative);
+      border-color: rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.05);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    /* Forms */
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .form-row.trio { grid-template-columns: 1fr 1fr 1fr; }
+    
+    label {
+      display: block;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 13px;
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      background: rgba(0,0,0,0.2);
+      color: var(--text-main);
+      font-family: inherit;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: rgba(0,0,0,0.4);
+      box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.2);
+    }
+
+    ::placeholder { color: #555; }
+
+    /* Modal / Form wrappers */
+    .collapsible-content {
+      display: none;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--glass-border);
+      animation: fadeIn 0.3s ease;
+    }
+
+    .collapsible-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    
+    .hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+  </style>
+</head>
+
+<body>
+  <div class="app-container">
+    
+    <!-- Header -->
+    <header class="header">
+      <h1>Portfolio Dashboard</h1>
+      <div class="refresh-bar">
+        <div class="dot" id="status-dot"></div>
+        <span id="status-text">Cargando precios...</span>
+        <button class="btn btn-sm" onclick="refreshAll()">Actualizar</button>
+        <button class="btn btn-sm" onclick="toggleSection('settings-wrap')">Ajustes</button>
+      </div>
+    </header>
+
+    <!-- Metrics Grid -->
+    <div class="metrics-grid">
+      <div class="glass-panel metric-card">
+        <div class="metric-label">Valor Total</div>
+        <div class="metric-value" id="m-total">—</div>
+      </div>
+      <div class="glass-panel metric-card">
+        <div class="metric-label">Ganancia/Pérdida Absoluta ($)</div>
+        <div class="metric-value" id="m-pnl-abs">—</div>
+      </div>
+      <div class="glass-panel metric-card">
+        <div class="metric-label">Rendimiento Total (%)</div>
+        <div class="metric-value" id="m-pnl-pct">—</div>
+      </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="dashboard-grid">
+      
+      <!-- Holdings Column -->
+      <div class="glass-panel">
+        <div class="panel-header">
+          <div class="panel-title">Tus Holdings</div>
+          <button class="btn btn-primary btn-sm" onclick="toggleSection('add-holding-wrap')">+ Agregar Holding</button>
+        </div>
+        
+        <div class="table-container">
+          <table id="portfolio-table">
+            <thead>
+              <tr>
+                <th>Activo</th>
+                <th>Tipo</th>
+                <th>Cant.</th>
+                <th>P. Compra</th>
+                <th>P. Actual</th>
+                <th>Valor ($)</th>
+                <th>P&L $</th>
+                <th>P&L %</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="portfolio-tbody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+          <div id="portfolio-empty" class="empty-state">Sin holdings todavía. Agrega uno para comenzar.</div>
+        </div>
+
+        <!-- Add Holding Form (Collapsible) -->
+        <div id="add-holding-wrap" class="collapsible-content">
+          <div class="panel-title" style="margin-bottom:12px; font-size:14px;">Nuevo Holding</div>
+          <div class="form-row">
+            <div>
+              <label>Tipo</label>
+              <select id="new-tipo" onchange="onTipoChange()">
+                <option value="accion">Acción AR</option>
+                <option value="cedear">CEDEAR</option>
+                <option value="bono">Bono</option>
+              </select>
+            </div>
+            <div>
+              <label>Ticker</label>
+              <input id="new-ticker" placeholder="ej: GGAL" oninput="this.value=this.value.toUpperCase()" />
+              <div class="hint" id="ticker-hint">Ej: GGAL, YPF, BMA, PAMP</div>
+            </div>
+          </div>
+          <div class="form-row trio">
+            <div>
+              <label>Nombre (opc.)</label>
+              <input id="new-nombre" placeholder="ej: Galicia" />
+            </div>
+            <div>
+              <label>Cantidad</label>
+              <input id="new-cantidad" type="number" placeholder="100" />
+            </div>
+            <div>
+              <label>Precio Compra</label>
+              <input id="new-precio" type="number" placeholder="0.00" step="0.01" />
+            </div>
+          </div>
+          <div id="bono-wrap" style="display:none; margin-bottom:12px;">
+            <div class="form-row">
+              <div>
+                <label>Precio actual manual ($)</label>
+                <input id="new-precio-actual" type="number" placeholder="0.00" step="0.01" />
+              </div>
+              <div></div>
+            </div>
+            <div class="hint">Los bonos se actualizan manualmente copiando el precio de mercado.</div>
+          </div>
+          <button class="btn btn-primary" onclick="agregarHolding()">Guardar Holding</button>
+          <button class="btn" style="margin-left:8px;" onclick="toggleSection('add-holding-wrap')">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- Operations Column -->
+      <div class="glass-panel">
+        <div class="panel-header">
+          <div class="panel-title">Operaciones Recientes</div>
+          <button class="btn btn-sm" onclick="toggleSection('add-op-wrap')">+ Registrar</button>
+        </div>
+
+        <div class="table-container">
+          <table id="operaciones-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Activo</th>
+                <th>Detalle</th>
+                <th>Total</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="operaciones-tbody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+          <div id="operaciones-empty" class="empty-state">Sin operaciones recientes.</div>
+        </div>
+
+        <!-- Add Operation Form (Collapsible) -->
+        <div id="add-op-wrap" class="collapsible-content">
+          <div class="panel-title" style="margin-bottom:12px; font-size:14px;">Registrar Movimiento</div>
+          <div class="form-row">
+            <div>
+              <label>Ticker</label>
+              <input id="op-ticker" placeholder="GGAL" oninput="this.value=this.value.toUpperCase()" />
+            </div>
+            <div>
+              <label>Tipo</label>
+              <select id="op-tipo">
+                <option value="compra">Compra</option>
+                <option value="venta">Venta</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row trio">
+            <div>
+              <label>Fecha</label>
+              <input id="op-fecha" type="date" />
+            </div>
+            <div>
+              <label>Cantidad</label>
+              <input id="op-cantidad" type="number" placeholder="Ej: 50" />
+            </div>
+            <div>
+              <label>Precio ($)</label>
+              <input id="op-precio" type="number" placeholder="0.00" step="0.01" />
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="agregarOperacion()">Guardar Movimiento</button>
+          <button class="btn" style="margin-left:8px;" onclick="toggleSection('add-op-wrap')">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Management (Settings) -->
+    <div id="settings-wrap" class="glass-panel collapsible-content" style="border-color: rgba(94, 106, 210, 0.4);">
+      <div class="panel-header">
+        <div class="panel-title">Ajustes & Respaldo de Datos</div>
+        <button class="btn btn-sm" onclick="toggleSection('settings-wrap')">Cerrar</button>
+      </div>
+      <div class="dashboard-grid" style="grid-template-columns: 1fr 1fr; gap:2rem; margin-top:1rem;">
+        <div>
+          <label>Exportar Datos (JSON)</label>
+          <p class="hint" style="margin-bottom:8px;">Guardá este JSON de forma segura como backup.</p>
+          <textarea id="export-area" readonly rows="4" style="font-family:monospace; font-size:11px;"></textarea>
+          <div style="margin-top:8px; display:flex; gap:8px;">
+            <button class="btn" onclick="exportar()">Descargar Archivo</button>
+            <button class="btn" onclick="copiarJSON()">Copiar</button>
+          </div>
+        </div>
+        <div>
+          <label>Importar Datos</label>
+          <p class="hint" style="margin-bottom:8px;">Atención: Pegá un JSON válido. Esto sobreescribirá todo.</p>
+          <textarea id="import-area" rows="4" placeholder='{"holdings":[...],"operaciones":[...]}' style="font-family:monospace; font-size:11px;"></textarea>
+          <div style="margin-top:8px; display:flex; gap:8px;">
+            <button class="btn btn-primary" onclick="importar()">Restaurar</button>
+            <button class="btn btn-danger" onclick="borrarTodo()">Reset de Fábrica</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ─── Estado Global ────────────────────────────────────────────────────────
+    let holdings = JSON.parse(localStorage.getItem('portfolio_holdings') || '[]');
+    let operaciones = JSON.parse(localStorage.getItem('portfolio_operaciones') || '[]');
+    let prices = {};
+
+    // ─── Utilidades UI ────────────────────────────────────────────────────────
+    function toggleSection(id) {
+      const el = document.getElementById(id);
+      el.classList.toggle('active');
+    }
+
+    function setStatus(state, text) {
+      const dot = document.getElementById('status-dot');
+      dot.className = 'dot ' + state; 
+      document.getElementById('status-text').textContent = text;
+    }
+
+    function fmt(n, dec = 2) {
+      if (n == null || isNaN(n)) return '—';
+      return new Intl.NumberFormat('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
+    }
+    
+    function fmtPct(n) {
+      if (n == null || isNaN(n)) return '—';
+      const sign = n >= 0 ? '+' : '';
+      return `${sign}${fmt(n, 2)}%`;
+    }
+
+    function onTipoChange() {
+      const tipo = document.getElementById('new-tipo').value;
+      const hints = { 
+        accion: 'Ej: GGAL, YPFD, PAMP', 
+        cedear: 'Ej: AAPL, MSFT, SPY (ticker original US)', 
+        bono: 'Ej: AL30, GD30, AE38' 
+      };
+      document.getElementById('ticker-hint').textContent = hints[tipo];
+      document.getElementById('bono-wrap').style.display = tipo === 'bono' ? 'block' : 'none';
+    }
+
+    // ─── Render Portafolio ────────────────────────────────────────────────────
+    function renderPortfolio() {
+      const tbody = document.getElementById('portfolio-tbody');
+      const table = document.getElementById('portfolio-table');
+      const empty = document.getElementById('portfolio-empty');
+
+      if (holdings.length === 0) {
+        table.style.display = 'none';
+        empty.style.display = 'block';
+        ['m-total', 'm-pnl-abs', 'm-pnl-pct'].forEach(id => document.getElementById(id).innerHTML = '—');
+        return;
+      }
+
+      table.style.display = 'table';
+      empty.style.display = 'none';
+
+      let totalValor = 0, totalCosto = 0;
+      let html = '';
+
+      holdings.forEach(h => {
+        const pc = prices[h.ticker] ?? null;
+        const valor = pc !== null ? pc * h.cantidad : null;
+        const costo = h.precioEntrada * h.cantidad;
+        const pnlA = valor !== null ? valor - costo : null;
+        const pnlP = (valor !== null && costo > 0) ? (pnlA / costo) * 100 : null;
+        
+        if (valor !== null) totalValor += valor;
+        totalCosto += costo;
+        
+        const cssPnl = pnlA == null ? 'neutral' : (pnlA >= 0 ? 'positive' : 'negative');
+        const sign = pnlA >= 0 ? '+' : '';
+
+        const pcCell = pc !== null 
+          ? `$${fmt(pc)}` 
+          : h.tipo === 'bono'
+            ? `<button class="btn btn-sm" onclick="editBonoPrecio('${h.ticker}')">Fijar P.</button>`
+            : '<span style="font-style:italic;color:#888;">cargando...</span>';
+
+        html += `
+          <tr>
+            <td>
+              <div class="ticker-name">${h.ticker}</div>
+              ${h.nombre ? `<div style="font-size:11px;color:var(--text-muted)">${h.nombre}</div>` : ''}
+            </td>
+            <td><span class="badge badge-${h.tipo}">${h.tipo}</span></td>
+            <td>${fmt(h.cantidad, 0)}</td>
+            <td>$${fmt(h.precioEntrada)}</td>
+            <td><strong>${pcCell}</strong></td>
+            <td>${valor !== null ? '$' + fmt(valor) : '—'}</td>
+            <td class="${cssPnl}">${pnlA !== null ? sign + '$' + fmt(pnlA) : '—'}</td>
+            <td class="${cssPnl}"><strong>${fmtPct(pnlP)}</strong></td>
+            <td><button class="btn btn-sm btn-danger" onclick="eliminarHolding('${h.ticker}')">✕</button></td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+
+      // Update Metrics
+      const pnlT = totalValor - totalCosto;
+      const pnlTP = totalCosto > 0 ? (pnlT / totalCosto) * 100 : 0;
+      
+      document.getElementById('m-total').innerHTML = `$${fmt(totalValor)}`;
+      
+      const elPnlAbs = document.getElementById('m-pnl-abs');
+      elPnlAbs.innerHTML = (pnlT >= 0 ? '+$' : '-$') + fmt(Math.abs(pnlT));
+      elPnlAbs.className = 'metric-value ' + (pnlT >= 0 ? 'positive' : 'negative');
+      
+      const elPnlPct = document.getElementById('m-pnl-pct');
+      elPnlPct.innerHTML = fmtPct(pnlTP);
+      elPnlPct.className = 'metric-value ' + (pnlTP >= 0 ? 'positive' : 'negative');
+    }
+
+    // ─── Render Operaciones ───────────────────────────────────────────────────
+    function renderOperaciones() {
+      const tbody = document.getElementById('operaciones-tbody');
+      const table = document.getElementById('operaciones-table');
+      const empty = document.getElementById('operaciones-empty');
+
+      if (operaciones.length === 0) {
+        table.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+      }
+
+      table.style.display = 'table';
+      empty.style.display = 'none';
+
+      const sorted = [...operaciones].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      let html = '';
+
+      sorted.forEach(op => {
+        html += `
+          <tr>
+            <td style="white-space:nowrap;font-size:12px;color:var(--text-muted)">${op.fecha}</td>
+            <td><strong>${op.ticker}</strong></td>
+            <td>
+              <span class="badge badge-${op.tipo}">${op.tipo}</span><br>
+              <span style="font-size:12px;color:var(--text-muted)">${fmt(op.cantidad, 0)} @ $${fmt(op.precio)}</span>
+            </td>
+            <td>$${fmt(op.cantidad * op.precio)}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="eliminarOp('${op.id}')">✕</button></td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    // ─── Lógica de Negocio y APIs ─────────────────────────────────────────────
+    function save() {
+      localStorage.setItem('portfolio_holdings', JSON.stringify(holdings));
+      localStorage.setItem('portfolio_operaciones', JSON.stringify(operaciones));
+    }
+
+    function getYahooTicker(h) {
+      if (h.tipo === 'accion') return h.ticker + '.BA';
+      if (h.tipo === 'cedear') return h.ticker;
+      return null;
+    }
+
+    async function fetchPrice(yahooTicker) {
+      try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooTicker}?interval=1d&range=1d`;
+        const r = await fetch(url);
+        const d = await r.json();
+        return d?.chart?.result?.[0]?.meta?.regularMarketPrice ?? null;
+      } catch (e) { return null; }
+    }
+
+    async function refreshAll() {
+      setStatus('loading', 'Consultando mercado...');
+      let hasError = false;
+
+      for (const h of holdings) {
+        if (h.tipo === 'bono') {
+          if (h.precioActual !== undefined) prices[h.ticker] = h.precioActual;
+          continue;
+        }
+        const yt = getYahooTicker(h);
+        if (yt) {
+          const p = await fetchPrice(yt);
+          if (p !== null) {
+            prices[h.ticker] = p;
+          } else {
+            hasError = true;
+          }
+        }
+      }
+
+      const ts = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+      setStatus(hasError ? 'error' : 'ok', `Actualizado ${ts}`);
+      renderPortfolio();
+      
+      // Update export box just in case
+      document.getElementById('export-area').value = JSON.stringify({ holdings, operaciones }, null, 2);
+    }
+
+    // ─── Acciones de Usuario ──────────────────────────────────────────────────
+    function agregarHolding() {
+      const tipo = document.getElementById('new-tipo').value;
+      const ticker = document.getElementById('new-ticker').value.trim().toUpperCase();
+      const nombre = document.getElementById('new-nombre').value.trim();
+      const cantidad = parseFloat(document.getElementById('new-cantidad').value);
+      const precio = parseFloat(document.getElementById('new-precio').value);
+      
+      if (!ticker || isNaN(cantidad) || isNaN(precio)) { 
+        alert('Completá ticker, cantidad y precio.'); 
+        return; 
+      }
+      if (holdings.find(h => h.ticker === ticker)) { 
+        alert('Este activo ya está en el portfolio.'); 
+        return; 
+      }
+
+      const h = { ticker, tipo, nombre, cantidad, precioEntrada: precio };
+      if (tipo === 'bono') {
+        const pa = parseFloat(document.getElementById('new-precio-actual').value);
+        if (!isNaN(pa)) { h.precioActual = pa; prices[ticker] = pa; }
+      }
+
+      holdings.push(h);
+      save();
+      
+      ['new-ticker', 'new-nombre', 'new-cantidad', 'new-precio', 'new-precio-actual'].forEach(id => document.getElementById(id).value = '');
+      
+      toggleSection('add-holding-wrap');
+      renderPortfolio();
+      
+      if (tipo !== 'bono') {
+        fetchPrice(getYahooTicker(h)).then(p => { 
+          if (p) { prices[ticker] = p; renderPortfolio(); } 
+        });
+      }
+    }
+
+    function agregarOperacion() {
+      const ticker = document.getElementById('op-ticker').value.trim().toUpperCase();
+      const tipo = document.getElementById('op-tipo').value;
+      const cantidad = parseFloat(document.getElementById('op-cantidad').value);
+      const precio = parseFloat(document.getElementById('op-precio').value);
+      const fecha = document.getElementById('op-fecha').value;
+      
+      if (!ticker || isNaN(cantidad) || isNaN(precio) || !fecha) { 
+        alert('Datos incompletos.'); 
+        return; 
+      }
+
+      operaciones.push({ id: Date.now().toString(), ticker, tipo, cantidad, precio, fecha });
+      save();
+      
+      ['op-ticker', 'op-cantidad', 'op-precio'].forEach(id => document.getElementById(id).value = '');
+      toggleSection('add-op-wrap');
+      renderOperaciones();
+    }
+
+    function eliminarHolding(ticker) {
+      if (!confirm(`¿Remover ${ticker} del portfolio?`)) return;
+      holdings = holdings.filter(h => h.ticker !== ticker);
+      delete prices[ticker];
+      save();
+      renderPortfolio();
+    }
+
+    function eliminarOp(id) {
+      if (!confirm('¿Borrar registro de operación?')) return;
+      operaciones = operaciones.filter(o => o.id !== id);
+      save();
+      renderOperaciones();
+    }
+
+    function editBonoPrecio(ticker) {
+      const h = holdings.find(h => h.ticker === ticker);
+      if (!h) return;
+      const nuevo = prompt(`Nuevo precio unitario para ${ticker} ($):`, h.precioActual || '');
+      const p = parseFloat(nuevo);
+      if (!isNaN(p)) { 
+        h.precioActual = p; 
+        prices[ticker] = p; 
+        save(); 
+        renderPortfolio(); 
+      }
+    }
+
+    // ─── Export / Import ──────────────────────────────────────────────────────
+    function exportar() {
+      const json = JSON.stringify({ holdings, operaciones }, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'portfolio_' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click();
+    }
+
+    function copiarJSON() {
+      const json = JSON.stringify({ holdings, operaciones }, null, 2);
+      navigator.clipboard.writeText(json).then(() => alert('JSON Copiado'));
+    }
+
+    function importar() {
+      const raw = document.getElementById('import-area').value.trim();
+      if (!raw) return;
+      try {
+        const data = JSON.parse(raw);
+        if (!Array.isArray(data.holdings) || !Array.isArray(data.operaciones)) throw new Error('Estructura incorrecta');
+        if (!confirm('Esto sobreescribirá todo tu portfolio actual. ¿Proceder?')) return;
+        
+        holdings = data.holdings;
+        operaciones = data.operaciones;
+        save();
+        prices = {};
+        renderPortfolio();
+        renderOperaciones();
+        refreshAll();
+        document.getElementById('import-area').value = '';
+        toggleSection('settings-wrap');
+      } catch (e) {
+        alert('Archivo inválido: ' + e.message);
+      }
+    }
+
+    function borrarTodo() {
+      const typed = prompt('Escribí "BORRAR" para formatear todo.');
+      if (typed === 'BORRAR') {
+        holdings = []; operaciones = []; prices = {};
+        save();
+        renderPortfolio();
+        renderOperaciones();
+        toggleSection('settings-wrap');
+      }
+    }
+
+    // ─── Boot ─────────────────────────────────────────────────────────────────
+    document.getElementById('op-fecha').valueAsDate = new Date();
+    document.getElementById('export-area').value = JSON.stringify({ holdings, operaciones }, null, 2);
+    renderPortfolio();
+    renderOperaciones();
+    refreshAll();
+    
+    // Auto-update every 60 mins
+    setInterval(refreshAll, 60 * 60 * 1000);
+
+  </script>
+</body>
+</html>
