@@ -1,6 +1,97 @@
 import React, { useState, useEffect } from 'react';
 import './index.css';
 
+// ── Pure SVG Pie Chart ────────────────────────────────────────────────────────
+const CHART_COLORS = [
+  '#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6',
+  '#a855f7','#ec4899','#14b8a6','#f97316','#84cc16',
+  '#06b6d4','#e11d48','#8b5cf6','#22d3ee','#fb923c',
+];
+
+function PieChart({ data, title }) {
+  const [hovered, setHovered] = React.useState(null);
+
+  const total = data.reduce((s, d) => s + d.value, 0);
+  if (total === 0 || data.length === 0) {
+    return (
+      <div className="pie-chart-wrapper">
+        <div className="pie-chart-title">{title}</div>
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', padding: '40px 0' }}>Sin datos</div>
+      </div>
+    );
+  }
+
+  const cx = 80, cy = 80, r = 68;
+  let cumAngle = -Math.PI / 2;
+  const slices = data.map((d, i) => {
+    const angle = (d.value / total) * 2 * Math.PI;
+    const startAngle = cumAngle;
+    cumAngle += angle;
+    const endAngle = cumAngle;
+    const x1 = cx + r * Math.cos(startAngle);
+    const y1 = cy + r * Math.sin(startAngle);
+    const x2 = cx + r * Math.cos(endAngle);
+    const y2 = cy + r * Math.sin(endAngle);
+    const largeArc = angle > Math.PI ? 1 : 0;
+    const midAngle = startAngle + angle / 2;
+    return { ...d, x1, y1, x2, y2, largeArc, midAngle, angle, color: CHART_COLORS[i % CHART_COLORS.length], pct: (d.value / total) * 100 };
+  });
+
+  const hov = hovered !== null ? slices[hovered] : null;
+
+  return (
+    <div className="pie-chart-wrapper">
+      <div className="pie-chart-title">{title}</div>
+      <div className="pie-chart-body">
+        <svg viewBox="0 0 160 160" width="160" height="160" style={{ flexShrink: 0 }}>
+          <circle cx={cx} cy={cy} r={r} fill="rgba(0,0,0,0.2)" />
+          {slices.map((s, i) => (
+            <path
+              key={i}
+              d={`M${cx},${cy} L${s.x1},${s.y1} A${r},${r} 0 ${s.largeArc},1 ${s.x2},${s.y2} Z`}
+              fill={s.color}
+              opacity={hovered === null || hovered === i ? 1 : 0.35}
+              stroke="rgba(15,17,25,0.8)"
+              strokeWidth="1.5"
+              style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+              transform={hovered === i ? `translate(${Math.cos(s.midAngle) * 4},${Math.sin(s.midAngle) * 4})` : ''}
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+            />
+          ))}
+          {/* Inner hole */}
+          <circle cx={cx} cy={cy} r={36} fill="rgba(15,17,25,0.9)" style={{ pointerEvents: 'none' }} />
+          {/* Center label */}
+          {hov ? (
+            <>
+              <text x={cx} y={cy - 8} textAnchor="middle" fill="white" fontSize="13" fontWeight="700">{hov.pct.toFixed(1)}%</text>
+              <text x={cx} y={cy + 8} textAnchor="middle" fill="#aaa" fontSize="9">{hov.label.length > 10 ? hov.label.slice(0,10)+'…' : hov.label}</text>
+            </>
+          ) : (
+            <text x={cx} y={cy + 4} textAnchor="middle" fill="#888" fontSize="10">{data.length} items</text>
+          )}
+        </svg>
+        <ul className="pie-legend">
+          {slices.map((s, i) => (
+            <li
+              key={i}
+              className={`pie-legend-item ${hovered === i ? 'pie-legend-hovered' : ''}`}
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+            >
+              <span className="pie-dot" style={{ background: s.color }} />
+              <span className="pie-legend-label">{s.label}</span>
+              <span className="pie-legend-pct">{s.pct.toFixed(1)}%</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+
 function App() {
   const [activeTab, setActiveTab] = useState('portfolio'); // 'portfolio', 'operaciones', 'watchlist', 'trades'
   
@@ -631,6 +722,30 @@ function App() {
               )}
             </div>
           </div>
+
+          {/* ── Pie Charts (below holdings table) ──────── */}
+          {holdings.length > 0 && (() => {
+            const byAsset = {};
+            const byTipo  = {};
+
+            holdings.forEach(h => {
+              const yt = getYahooTicker(h) || h.ticker;
+              const pc = prices[yt] ?? null;
+              const valor = pc !== null ? pc * h.cantidad : h.precioEntrada * h.cantidad;
+              byAsset[h.ticker] = (byAsset[h.ticker] || 0) + valor;
+              const tipoLabel = h.tipo === 'accion' ? 'Acción AR' : h.tipo === 'stock' ? 'Stock US' : h.tipo === 'cedear' ? 'CEDEAR' : 'Bono';
+              byTipo[tipoLabel] = (byTipo[tipoLabel] || 0) + valor;
+            });
+
+            const toData = obj => Object.entries(obj).map(([label, value]) => ({ label, value })).sort((a,b) => b.value - a.value);
+
+            return (
+              <div className="pie-charts-row pie-charts-row--2col">
+                <PieChart data={toData(byAsset)} title="% por Activo" />
+                <PieChart data={toData(byTipo)}  title="% por Tipo de Activo" />
+              </div>
+            );
+          })()}
         </>
       )}
 
