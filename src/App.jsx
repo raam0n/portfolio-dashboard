@@ -495,6 +495,69 @@ function App() {
               <div className="panel-title">Tus Activos ({holdings.length})</div>
               <button className="btn btn-primary btn-sm" onClick={() => setShowAddHolding(!showAddHolding)}>+ Agregar Holding</button>
             </div>
+
+            {showAddHolding && (
+              <div className="collapsible-content active">
+                <div className="panel-title" style={{marginBottom: '12px', fontSize: '14px'}}>Nuevo Holding</div>
+                <div className="form-row">
+                  <div>
+                    <label>Tipo</label>
+                    <select value={newTipo} onChange={(e) => {
+                      const t = e.target.value;
+                      setNewTipo(t);
+                      if (t === 'accion' || t === 'cedear') setNewMercado('BCBA');
+                      else if (t === 'stock') setNewMercado('NYSE/NASDAQ');
+                      else if (t === 'bono') setNewMercado('OTC');
+                    }}>
+                      <option value="accion">Acción AR</option>
+                      <option value="cedear">CEDEAR</option>
+                      <option value="stock">Stock US</option>
+                      <option value="bono">Bono</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Mercado</label>
+                    <select value={newMercado} onChange={e => setNewMercado(e.target.value)}>
+                      <option value="BCBA">BCBA (Argentina)</option>
+                      <option value="NYSE/NASDAQ">NYSE/NASDAQ (US)</option>
+                      <option value="MAE">MAE</option>
+                      <option value="OTC">OTC</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Ticker</label>
+                    <input value={newTicker} onChange={e => setNewTicker(e.target.value.toUpperCase())} placeholder="ej: GGAL" />
+                  </div>
+                </div>
+                <div className="form-row trio">
+                  <div>
+                    <label>Nombre (opc.)</label>
+                    <input value={newNombre} onChange={e => setNewNombre(e.target.value)} placeholder="ej: Galicia" />
+                  </div>
+                  <div>
+                    <label>Cantidad</label>
+                    <input type="number" value={newCantidad} onChange={e => setNewCantidad(e.target.value)} placeholder="100" />
+                  </div>
+                  <div>
+                    <label>Precio Compra ($)</label>
+                    <input type="number" value={newPrecio} onChange={e => setNewPrecio(e.target.value)} placeholder="0.00" step="0.01" />
+                  </div>
+                </div>
+                {newTipo === 'bono' && (
+                  <div style={{marginBottom: '12px'}}>
+                    <div className="form-row">
+                      <div>
+                        <label>Precio actual manual ($)</label>
+                        <input type="number" value={newPrecioActual} onChange={e => setNewPrecioActual(e.target.value)} placeholder="0.00" step="0.01" />
+                      </div>
+                      <div></div>
+                    </div>
+                  </div>
+                )}
+                <button className="btn btn-primary" onClick={agregarHolding}>Guardar Holding</button>
+                <button className="btn" style={{marginLeft: '8px'}} onClick={() => setShowAddHolding(false)}>Cancelar</button>
+              </div>
+            )}
             
             <div className="table-container">
               {holdings.length === 0 ? (
@@ -562,69 +625,6 @@ function App() {
                 </table>
               )}
             </div>
-
-            {showAddHolding && (
-              <div className="collapsible-content active">
-                <div className="panel-title" style={{marginBottom: '12px', fontSize: '14px'}}>Nuevo Holding</div>
-                <div className="form-row">
-                  <div>
-                    <label>Tipo</label>
-                    <select value={newTipo} onChange={(e) => {
-                      const t = e.target.value;
-                      setNewTipo(t);
-                      if (t === 'accion' || t === 'cedear') setNewMercado('BCBA');
-                      else if (t === 'stock') setNewMercado('NYSE/NASDAQ');
-                      else if (t === 'bono') setNewMercado('OTC');
-                    }}>
-                      <option value="accion">Acción AR</option>
-                      <option value="cedear">CEDEAR</option>
-                      <option value="stock">Stock US</option>
-                      <option value="bono">Bono</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label>Mercado</label>
-                    <select value={newMercado} onChange={e => setNewMercado(e.target.value)}>
-                      <option value="BCBA">BCBA (Argentina)</option>
-                      <option value="NYSE/NASDAQ">NYSE/NASDAQ (US)</option>
-                      <option value="MAE">MAE</option>
-                      <option value="OTC">OTC</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label>Ticker</label>
-                    <input value={newTicker} onChange={e => setNewTicker(e.target.value.toUpperCase())} placeholder="ej: GGAL" />
-                  </div>
-                </div>
-                <div className="form-row trio">
-                  <div>
-                    <label>Nombre (opc.)</label>
-                    <input value={newNombre} onChange={e => setNewNombre(e.target.value)} placeholder="ej: Galicia" />
-                  </div>
-                  <div>
-                    <label>Cantidad</label>
-                    <input type="number" value={newCantidad} onChange={e => setNewCantidad(e.target.value)} placeholder="100" />
-                  </div>
-                  <div>
-                    <label>Precio Compra ($)</label>
-                    <input type="number" value={newPrecio} onChange={e => setNewPrecio(e.target.value)} placeholder="0.00" step="0.01" />
-                  </div>
-                </div>
-                {newTipo === 'bono' && (
-                  <div style={{marginBottom: '12px'}}>
-                    <div className="form-row">
-                      <div>
-                        <label>Precio actual manual ($)</label>
-                        <input type="number" value={newPrecioActual} onChange={e => setNewPrecioActual(e.target.value)} placeholder="0.00" step="0.01" />
-                      </div>
-                      <div></div>
-                    </div>
-                  </div>
-                )}
-                <button className="btn btn-primary" onClick={agregarHolding}>Guardar Holding</button>
-                <button className="btn" style={{marginLeft: '8px'}} onClick={() => setShowAddHolding(false)}>Cancelar</button>
-              </div>
-            )}
           </div>
         </>
       )}
@@ -636,6 +636,50 @@ function App() {
             <div className="panel-title">Operaciones Históricas ({operaciones.length})</div>
             <button className="btn btn-primary btn-sm" onClick={() => setShowAddOp(!showAddOp)}>+ Registrar</button>
           </div>
+
+          {showAddOp && (
+            <div className="collapsible-content active">
+              <div className="panel-title" style={{marginBottom: '12px', fontSize: '14px'}}>Registrar Movimiento</div>
+              <div className="form-row trio">
+                <div>
+                  <label>Tipo Activo</label>
+                  <select value={opAssetTipo} onChange={e => setOpAssetTipo(e.target.value)}>
+                    <option value="accion">Acción AR</option>
+                    <option value="cedear">CEDEAR</option>
+                    <option value="stock">Stock US</option>
+                    <option value="bono">Bono</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Ticker</label>
+                  <input value={opTicker} onChange={e => setOpTicker(e.target.value.toUpperCase())} placeholder="GGAL" />
+                </div>
+                <div>
+                  <label>Movimiento</label>
+                  <select value={opTipo} onChange={e => setOpTipo(e.target.value)}>
+                    <option value="compra">Compra</option>
+                    <option value="venta">Venta</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-row trio">
+                <div>
+                  <label>Fecha</label>
+                  <input type="date" value={opFecha} onChange={e => setOpFecha(e.target.value)} />
+                </div>
+                <div>
+                  <label>Cantidad</label>
+                  <input type="number" value={opCantidad} onChange={e => setOpCantidad(e.target.value)} placeholder="Ej: 50" />
+                </div>
+                <div>
+                  <label>Precio ($)</label>
+                  <input type="number" value={opPrecio} onChange={e => setOpPrecio(e.target.value)} placeholder="0.00" step="0.01" />
+                </div>
+              </div>
+              <button className="btn btn-primary" onClick={agregarOperacion}>Guardar Movimiento</button>
+              <button className="btn" style={{marginLeft: '8px'}} onClick={() => setShowAddOp(false)}>Cancelar</button>
+            </div>
+          )}
 
           <div className="table-container">
             {operaciones.length === 0 ? (
@@ -695,50 +739,6 @@ function App() {
               </table>
             )}
           </div>
-
-          {showAddOp && (
-            <div className="collapsible-content active">
-              <div className="panel-title" style={{marginBottom: '12px', fontSize: '14px'}}>Registrar Movimiento</div>
-              <div className="form-row trio">
-                <div>
-                  <label>Tipo Activo</label>
-                  <select value={opAssetTipo} onChange={e => setOpAssetTipo(e.target.value)}>
-                    <option value="accion">Acción AR</option>
-                    <option value="cedear">CEDEAR</option>
-                    <option value="stock">Stock US</option>
-                    <option value="bono">Bono</option>
-                  </select>
-                </div>
-                <div>
-                  <label>Ticker</label>
-                  <input value={opTicker} onChange={e => setOpTicker(e.target.value.toUpperCase())} placeholder="GGAL" />
-                </div>
-                <div>
-                  <label>Movimiento</label>
-                  <select value={opTipo} onChange={e => setOpTipo(e.target.value)}>
-                    <option value="compra">Compra</option>
-                    <option value="venta">Venta</option>
-                  </select>
-                </div>
-              </div>
-              <div className="form-row trio">
-                <div>
-                  <label>Fecha</label>
-                  <input type="date" value={opFecha} onChange={e => setOpFecha(e.target.value)} />
-                </div>
-                <div>
-                  <label>Cantidad</label>
-                  <input type="number" value={opCantidad} onChange={e => setOpCantidad(e.target.value)} placeholder="Ej: 50" />
-                </div>
-                <div>
-                  <label>Precio ($)</label>
-                  <input type="number" value={opPrecio} onChange={e => setOpPrecio(e.target.value)} placeholder="0.00" step="0.01" />
-                </div>
-              </div>
-              <button className="btn btn-primary" onClick={agregarOperacion}>Guardar Movimiento</button>
-              <button className="btn" style={{marginLeft: '8px'}} onClick={() => setShowAddOp(false)}>Cancelar</button>
-            </div>
-          )}
         </div>
       )}
 
