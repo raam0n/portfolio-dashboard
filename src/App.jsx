@@ -777,6 +777,57 @@ function App() {
             </div>
           </div>
 
+          {/* Add Watchlist Form - shown ABOVE the table */}
+          {showAddWatchlist && (
+            <div className="collapsible-content active">
+              <div className="panel-title" style={{marginBottom: '12px', fontSize: '14px'}}>Sincronizar Activo</div>
+              <div className="form-row trio">
+                <div>
+                  <label>Tipo Activo</label>
+                  <select value={wlTipo} onChange={(e) => {
+                    const t = e.target.value;
+                    setWlTipo(t);
+                    if (t === 'accion' || t === 'cedear') setWlMercado('BCBA');
+                    else if (t === 'stock') setWlMercado('NYSE');
+                  }}>
+                    <option value="accion">Acción AR</option>
+                    <option value="cedear">CEDEAR</option>
+                    <option value="stock">Stock US</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Mercado</label>
+                  {wlTipo === 'stock' ? (
+                    <select value={wlMercado} onChange={e => setWlMercado(e.target.value)}>
+                      <option value="NYSE">NYSE</option>
+                      <option value="NASDAQ">NASDAQ</option>
+                    </select>
+                  ) : (
+                    <input
+                      value="BCBA"
+                      readOnly
+                      style={{ background: 'rgba(0,0,0,0.1)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
+                    />
+                  )}
+                </div>
+                <div>
+                  <label>Ticker</label>
+                  <input value={wlTicker} onChange={e => setWlTicker(e.target.value.toUpperCase())} placeholder="ej: AAPL" />
+                </div>
+                <div>
+                  <label>Nombre (opc.)</label>
+                  <input value={wlNombre} onChange={e => setWlNombre(e.target.value)} placeholder="ej: Apple Inc" />
+                </div>
+                <div>
+                  <label>Categoría (ej: Tech, Banking)</label>
+                  <input value={wlCategoria} onChange={e => setWlCategoria(e.target.value)} placeholder="ej: Tech" />
+                </div>
+              </div>
+              <button className="btn btn-primary" onClick={agregarWatchlist}>Guardar en Watchlist</button>
+              <button className="btn" style={{marginLeft: '8px'}} onClick={() => setShowAddWatchlist(false)}>Cancelar</button>
+            </div>
+          )}
+
           <div className="table-container">
             {watchlist.length === 0 ? (
               <div className="empty-state">No estás siguiendo ningún activo.</div>
@@ -821,7 +872,7 @@ function App() {
                     };
 
                     return (
-                      <tr key={w.ticker}>
+                      <tr key={`${w.ticker}-${w.mercado || 'BCBA'}`}>
                         <td>
                           <div className="ticker-name">{w.ticker}</div>
                           {w.nombre && <div style={{fontSize: '11px', color: 'var(--text-muted)'}}>{w.nombre}</div>}
@@ -846,51 +897,6 @@ function App() {
               </table>
             )}
           </div>
-
-          {showAddWatchlist && (
-            <div className="collapsible-content active">
-              <div className="panel-title" style={{marginBottom: '12px', fontSize: '14px'}}>Sincronizar Activo</div>
-              <div className="form-row trio">
-                <div>
-                  <label>Tipo Activo</label>
-                  <select value={wlTipo} onChange={(e) => {
-                    const t = e.target.value;
-                    setWlTipo(t);
-                    if (t === 'accion' || t === 'cedear') setWlMercado('BCBA');
-                    else if (t === 'stock') setWlMercado('NYSE/NASDAQ');
-                  }}>
-                    <option value="accion">Acción AR</option>
-                    <option value="cedear">CEDEAR</option>
-                    <option value="stock">Stock US</option>
-                  </select>
-                </div>
-                <div>
-                  <label>Mercado</label>
-                  <select value={wlMercado} onChange={e => setWlMercado(e.target.value)}>
-                    <option value="BCBA">BCBA</option>
-                    <option value="NYSE/NASDAQ">NYSE/NASDAQ</option>
-                    <option value="NASDAQ">NASDAQ</option>
-                    <option value="NYSE">NYSE</option>
-                    <option value="BYMA">BYMA</option>
-                  </select>
-                </div>
-                <div>
-                  <label>Ticker</label>
-                  <input value={wlTicker} onChange={e => setWlTicker(e.target.value.toUpperCase())} placeholder="ej: AAPL" />
-                </div>
-                <div>
-                  <label>Nombre (opc.)</label>
-                  <input value={wlNombre} onChange={e => setWlNombre(e.target.value)} placeholder="ej: Apple Inc" />
-                </div>
-                <div>
-                  <label>Categoría (ej: Tech, Banking)</label>
-                  <input value={wlCategoria} onChange={e => setWlCategoria(e.target.value)} placeholder="ej: Tech" />
-                </div>
-              </div>
-              <button className="btn btn-primary" onClick={agregarWatchlist}>Guardar en Watchlist</button>
-              <button className="btn" style={{marginLeft: '8px'}} onClick={() => setShowAddWatchlist(false)}>Cancelar</button>
-            </div>
-          )}
         </div>
       )}
 
