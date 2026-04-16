@@ -436,18 +436,28 @@ input:focus, select:focus, textarea:focus {
 
 .pie-chart-body {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 1rem;
+  justify-content: center;
+  gap: 2rem;
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .pie-chart-body {
+    flex-direction: column;
+    gap: 1rem;
+  }
 }
 
 /* Legend */
 .pie-legend {
   list-style: none;
-  width: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 140px;
 }
 
 .pie-legend-item {
