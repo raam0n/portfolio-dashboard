@@ -91,6 +91,100 @@ function PieChart({ data, title }) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Market Status Bar ─────────────────────────────────────────────────────────
+function formatMarketTime(unixTs) {
+  if (!unixTs) return null;
+  const d = new Date(unixTs * 1000);
+  const now = new Date();
+  // Normalise both to midnight to compare calendar days (local time)
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tsMidnight   = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round((todayMidnight - tsMidnight) / 86400000);
+
+  const timeStr = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  if (diffDays === 0) return `Hoy ${timeStr}`;
+  if (diffDays === 1) return `Ayer ${timeStr}`;
+  return `${d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })} ${timeStr}`;
+}
+
+function MarketStatusBar({ dailyStats, watchlist }) {
+  // Find the first available stats entry for each market segment
+  const usEntry  = watchlist.find(w => w.tipo === 'stock');
+  const arEntry  = watchlist.find(w => w.tipo === 'accion' || w.tipo === 'cedear');
+
+  const getStats = (item) => {
+    if (!item) return null;
+    const key = item.tipo === 'stock' ? item.ticker : item.ticker + '.BA';
+    return dailyStats[key] ?? null;
+  };
+
+  const usStats  = getStats(usEntry);
+  const arStats  = getStats(arEntry);
+
+  // Determine open/closed for each market.
+  // Use ?? null to handle old localStorage cache where isOpen may be undefined.
+  // undefined !== null, so without this guard it would fall through to "Cerrado".
+  const usOpen  = usStats  ? (usStats.isOpen  ?? null) : null;
+  const arOpen  = arStats  ? (arStats.isOpen  ?? null) : null;
+
+  const renderPill = ({ flag, name, isOpen, lastTs, alwaysOn }) => {
+    let pillMod, dotMod, statusMod, statusLabel, subText;
+
+    if (alwaysOn) {
+      pillMod   = 'mkt-pill--always';
+      dotMod    = 'mkt-pill__dot--always';
+      statusMod = 'mkt-pill__status--always';
+      statusLabel = '24 / 7 ON';
+      subText   = 'Precio en tiempo real';
+    } else if (isOpen === null) {
+      pillMod   = '';
+      dotMod    = 'mkt-pill__dot--closed';
+      statusMod = 'mkt-pill__status--closed';
+      statusLabel = 'Cargando...';
+      subText   = null;
+    } else if (isOpen) {
+      pillMod   = 'mkt-pill--open';
+      dotMod    = 'mkt-pill__dot--open';
+      statusMod = 'mkt-pill__status--open';
+      statusLabel = 'Abierto';
+      subText   = 'Cotizaciones en vivo';
+    } else {
+      pillMod   = 'mkt-pill--closed';
+      dotMod    = 'mkt-pill__dot--closed';
+      statusMod = 'mkt-pill__status--closed';
+      statusLabel = 'Cerrado';
+      const formatted = formatMarketTime(lastTs);
+      subText   = formatted ? `Último precio: ${formatted}` : 'Cotización anterior';
+    }
+
+    return (
+      <div className={`mkt-pill ${pillMod}`}>
+        <div className={`mkt-pill__dot ${dotMod}`} />
+        <div className="mkt-pill__body">
+          <span className="mkt-pill__name">
+            {flag.length <= 2
+              ? <span className="mkt-flag-text">{flag}</span>
+              : <span>{flag}</span>
+            }
+            {name}
+          </span>
+          <span className={`mkt-pill__status ${statusMod}`}>{statusLabel}</span>
+          {subText && <span className="mkt-pill__sub">{subText}</span>}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="market-status-bar">
+      {renderPill({ flag: 'US', name: 'NYSE / NASDAQ', isOpen: usOpen,  lastTs: usStats?.regularMarketTime })}
+      {renderPill({ flag: 'AR', name: 'BCBA',          isOpen: arOpen,  lastTs: arStats?.regularMarketTime })}
+      {renderPill({ flag: '⚡', name: 'Cripto',          alwaysOn: true })}
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ── Multi-Check Dropdown ───────────────────────────────────────────────────────
 function MultiCheckDropdown({ placeholder, options, selected, onChange }) {
   const [open, setOpen] = React.useState(false);
@@ -282,7 +376,19 @@ function App() {
       const hist1y = getHistPct(252);
       const hist5y = len > 1000 ? getHistPct(len - 1) : null;
       
-      return { price, change, changePct, hist5d, hist1m, hist6m, hist1y, hist5y };
+      // Market status:
+      // Primary check: Yahoo's marketState (can sometimes be stale/wrong via proxy)
+      // Secondary check: compare Date.now() against today's trading session window
+      // Both are from Yahoo's own data, so no hardcoded hours needed.
+      const nowSec = Math.floor(Date.now() / 1000);
+      const tradingPeriod = meta1d?.currentTradingPeriod?.regular;
+      const isInTradingWindow = tradingPeriod
+        ? (nowSec >= tradingPeriod.start && nowSec <= tradingPeriod.end)
+        : false;
+      const isOpen = meta1d?.marketState === 'REGULAR' || isInTradingWindow;
+      const regularMarketTime = meta1d?.regularMarketTime ?? null; // Unix timestamp
+
+      return { price, change, changePct, hist5d, hist1m, hist6m, hist1y, hist5y, isOpen, regularMarketTime };
     } catch (e) {
       return null;
     }
@@ -1014,6 +1120,9 @@ function App() {
             </div>
           )}
 
+          {/* ── Market Status Bar ── */}
+          <MarketStatusBar dailyStats={dailyStats} watchlist={watchlist} />
+
           <div className="table-container">
             {watchlist.length === 0 ? (
               <div className="empty-state">No estás siguiendo ningún activo.</div>
@@ -1066,7 +1175,17 @@ function App() {
                         <td><span style={{fontSize: '11px', opacity: 0.8}}>{w.mercado || (w.tipo === 'stock' ? 'NYSE/NASDAQ' : 'BCBA')}</span></td>
                         <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.categoria || '—'}</span></td>
                         <td>
-                          <strong>{pc !== null ? `$${fmt(pc)}` : <span style={{fontStyle: 'italic', color: '#888'}}>cargando...</span>}</strong>
+                          <strong className={pc !== null && stats && !stats.isOpen ? 'price-stale' : ''}>
+                            {pc !== null ? `$${fmt(pc)}` : <span style={{fontStyle: 'italic', color: '#888'}}>cargando...</span>}
+                          </strong>
+                          {pc !== null && stats && (
+                            <div>
+                              <span className={`mkt-price-badge mkt-price-badge--${stats.isOpen ? 'open' : 'closed'}`}>
+                                <span className="mkt-price-badge__dot" />
+                                {stats.isOpen ? 'En vivo' : 'Cierre ant.'}
+                              </span>
+                            </div>
+                          )}
                         </td>
                         <td className={todayCss}><strong>{todayText}</strong></td>
                         <td>{stats ? fmtHist(stats.hist5d) : '—'}</td>

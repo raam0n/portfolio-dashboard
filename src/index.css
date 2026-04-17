@@ -613,3 +613,169 @@ input:focus, select:focus, textarea:focus {
   padding: 0;
 }
 /* ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── Market Status Bar ────────────────────────────────────────────────────── */
+.market-status-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.mkt-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  transition: border-color 0.25s ease;
+  flex: 1;
+  min-width: 160px;
+}
+
+.mkt-pill:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.mkt-pill--open {
+  border-color: rgba(34, 197, 94, 0.2);
+  background: rgba(34, 197, 94, 0.04);
+}
+
+.mkt-pill--closed {
+  border-color: rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.03);
+}
+
+.mkt-pill--always {
+  border-color: rgba(250, 204, 21, 0.2);
+  background: rgba(250, 204, 21, 0.04);
+}
+
+.mkt-pill__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mkt-pill__dot--open {
+  background: var(--positive);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+  animation: mktPulse 2s ease-in-out infinite;
+}
+
+.mkt-pill__dot--closed {
+  background: var(--negative);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+.mkt-pill__dot--always {
+  background: #facc15;
+  box-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+}
+
+@keyframes mktPulse {
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 8px rgba(34, 197, 94, 0.6); }
+  50% { opacity: 0.75; transform: scale(0.85); box-shadow: 0 0 14px rgba(34, 197, 94, 0.9); }
+}
+
+.mkt-pill__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.mkt-pill__name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+  letter-spacing: 0.2px;
+}
+
+/* Text badge replacing flag emojis — cross-platform compatible */
+.mkt-flag-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 3px;
+  padding: 1px 5px;
+  line-height: 1.4;
+}
+
+.mkt-pill__status {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.mkt-pill__status--open  { color: var(--positive); }
+.mkt-pill__status--closed { color: var(--negative); }
+.mkt-pill__status--always { color: #facc15; }
+
+.mkt-pill__sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── Market Price Badge (per-row watchlist) ───────────────────────────────── */
+.mkt-price-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.mkt-price-badge__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mkt-price-badge--open {
+  color: var(--positive);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.mkt-price-badge--open .mkt-price-badge__dot {
+  background: var(--positive);
+  animation: mktPulse 2s ease-in-out infinite;
+}
+
+.mkt-price-badge--closed {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  opacity: 0.85;
+}
+
+.mkt-price-badge--closed .mkt-price-badge__dot {
+  background: var(--negative);
+}
+
+/* Price text dimmed when market closed — applied to the <strong> wrapper */
+.price-stale {
+  opacity: 0.65;
+}
+/* ─────────────────────────────────────────────────────────────────────────── */
