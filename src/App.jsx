@@ -1278,8 +1278,10 @@ function App() {
 
                 // Opportunity cost: what you gave up by selling
                 const ventaDiff = pVenta !== null ? (pVenta - trade.ventaPrecio) * trade.ventaCantidad : null;
+                const ventaPct  = pVenta !== null ? ((pVenta - trade.ventaPrecio) / trade.ventaPrecio) * 100 : null;
                 // Actual gain/loss: what you got by buying
                 const compraDiff = pCompra !== null ? (pCompra - trade.compraPrecio) * trade.compraCantidad : null;
+                const compraPct  = pCompra !== null ? ((pCompra - trade.compraPrecio) / trade.compraPrecio) * 100 : null;
                 // Net: did the switch beat doing nothing?
                 const netOutcome = (ventaDiff !== null && compraDiff !== null) ? compraDiff - ventaDiff : null;
 
@@ -1307,12 +1309,13 @@ function App() {
                         <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
                           Si hubieras conservado <strong>{trade.ventaTicker}</strong>, ahora tendrías {ventaDiff >= 0 ? 'una ganancia' : 'una pérdida'} de:{' '}
                           <strong className={ventaDiff >= 0 ? 'positive' : 'negative'}>
-                            {ventaDiff >= 0 ? '+' : '-'}${fmt(Math.abs(ventaDiff))}
+                            {fmtPct(ventaPct)} ({ventaDiff >= 0 ? '+' : '-'}${fmt(Math.abs(ventaDiff))}
                             {dolarMep && (
                               <span style={{ fontSize: '13px', fontWeight: '400', opacity: 0.8, marginLeft: '8px' }}>
                                 ≈ US$ {fmt(Math.abs(ventaDiff) / dolarMep)}
                               </span>
                             )}
+                            )
                           </strong>
                           <div className="hint" style={{marginTop: '4px'}}>
                             (Precio de venta: ${fmt(trade.ventaPrecio)} vs Valor actual: ${fmt(pVenta)})
@@ -1323,12 +1326,13 @@ function App() {
                         <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
                           Al haber comprado <strong>{trade.compraTicker}</strong>, obtuviste {compraDiff >= 0 ? 'una ganancia' : 'una pérdida'} de:{' '}
                           <strong className={compraDiff >= 0 ? 'positive' : 'negative'}>
-                            {compraDiff >= 0 ? '+' : '-'}${fmt(Math.abs(compraDiff))}
+                            {fmtPct(compraPct)} ({compraDiff >= 0 ? '+' : '-'}${fmt(Math.abs(compraDiff))}
                             {dolarMep && (
                               <span style={{ fontSize: '13px', fontWeight: '400', opacity: 0.8, marginLeft: '8px' }}>
                                 ≈ US$ {fmt(Math.abs(compraDiff) / dolarMep)}
                               </span>
                             )}
+                            )
                           </strong>
                           <div className="hint" style={{marginTop: '4px'}}>
                             (Precio de compra: ${fmt(trade.compraPrecio)} vs Valor actual: ${fmt(pCompra)})
