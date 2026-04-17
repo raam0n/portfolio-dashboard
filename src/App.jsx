@@ -1147,7 +1147,17 @@ function App() {
                 <tbody>
                   {wlVisibleBeforeExclude
                     .filter(w => !wlExcludedTickers.includes(`${w.ticker}-${w.mercado || 'BCBA'}`))
-                    .sort(sortUnified).map(w => {
+                    .sort((a, b) => {
+                      const ytA = getYahooTicker(a) || a.ticker;
+                      const ytB = getYahooTicker(b) || b.ticker;
+                      const pctA = dailyStats[ytA]?.changePct ?? null;
+                      const pctB = dailyStats[ytB]?.changePct ?? null;
+                      // Items with no data sink to the bottom
+                      if (pctA === null && pctB === null) return 0;
+                      if (pctA === null) return 1;
+                      if (pctB === null) return -1;
+                      return pctB - pctA; // descending: best performers first
+                    }).map(w => {
                     const yt = getYahooTicker(w) || w.ticker;
                     const pc = prices[yt] ?? null;
                     const stats = dailyStats[yt] ?? null;
