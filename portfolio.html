@@ -101,8 +101,17 @@
     }
 
     @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(0.8); }
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+      }
     }
 
     /* UI Components */
@@ -115,7 +124,7 @@
       padding: 1.5rem;
       transition: border-color 0.3s ease;
     }
-    
+
     .glass-panel:hover {
       border-color: var(--glass-border-hover);
     }
@@ -199,7 +208,7 @@
 
     td {
       padding: 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.02);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
       vertical-align: middle;
       font-size: 14px;
     }
@@ -213,14 +222,28 @@
     }
 
     tr:hover {
-      background-color: rgba(255,255,255,0.02);
+      background-color: rgba(255, 255, 255, 0.02);
     }
 
     /* Typography Utilities */
-    .positive { color: var(--positive); text-shadow: 0 0 10px rgba(34, 197, 94, 0.3); }
-    .negative { color: var(--negative); text-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
-    .neutral { color: var(--text-muted); }
-    .ticker-name { font-weight: 600; font-size: 15px; }
+    .positive {
+      color: var(--positive);
+      text-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+    }
+
+    .negative {
+      color: var(--negative);
+      text-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+    }
+
+    .neutral {
+      color: var(--text-muted);
+    }
+
+    .ticker-name {
+      font-weight: 600;
+      font-size: 15px;
+    }
 
     /* Badges */
     .badge {
@@ -232,11 +255,34 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-    .badge-accion { background: rgba(94, 106, 210, 0.15); color: #8c9eff; border: 1px solid rgba(94, 106, 210, 0.3); }
-    .badge-cedear { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .badge-bono { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
-    .badge-compra { background: var(--positive-bg); color: var(--positive); }
-    .badge-venta { background: var(--negative-bg); color: var(--negative); }
+
+    .badge-accion {
+      background: rgba(94, 106, 210, 0.15);
+      color: #8c9eff;
+      border: 1px solid rgba(94, 106, 210, 0.3);
+    }
+
+    .badge-cedear {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-bono {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-compra {
+      background: var(--positive-bg);
+      color: var(--positive);
+    }
+
+    .badge-venta {
+      background: var(--negative-bg);
+      color: var(--negative);
+    }
 
     /* Buttons */
     .btn {
@@ -253,7 +299,7 @@
     }
 
     .btn:hover {
-      background: rgba(255,255,255,0.08);
+      background: rgba(255, 255, 255, 0.08);
       border-color: var(--glass-border-hover);
     }
 
@@ -299,8 +345,10 @@
       margin-bottom: 12px;
     }
 
-    .form-row.trio { grid-template-columns: 1fr 1fr 1fr; }
-    
+    .form-row.trio {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
     label {
       display: block;
       font-size: 11px;
@@ -310,26 +358,32 @@
       letter-spacing: 0.5px;
     }
 
-    input, select, textarea {
+    input,
+    select,
+    textarea {
       width: 100%;
       padding: 10px 12px;
       font-size: 13px;
       border: 1px solid var(--glass-border);
       border-radius: 8px;
-      background: rgba(0,0,0,0.2);
+      background: rgba(0, 0, 0, 0.2);
       color: var(--text-main);
       font-family: inherit;
       transition: border-color 0.2s, background 0.2s;
     }
 
-    input:focus, select:focus, textarea:focus {
+    input:focus,
+    select:focus,
+    textarea:focus {
       outline: none;
       border-color: var(--accent);
-      background: rgba(0,0,0,0.4);
+      background: rgba(0, 0, 0, 0.4);
       box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.2);
     }
 
-    ::placeholder { color: #555; }
+    ::placeholder {
+      color: #555;
+    }
 
     /* Modal / Form wrappers */
     .collapsible-content {
@@ -345,8 +399,15 @@
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .empty-state {
@@ -355,14 +416,18 @@
       color: var(--text-muted);
       font-size: 14px;
     }
-    
-    .hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
   </style>
 </head>
 
 <body>
   <div class="app-container">
-    
+
     <!-- Header -->
     <header class="header">
       <h1>Portfolio Dashboard</h1>
@@ -392,14 +457,14 @@
 
     <!-- Main Content Grid -->
     <div class="dashboard-grid">
-      
+
       <!-- Holdings Column -->
       <div class="glass-panel">
         <div class="panel-header">
           <div class="panel-title">Tus Holdings</div>
           <button class="btn btn-primary btn-sm" onclick="toggleSection('add-holding-wrap')">+ Agregar Holding</button>
         </div>
-        
+
         <div class="table-container">
           <table id="portfolio-table">
             <thead>
@@ -549,7 +614,8 @@
         <div>
           <label>Importar Datos</label>
           <p class="hint" style="margin-bottom:8px;">Atención: Pegá un JSON válido. Esto sobreescribirá todo.</p>
-          <textarea id="import-area" rows="4" placeholder='{"holdings":[...],"operaciones":[...]}' style="font-family:monospace; font-size:11px;"></textarea>
+          <textarea id="import-area" rows="4" placeholder='{"holdings":[...],"operaciones":[...]}'
+            style="font-family:monospace; font-size:11px;"></textarea>
           <div style="margin-top:8px; display:flex; gap:8px;">
             <button class="btn btn-primary" onclick="importar()">Restaurar</button>
             <button class="btn btn-danger" onclick="borrarTodo()">Reset de Fábrica</button>
@@ -574,7 +640,7 @@
 
     function setStatus(state, text) {
       const dot = document.getElementById('status-dot');
-      dot.className = 'dot ' + state; 
+      dot.className = 'dot ' + state;
       document.getElementById('status-text').textContent = text;
     }
 
@@ -582,7 +648,7 @@
       if (n == null || isNaN(n)) return '—';
       return new Intl.NumberFormat('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
     }
-    
+
     function fmtPct(n) {
       if (n == null || isNaN(n)) return '—';
       const sign = n >= 0 ? '+' : '';
@@ -591,10 +657,10 @@
 
     function onTipoChange() {
       const tipo = document.getElementById('new-tipo').value;
-      const hints = { 
-        accion: 'Ej: GGAL, YPFD, PAMP', 
-        cedear: 'Ej: AAPL, MSFT, SPY (ticker original US)', 
-        bono: 'Ej: AL30, GD30, AE38' 
+      const hints = {
+        accion: 'Ej: GGAL, YPFD, PAMP',
+        cedear: 'Ej: AAPL, MSFT, SPY (ticker original US)',
+        bono: 'Ej: AL30, GD30, AE38'
       };
       document.getElementById('ticker-hint').textContent = hints[tipo];
       document.getElementById('bono-wrap').style.display = tipo === 'bono' ? 'block' : 'none';
@@ -625,15 +691,15 @@
         const costo = h.precioEntrada * h.cantidad;
         const pnlA = valor !== null ? valor - costo : null;
         const pnlP = (valor !== null && costo > 0) ? (pnlA / costo) * 100 : null;
-        
+
         if (valor !== null) totalValor += valor;
         totalCosto += costo;
-        
+
         const cssPnl = pnlA == null ? 'neutral' : (pnlA >= 0 ? 'positive' : 'negative');
         const sign = pnlA >= 0 ? '+' : '';
 
-        const pcCell = pc !== null 
-          ? `$${fmt(pc)}` 
+        const pcCell = pc !== null
+          ? `$${fmt(pc)}`
           : h.tipo === 'bono'
             ? `<button class="btn btn-sm" onclick="editBonoPrecio('${h.ticker}')">Fijar P.</button>`
             : '<span style="font-style:italic;color:#888;">cargando...</span>';
@@ -661,13 +727,13 @@
       // Update Metrics
       const pnlT = totalValor - totalCosto;
       const pnlTP = totalCosto > 0 ? (pnlT / totalCosto) * 100 : 0;
-      
+
       document.getElementById('m-total').innerHTML = `$${fmt(totalValor)}`;
-      
+
       const elPnlAbs = document.getElementById('m-pnl-abs');
       elPnlAbs.innerHTML = (pnlT >= 0 ? '+$' : '-$') + fmt(Math.abs(pnlT));
       elPnlAbs.className = 'metric-value ' + (pnlT >= 0 ? 'positive' : 'negative');
-      
+
       const elPnlPct = document.getElementById('m-pnl-pct');
       elPnlPct.innerHTML = fmtPct(pnlTP);
       elPnlPct.className = 'metric-value ' + (pnlTP >= 0 ? 'positive' : 'negative');
@@ -753,7 +819,7 @@
       const ts = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
       setStatus(hasError ? 'error' : 'ok', `Actualizado ${ts}`);
       renderPortfolio();
-      
+
       // Update export box just in case
       document.getElementById('export-area').value = JSON.stringify({ holdings, operaciones }, null, 2);
     }
@@ -765,14 +831,14 @@
       const nombre = document.getElementById('new-nombre').value.trim();
       const cantidad = parseFloat(document.getElementById('new-cantidad').value);
       const precio = parseFloat(document.getElementById('new-precio').value);
-      
-      if (!ticker || isNaN(cantidad) || isNaN(precio)) { 
-        alert('Completá ticker, cantidad y precio.'); 
-        return; 
+
+      if (!ticker || isNaN(cantidad) || isNaN(precio)) {
+        alert('Completá ticker, cantidad y precio.');
+        return;
       }
-      if (holdings.find(h => h.ticker === ticker)) { 
-        alert('Este activo ya está en el portfolio.'); 
-        return; 
+      if (holdings.find(h => h.ticker === ticker)) {
+        alert('Este activo ya está en el portfolio.');
+        return;
       }
 
       const h = { ticker, tipo, nombre, cantidad, precioEntrada: precio };
@@ -783,15 +849,15 @@
 
       holdings.push(h);
       save();
-      
+
       ['new-ticker', 'new-nombre', 'new-cantidad', 'new-precio', 'new-precio-actual'].forEach(id => document.getElementById(id).value = '');
-      
+
       toggleSection('add-holding-wrap');
       renderPortfolio();
-      
+
       if (tipo !== 'bono') {
-        fetchPrice(getYahooTicker(h)).then(p => { 
-          if (p) { prices[ticker] = p; renderPortfolio(); } 
+        fetchPrice(getYahooTicker(h)).then(p => {
+          if (p) { prices[ticker] = p; renderPortfolio(); }
         });
       }
     }
@@ -802,15 +868,15 @@
       const cantidad = parseFloat(document.getElementById('op-cantidad').value);
       const precio = parseFloat(document.getElementById('op-precio').value);
       const fecha = document.getElementById('op-fecha').value;
-      
-      if (!ticker || isNaN(cantidad) || isNaN(precio) || !fecha) { 
-        alert('Datos incompletos.'); 
-        return; 
+
+      if (!ticker || isNaN(cantidad) || isNaN(precio) || !fecha) {
+        alert('Datos incompletos.');
+        return;
       }
 
       operaciones.push({ id: Date.now().toString(), ticker, tipo, cantidad, precio, fecha });
       save();
-      
+
       ['op-ticker', 'op-cantidad', 'op-precio'].forEach(id => document.getElementById(id).value = '');
       toggleSection('add-op-wrap');
       renderOperaciones();
@@ -836,11 +902,11 @@
       if (!h) return;
       const nuevo = prompt(`Nuevo precio unitario para ${ticker} ($):`, h.precioActual || '');
       const p = parseFloat(nuevo);
-      if (!isNaN(p)) { 
-        h.precioActual = p; 
-        prices[ticker] = p; 
-        save(); 
-        renderPortfolio(); 
+      if (!isNaN(p)) {
+        h.precioActual = p;
+        prices[ticker] = p;
+        save();
+        renderPortfolio();
       }
     }
 
@@ -866,7 +932,7 @@
         const data = JSON.parse(raw);
         if (!Array.isArray(data.holdings) || !Array.isArray(data.operaciones)) throw new Error('Estructura incorrecta');
         if (!confirm('Esto sobreescribirá todo tu portfolio actual. ¿Proceder?')) return;
-        
+
         holdings = data.holdings;
         operaciones = data.operaciones;
         save();
@@ -898,10 +964,11 @@
     renderPortfolio();
     renderOperaciones();
     refreshAll();
-    
+
     // Auto-update every 60 mins
     setInterval(refreshAll, 60 * 60 * 1000);
 
   </script>
 </body>
+
 </html>

@@ -3,9 +3,9 @@ import './index.css';
 
 // ── Pure SVG Pie Chart ────────────────────────────────────────────────────────
 const CHART_COLORS = [
-  '#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6',
-  '#a855f7','#ec4899','#14b8a6','#f97316','#84cc16',
-  '#06b6d4','#e11d48','#8b5cf6','#22d3ee','#fb923c',
+  '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6',
+  '#a855f7', '#ec4899', '#14b8a6', '#f97316', '#84cc16',
+  '#06b6d4', '#e11d48', '#8b5cf6', '#22d3ee', '#fb923c',
 ];
 
 function PieChart({ data, title }) {
@@ -65,7 +65,7 @@ function PieChart({ data, title }) {
           {hov ? (
             <>
               <text x={cx} y={cy - 8} textAnchor="middle" fill="white" fontSize="13" fontWeight="700">{hov.pct.toFixed(1)}%</text>
-              <text x={cx} y={cy + 8} textAnchor="middle" fill="#aaa" fontSize="9">{hov.label.length > 10 ? hov.label.slice(0,10)+'…' : hov.label}</text>
+              <text x={cx} y={cy + 8} textAnchor="middle" fill="#aaa" fontSize="9">{hov.label.length > 10 ? hov.label.slice(0, 10) + '…' : hov.label}</text>
             </>
           ) : (
             <text x={cx} y={cy + 4} textAnchor="middle" fill="#888" fontSize="10">{data.length} items</text>
@@ -98,7 +98,7 @@ function formatMarketTime(unixTs) {
   const now = new Date();
   // Normalise both to midnight to compare calendar days (local time)
   const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const tsMidnight   = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const tsMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diffDays = Math.round((todayMidnight - tsMidnight) / 86400000);
 
   const timeStr = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
@@ -109,8 +109,8 @@ function formatMarketTime(unixTs) {
 
 function MarketStatusBar({ dailyStats, watchlist }) {
   // Find the first available stats entry for each market segment
-  const usEntry  = watchlist.find(w => w.tipo === 'stock');
-  const arEntry  = watchlist.find(w => w.tipo === 'accion' || w.tipo === 'cedear');
+  const usEntry = watchlist.find(w => w.tipo === 'stock');
+  const arEntry = watchlist.find(w => w.tipo === 'accion' || w.tipo === 'cedear');
 
   const getStats = (item) => {
     if (!item) return null;
@@ -118,43 +118,43 @@ function MarketStatusBar({ dailyStats, watchlist }) {
     return dailyStats[key] ?? null;
   };
 
-  const usStats  = getStats(usEntry);
-  const arStats  = getStats(arEntry);
+  const usStats = getStats(usEntry);
+  const arStats = getStats(arEntry);
 
   // Determine open/closed for each market.
   // Use ?? null to handle old localStorage cache where isOpen may be undefined.
   // undefined !== null, so without this guard it would fall through to "Cerrado".
-  const usOpen  = usStats  ? (usStats.isOpen  ?? null) : null;
-  const arOpen  = arStats  ? (arStats.isOpen  ?? null) : null;
+  const usOpen = usStats ? (usStats.isOpen ?? null) : null;
+  const arOpen = arStats ? (arStats.isOpen ?? null) : null;
 
   const renderPill = ({ flag, name, isOpen, lastTs, alwaysOn }) => {
     let pillMod, dotMod, statusMod, statusLabel, subText;
 
     if (alwaysOn) {
-      pillMod   = 'mkt-pill--always';
-      dotMod    = 'mkt-pill__dot--always';
+      pillMod = 'mkt-pill--always';
+      dotMod = 'mkt-pill__dot--always';
       statusMod = 'mkt-pill__status--always';
       statusLabel = '24 / 7 ON';
-      subText   = 'Precio en tiempo real';
+      subText = 'Precio en tiempo real';
     } else if (isOpen === null) {
-      pillMod   = '';
-      dotMod    = 'mkt-pill__dot--closed';
+      pillMod = '';
+      dotMod = 'mkt-pill__dot--closed';
       statusMod = 'mkt-pill__status--closed';
       statusLabel = 'Cargando...';
-      subText   = null;
+      subText = null;
     } else if (isOpen) {
-      pillMod   = 'mkt-pill--open';
-      dotMod    = 'mkt-pill__dot--open';
+      pillMod = 'mkt-pill--open';
+      dotMod = 'mkt-pill__dot--open';
       statusMod = 'mkt-pill__status--open';
       statusLabel = 'Abierto';
-      subText   = 'Cotizaciones en vivo';
+      subText = 'Cotizaciones en vivo';
     } else {
-      pillMod   = 'mkt-pill--closed';
-      dotMod    = 'mkt-pill__dot--closed';
+      pillMod = 'mkt-pill--closed';
+      dotMod = 'mkt-pill__dot--closed';
       statusMod = 'mkt-pill__status--closed';
       statusLabel = 'Cerrado';
       const formatted = formatMarketTime(lastTs);
-      subText   = formatted ? `Último precio: ${formatted}` : 'Cotización anterior';
+      subText = formatted ? `Último precio: ${formatted}` : 'Cotización anterior';
     }
 
     return (
@@ -177,9 +177,9 @@ function MarketStatusBar({ dailyStats, watchlist }) {
 
   return (
     <div className="market-status-bar">
-      {renderPill({ flag: 'US', name: 'NYSE / NASDAQ', isOpen: usOpen,  lastTs: usStats?.regularMarketTime })}
-      {renderPill({ flag: 'AR', name: 'BCBA',          isOpen: arOpen,  lastTs: arStats?.regularMarketTime })}
-      {renderPill({ flag: '⚡', name: 'Cripto',          alwaysOn: true })}
+      {renderPill({ flag: 'US', name: 'NYSE / NASDAQ', isOpen: usOpen, lastTs: usStats?.regularMarketTime })}
+      {renderPill({ flag: 'AR', name: 'BCBA', isOpen: arOpen, lastTs: arStats?.regularMarketTime })}
+      {renderPill({ flag: '⚡', name: 'Cripto', alwaysOn: true })}
     </div>
   );
 }
@@ -203,8 +203,8 @@ function MultiCheckDropdown({ placeholder, options, selected, onChange }) {
     selected.length === 0
       ? placeholder
       : selected.length === 1
-      ? (options.find(o => o.value === selected[0])?.label ?? selected[0])
-      : `${selected.length} seleccionados`;
+        ? (options.find(o => o.value === selected[0])?.label ?? selected[0])
+        : `${selected.length} seleccionados`;
 
   return (
     <div className="mcd-wrapper" ref={ref}>
@@ -246,12 +246,12 @@ function MultiCheckDropdown({ placeholder, options, selected, onChange }) {
 
 function App() {
   const [activeTab, setActiveTab] = useState('portfolio'); // 'portfolio', 'operaciones', 'watchlist', 'trades'
-  
+
   const [holdings, setHoldings] = useState(() => JSON.parse(localStorage.getItem('portfolio_holdings') || '[]'));
   const [operaciones, setOperaciones] = useState(() => JSON.parse(localStorage.getItem('portfolio_operaciones') || '[]'));
   const [watchlist, setWatchlist] = useState(() => JSON.parse(localStorage.getItem('portfolio_watchlist') || '[]'));
   const [trades, setTrades] = useState(() => JSON.parse(localStorage.getItem('portfolio_trades') || '[]'));
-  
+
   const [prices, setPrices] = useState(() => JSON.parse(localStorage.getItem('cached_prices') || '{}'));
   const [dailyStats, setDailyStats] = useState(() => JSON.parse(localStorage.getItem('cached_stats') || '{}'));
   const [dolarMep, setDolarMep] = useState(null);
@@ -306,8 +306,8 @@ function App() {
 
   // Persist prices separately whenever they are successfully updated
   useEffect(() => {
-     if (Object.keys(prices).length > 0) localStorage.setItem('cached_prices', JSON.stringify(prices));
-     if (Object.keys(dailyStats).length > 0) localStorage.setItem('cached_stats', JSON.stringify(dailyStats));
+    if (Object.keys(prices).length > 0) localStorage.setItem('cached_prices', JSON.stringify(prices));
+    if (Object.keys(dailyStats).length > 0) localStorage.setItem('cached_stats', JSON.stringify(dailyStats));
   }, [prices, dailyStats]);
 
   // Fetch prices effect
@@ -328,7 +328,7 @@ function App() {
     try {
       const url5y = `/api/market/v8/finance/chart/${yahooTicker}?interval=1d&range=5y`;
       const url1d = `/api/market/v8/finance/chart/${yahooTicker}?interval=1d&range=1d`;
-      
+
       const [r5y, r1d] = await Promise.all([fetch(url5y), fetch(url1d)]);
       const d5y = await r5y.json();
       const d1d = await r1d.json();
@@ -342,32 +342,32 @@ function App() {
       // Robust fallback: if regularMarketPrice is missing (market closed/holiday), search backwards in 5y historicals for last valid close
       let price = meta1d?.regularMarketPrice;
       if (price === undefined || price === null) {
-          if (len > 0) {
-              for (let i = len - 1; i >= 0; i--) {
-                  if (closes[i] !== null && closes[i] !== undefined) {
-                      price = closes[i];
-                      break;
-                  }
-              }
+        if (len > 0) {
+          for (let i = len - 1; i >= 0; i--) {
+            if (closes[i] !== null && closes[i] !== undefined) {
+              price = closes[i];
+              break;
+            }
           }
+        }
       }
-      
+
       if (price === undefined || price === null) return null;
-      
+
       const prevClose = meta1d?.chartPreviousClose || price;
       const change = price - prevClose;
       const changePct = prevClose > 0 ? (change / prevClose) * 100 : 0;
-      
+
       const getHistPct = (daysBack) => {
-         if (len <= daysBack) return null;
-         let pastPrice = closes[len - 1 - daysBack];
-         let offset = 0;
-         while(pastPrice == null && offset < 5 && len - 1 - daysBack - offset >= 0) {
-            offset++;
-            pastPrice = closes[len - 1 - daysBack - offset];
-         }
-         if (!pastPrice) return null;
-         return ((price - pastPrice) / pastPrice) * 100;
+        if (len <= daysBack) return null;
+        let pastPrice = closes[len - 1 - daysBack];
+        let offset = 0;
+        while (pastPrice == null && offset < 5 && len - 1 - daysBack - offset >= 0) {
+          offset++;
+          pastPrice = closes[len - 1 - daysBack - offset];
+        }
+        if (!pastPrice) return null;
+        return ((price - pastPrice) / pastPrice) * 100;
       };
 
       const hist5d = getHistPct(5);
@@ -375,7 +375,7 @@ function App() {
       const hist6m = getHistPct(126);
       const hist1y = getHistPct(252);
       const hist5y = len > 1000 ? getHistPct(len - 1) : null;
-      
+
       // Market status:
       // Primary check: Yahoo's marketState (can sometimes be stale/wrong via proxy)
       // Secondary check: compare Date.now() against today's trading session window
@@ -453,7 +453,7 @@ function App() {
       const mepR = await fetch('https://dolarapi.com/v1/dolares/bolsa');
       const mepD = await mepR.json();
       if (mepD && mepD.venta) setDolarMep(mepD.venta);
-    } catch(e) {
+    } catch (e) {
       console.warn('MEP fetch error', e);
     }
 
@@ -486,7 +486,7 @@ function App() {
 
     const h = { ticker, tipo: newTipo, mercado: newMercado, nombre: newNombre.trim(), cantidad: cant, precioEntrada: prec };
     let nPrices = { ...prices };
-    
+
     if (newTipo === 'bono') {
       const pa = parseFloat(newPrecioActual);
       if (!isNaN(pa)) {
@@ -529,7 +529,7 @@ function App() {
     if (watchlist.find(w => w.ticker === ticker && w.mercado === wlMercado)) return alert('Ya está en la watchlist con ese mercado.');
 
     const w = { ticker, tipo: wlTipo, mercado: wlMercado, nombre: wlNombre.trim(), categoria: wlCategoria.trim() };
-    
+
     setWatchlist([...watchlist, w]);
     setWlTicker(''); setWlNombre(''); setWlCategoria('');
     setShowAddWatchlist(false);
@@ -617,7 +617,7 @@ function App() {
       const data = JSON.parse(importJson.trim());
       if (!Array.isArray(data.holdings) || !Array.isArray(data.operaciones)) throw new Error('Estructura incorrecta');
       if (!window.confirm('Esto sobreescribirá todo tu portfolio actual. ¿Proceder?')) return;
-      
+
       setHoldings(data.holdings);
       setOperaciones(data.operaciones);
       setWatchlist(Array.isArray(data.watchlist) ? data.watchlist : []);
@@ -699,26 +699,26 @@ function App() {
 
       {/* Settings Panel (Global Drawer) */}
       {showSettings && (
-        <div className="glass-panel collapsible-content active" style={{borderColor: 'rgba(94, 106, 210, 0.4)', marginBottom: '1.5rem'}}>
+        <div className="glass-panel collapsible-content active" style={{ borderColor: 'rgba(94, 106, 210, 0.4)', marginBottom: '1.5rem' }}>
           <div className="panel-header">
             <div className="panel-title">Ajustes & Respaldo de Datos</div>
             <button className="btn btn-sm" onClick={() => setShowSettings(false)}>Cerrar</button>
           </div>
-          <div className="dashboard-grid" style={{gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '1rem'}}>
+          <div className="dashboard-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '1rem' }}>
             <div>
               <label>Exportar Datos (JSON)</label>
-              <p className="hint" style={{marginBottom: '8px'}}>Guardá este JSON de forma segura como backup.</p>
-              <textarea readOnly rows="4" style={{fontFamily: 'monospace', fontSize: '11px'}} value={JSON.stringify({ holdings, operaciones, watchlist }, null, 2)}></textarea>
-              <div style={{marginTop: '8px', display: 'flex', gap: '8px'}}>
+              <p className="hint" style={{ marginBottom: '8px' }}>Guardá este JSON de forma segura como backup.</p>
+              <textarea readOnly rows="4" style={{ fontFamily: 'monospace', fontSize: '11px' }} value={JSON.stringify({ holdings, operaciones, watchlist }, null, 2)}></textarea>
+              <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
                 <button className="btn" onClick={exportar}>Descargar Archivo</button>
                 <button className="btn" onClick={copiarJSON}>Copiar</button>
               </div>
             </div>
             <div>
               <label>Importar Datos</label>
-              <p className="hint" style={{marginBottom: '8px'}}>Atención: Pegá un JSON válido. Esto sobreescribirá todo.</p>
-              <textarea rows="4" placeholder='{"holdings":[...],"operaciones":[...]}' style={{fontFamily: 'monospace', fontSize: '11px'}} value={importJson} onChange={e => setImportJson(e.target.value)}></textarea>
-              <div style={{marginTop: '8px', display: 'flex', gap: '8px'}}>
+              <p className="hint" style={{ marginBottom: '8px' }}>Atención: Pegá un JSON válido. Esto sobreescribirá todo.</p>
+              <textarea rows="4" placeholder='{"holdings":[...],"operaciones":[...]}' style={{ fontFamily: 'monospace', fontSize: '11px' }} value={importJson} onChange={e => setImportJson(e.target.value)}></textarea>
+              <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
                 <button className="btn btn-primary" onClick={importar}>Restaurar</button>
                 <button className="btn btn-danger" onClick={borrarTodo}>Reset de Fábrica</button>
               </div>
@@ -737,8 +737,8 @@ function App() {
                 {holdings.length > 0 ? `$${fmt(totalValor)}` : '—'}
               </div>
               {dolarMep && holdings.length > 0 && (
-                <div style={{fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px'}}>
-                  ≈ US$ {fmt(totalValor / dolarMep)} <span style={{fontSize: '10px'}}>(MEP: ${fmt(dolarMep)})</span>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  ≈ US$ {fmt(totalValor / dolarMep)} <span style={{ fontSize: '10px' }}>(MEP: ${fmt(dolarMep)})</span>
                 </div>
               )}
             </div>
@@ -764,7 +764,7 @@ function App() {
 
             {showAddHolding && (
               <div className="collapsible-content active">
-                <div className="panel-title" style={{marginBottom: '12px', fontSize: '14px'}}>Nuevo Holding</div>
+                <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Nuevo Holding</div>
                 <div className="form-row">
                   <div>
                     <label>Tipo</label>
@@ -810,7 +810,7 @@ function App() {
                   </div>
                 </div>
                 {newTipo === 'bono' && (
-                  <div style={{marginBottom: '12px'}}>
+                  <div style={{ marginBottom: '12px' }}>
                     <div className="form-row">
                       <div>
                         <label>Precio actual manual ($)</label>
@@ -821,10 +821,10 @@ function App() {
                   </div>
                 )}
                 <button className="btn btn-primary" onClick={agregarHolding}>Guardar Holding</button>
-                <button className="btn" style={{marginLeft: '8px'}} onClick={() => setShowAddHolding(false)}>Cancelar</button>
+                <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddHolding(false)}>Cancelar</button>
               </div>
             )}
-            
+
             <div className="table-container">
               {holdings.length === 0 ? (
                 <div className="empty-state">Sin holdings todavía. Agrega uno para comenzar.</div>
@@ -860,10 +860,10 @@ function App() {
                         <tr key={h.ticker}>
                           <td>
                             <div className="ticker-name">{h.ticker}</div>
-                            {h.nombre && <div style={{fontSize: '11px', color: 'var(--text-muted)'}}>{h.nombre}</div>}
+                            {h.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{h.nombre}</div>}
                           </td>
                           <td><span className={`badge badge-${h.tipo}`}>{h.tipo}</span></td>
-                          <td><span style={{fontSize: '11px', opacity: 0.8}}>{h.mercado || (h.tipo === 'stock' ? 'NYSE/NASDAQ' : (h.tipo === 'bono' ? 'OTC' : 'BCBA'))}</span></td>
+                          <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{h.mercado || (h.tipo === 'stock' ? 'NYSE/NASDAQ' : (h.tipo === 'bono' ? 'OTC' : 'BCBA'))}</span></td>
                           <td>{fmt(h.cantidad, 0)}</td>
                           <td>${fmt(h.precioEntrada)}</td>
                           <td>
@@ -871,7 +871,7 @@ function App() {
                               {pc !== null ? `$${fmt(pc)}` : (
                                 h.tipo === 'bono' ? (
                                   <button className="btn btn-sm" onClick={() => editBonoPrecio(h.ticker)}>Fijar P.</button>
-                                ) : <span style={{fontStyle: 'italic', color: '#888'}}>cargando...</span>
+                                ) : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>
                               )}
                             </strong>
                             {stats && pc !== null && h.tipo !== 'bono' && (
@@ -896,7 +896,7 @@ function App() {
           {/* ── Pie Charts (below holdings table) ──────── */}
           {holdings.length > 0 && (() => {
             const byAsset = {};
-            const byTipo  = {};
+            const byTipo = {};
 
             holdings.forEach(h => {
               const yt = getYahooTicker(h) || h.ticker;
@@ -907,12 +907,12 @@ function App() {
               byTipo[tipoLabel] = (byTipo[tipoLabel] || 0) + valor;
             });
 
-            const toData = obj => Object.entries(obj).map(([label, value]) => ({ label, value })).sort((a,b) => b.value - a.value);
+            const toData = obj => Object.entries(obj).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
 
             return (
               <div className="pie-charts-row pie-charts-row--2col">
                 <PieChart data={toData(byAsset)} title="% por Activo" />
-                <PieChart data={toData(byTipo)}  title="% por Tipo de Activo" />
+                <PieChart data={toData(byTipo)} title="% por Tipo de Activo" />
               </div>
             );
           })()}
@@ -929,7 +929,7 @@ function App() {
 
           {showAddOp && (
             <div className="collapsible-content active">
-              <div className="panel-title" style={{marginBottom: '12px', fontSize: '14px'}}>Registrar Movimiento</div>
+              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Registrar Movimiento</div>
               <div className="form-row trio">
                 <div>
                   <label>Tipo Activo</label>
@@ -967,7 +967,7 @@ function App() {
                 </div>
               </div>
               <button className="btn btn-primary" onClick={agregarOperacion}>Guardar Movimiento</button>
-              <button className="btn" style={{marginLeft: '8px'}} onClick={() => setShowAddOp(false)}>Cancelar</button>
+              <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddOp(false)}>Cancelar</button>
             </div>
           )}
 
@@ -987,7 +987,10 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...operaciones].sort(sortUnified).map(op => {
+                  {[...operaciones].sort((a, b) => {
+                    if (a.fecha !== b.fecha) return b.fecha.localeCompare(a.fecha);
+                    return a.ticker.localeCompare(b.ticker);
+                  }).map(op => {
                     const cleanOpTicker = op.ticker.replace(/\.BA$/i, '');
                     const currentPrice = prices[op.ticker] ?? prices[cleanOpTicker] ?? null;
                     let evalCss = 'neutral';
@@ -997,7 +1000,7 @@ function App() {
                       const diff = currentPrice - op.precio;
                       const pct = (diff / op.precio) * 100;
                       const nominalDiff = diff * op.cantidad;
-                      
+
                       if (op.tipo === 'compra') {
                         evalCss = diff >= 0 ? 'positive' : 'negative';
                         const sign = diff >= 0 ? '+' : '-';
@@ -1013,11 +1016,11 @@ function App() {
 
                     return (
                       <tr key={op.id}>
-                        <td style={{whiteSpace: 'nowrap', fontSize: '12px', color: 'var(--text-muted)'}}>{op.fecha}</td>
+                        <td style={{ whiteSpace: 'nowrap', fontSize: '12px', color: 'var(--text-muted)' }}>{op.fecha}</td>
                         <td><strong>{op.ticker}</strong></td>
                         <td>
-                          <span className={`badge badge-${op.tipo}`}>{op.tipo}</span><br/>
-                          <span style={{fontSize: '12px', color: 'var(--text-muted)'}}>{fmt(op.cantidad, 0)} @ ${fmt(op.precio)}</span>
+                          <span className={`badge badge-${op.tipo}`}>{op.tipo}</span><br />
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{fmt(op.cantidad, 0)} @ ${fmt(op.precio)}</span>
                         </td>
                         <td>${fmt(op.cantidad * op.precio)}</td>
                         <td className={evalCss}><strong>{evalText}</strong></td>
@@ -1072,7 +1075,7 @@ function App() {
           {/* Add Watchlist Form - shown ABOVE the table */}
           {showAddWatchlist && (
             <div className="collapsible-content active">
-              <div className="panel-title" style={{marginBottom: '12px', fontSize: '14px'}}>Sincronizar Activo</div>
+              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Sincronizar Activo</div>
               <div className="form-row trio">
                 <div>
                   <label>Tipo Activo</label>
@@ -1116,7 +1119,7 @@ function App() {
                 </div>
               </div>
               <button className="btn btn-primary" onClick={agregarWatchlist}>Guardar en Watchlist</button>
-              <button className="btn" style={{marginLeft: '8px'}} onClick={() => setShowAddWatchlist(false)}>Cancelar</button>
+              <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddWatchlist(false)}>Cancelar</button>
             </div>
           )}
 
@@ -1158,55 +1161,55 @@ function App() {
                       if (pctB === null) return -1;
                       return pctB - pctA; // descending: best performers first
                     }).map(w => {
-                    const yt = getYahooTicker(w) || w.ticker;
-                    const pc = prices[yt] ?? null;
-                    const stats = dailyStats[yt] ?? null;
-                    
-                    let todayCss = 'neutral';
-                    let todayText = '—';
-                    if (stats && pc !== null) {
-                       todayCss = stats.change >= 0 ? 'positive' : 'negative';
-                       todayText = fmtPct(stats.changePct);
-                    }
+                      const yt = getYahooTicker(w) || w.ticker;
+                      const pc = prices[yt] ?? null;
+                      const stats = dailyStats[yt] ?? null;
 
-                    const fmtHist = (val) => {
-                       if (val == null) return <span style={{color: '#666'}}>—</span>;
-                       let css = val >= 0 ? 'positive' : 'negative';
-                       return <span className={css}><strong>{fmtPct(val)}</strong></span>;
-                    };
+                      let todayCss = 'neutral';
+                      let todayText = '—';
+                      if (stats && pc !== null) {
+                        todayCss = stats.change >= 0 ? 'positive' : 'negative';
+                        todayText = fmtPct(stats.changePct);
+                      }
 
-                    return (
-                      <tr key={`${w.ticker}-${w.mercado || 'BCBA'}`}>
-                        <td>
-                          <div className="ticker-name">{w.ticker}</div>
-                          {w.nombre && <div style={{fontSize: '11px', color: 'var(--text-muted)'}}>{w.nombre}</div>}
-                        </td>
-                        <td><span className={`badge badge-${w.tipo}`}>{w.tipo}</span></td>
-                        <td><span style={{fontSize: '11px', opacity: 0.8}}>{w.mercado || (w.tipo === 'stock' ? 'NYSE/NASDAQ' : 'BCBA')}</span></td>
-                        <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.categoria || '—'}</span></td>
-                        <td>
-                          <strong className={pc !== null && stats && !stats.isOpen ? 'price-stale' : ''}>
-                            {pc !== null ? `$${fmt(pc)}` : <span style={{fontStyle: 'italic', color: '#888'}}>cargando...</span>}
-                          </strong>
-                          {pc !== null && stats && (
-                            <div>
-                              <span className={`mkt-price-badge mkt-price-badge--${stats.isOpen ? 'open' : 'closed'}`}>
-                                <span className="mkt-price-badge__dot" />
-                                {stats.isOpen ? 'En vivo' : 'Cierre ant.'}
-                              </span>
-                            </div>
-                          )}
-                        </td>
-                        <td className={todayCss}><strong>{todayText}</strong></td>
-                        <td>{stats ? fmtHist(stats.hist5d) : '—'}</td>
-                        <td>{stats ? fmtHist(stats.hist1m) : '—'}</td>
-                        <td>{stats ? fmtHist(stats.hist6m) : '—'}</td>
-                        <td>{stats ? fmtHist(stats.hist1y) : '—'}</td>
-                        <td>{stats ? fmtHist(stats.hist5y) : '—'}</td>
-                        <td><button className="btn btn-sm btn-danger" onClick={() => eliminarWatchlist(w.ticker)}>✕</button></td>
-                      </tr>
-                    );
-                  })}
+                      const fmtHist = (val) => {
+                        if (val == null) return <span style={{ color: '#666' }}>—</span>;
+                        let css = val >= 0 ? 'positive' : 'negative';
+                        return <span className={css}><strong>{fmtPct(val)}</strong></span>;
+                      };
+
+                      return (
+                        <tr key={`${w.ticker}-${w.mercado || 'BCBA'}`}>
+                          <td>
+                            <div className="ticker-name">{w.ticker}</div>
+                            {w.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{w.nombre}</div>}
+                          </td>
+                          <td><span className={`badge badge-${w.tipo}`}>{w.tipo}</span></td>
+                          <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.mercado || (w.tipo === 'stock' ? 'NYSE/NASDAQ' : 'BCBA')}</span></td>
+                          <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.categoria || '—'}</span></td>
+                          <td>
+                            <strong className={pc !== null && stats && !stats.isOpen ? 'price-stale' : ''}>
+                              {pc !== null ? `$${fmt(pc)}` : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>}
+                            </strong>
+                            {pc !== null && stats && (
+                              <div>
+                                <span className={`mkt-price-badge mkt-price-badge--${stats.isOpen ? 'open' : 'closed'}`}>
+                                  <span className="mkt-price-badge__dot" />
+                                  {stats.isOpen ? 'En vivo' : 'Cierre ant.'}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          <td className={todayCss}><strong>{todayText}</strong></td>
+                          <td>{stats ? fmtHist(stats.hist5d) : '—'}</td>
+                          <td>{stats ? fmtHist(stats.hist1m) : '—'}</td>
+                          <td>{stats ? fmtHist(stats.hist6m) : '—'}</td>
+                          <td>{stats ? fmtHist(stats.hist1y) : '—'}</td>
+                          <td>{stats ? fmtHist(stats.hist5y) : '—'}</td>
+                          <td><button className="btn btn-sm btn-danger" onClick={() => eliminarWatchlist(w.ticker)}>✕</button></td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             )}
@@ -1225,9 +1228,9 @@ function App() {
           {/* Add Trade Form */}
           {showAddTrade && (
             <div className="collapsible-content active">
-              <div className="panel-title" style={{marginBottom: '12px', fontSize: '14px'}}>Nueva Rotación</div>
+              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Nueva Rotación</div>
               {operaciones.length < 2 ? (
-                <div className="empty-state" style={{padding: '1rem'}}>
+                <div className="empty-state" style={{ padding: '1rem' }}>
                   Necesitás al menos dos operaciones registradas en el Histórico para crear un análisis.
                 </div>
               ) : (
@@ -1257,7 +1260,7 @@ function App() {
                     </div>
                   </div>
                   <button className="btn btn-primary" onClick={agregarTrade}>Guardar Rotación</button>
-                  <button className="btn" style={{marginLeft: '8px'}} onClick={() => setShowAddTrade(false)}>Cancelar</button>
+                  <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddTrade(false)}>Cancelar</button>
                 </>
               )}
             </div>
@@ -1278,10 +1281,10 @@ function App() {
 
                 // Opportunity cost: what you gave up by selling
                 const ventaDiff = pVenta !== null ? (pVenta - trade.ventaPrecio) * trade.ventaCantidad : null;
-                const ventaPct  = pVenta !== null ? ((pVenta - trade.ventaPrecio) / trade.ventaPrecio) * 100 : null;
+                const ventaPct = pVenta !== null ? ((pVenta - trade.ventaPrecio) / trade.ventaPrecio) * 100 : null;
                 // Actual gain/loss: what you got by buying
                 const compraDiff = pCompra !== null ? (pCompra - trade.compraPrecio) * trade.compraCantidad : null;
-                const compraPct  = pCompra !== null ? ((pCompra - trade.compraPrecio) / trade.compraPrecio) * 100 : null;
+                const compraPct = pCompra !== null ? ((pCompra - trade.compraPrecio) / trade.compraPrecio) * 100 : null;
                 // Net: did the switch beat doing nothing?
                 const netOutcome = (ventaDiff !== null && compraDiff !== null) ? compraDiff - ventaDiff : null;
 
@@ -1291,18 +1294,18 @@ function App() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
                       <div>
                         <h3 style={{ fontSize: '15px', marginBottom: '4px' }}>
-                          {trade.compraFecha} · Rotación: <span style={{color: 'var(--negative)'}}>{trade.ventaTicker}</span> → <span style={{color: 'var(--positive)'}}>{trade.compraTicker}</span>
+                          {trade.compraFecha} · Rotación: <span style={{ color: 'var(--negative)' }}>{trade.ventaTicker}</span> → <span style={{ color: 'var(--positive)' }}>{trade.compraTicker}</span>
                         </h3>
                         <p className="hint">
                           Venta {trade.ventaTicker} {fmt(trade.ventaCantidad, 0)} @ ${fmt(trade.ventaPrecio)} &nbsp;|&nbsp; Compra {trade.compraTicker} {fmt(trade.compraCantidad, 0)} @ ${fmt(trade.compraPrecio)}
                         </p>
                       </div>
-                      <button className="btn btn-sm btn-danger" onClick={() => eliminarTrade(trade.id)} style={{flexShrink: 0, marginLeft: '12px'}}>✕</button>
+                      <button className="btn btn-sm btn-danger" onClick={() => eliminarTrade(trade.id)} style={{ flexShrink: 0, marginLeft: '12px' }}>✕</button>
                     </div>
 
                     {/* Scenario output */}
                     {(pVenta === null || pCompra === null) ? (
-                      <div className="empty-state" style={{padding: '1rem'}}>Cargando cotizaciones...</div>
+                      <div className="empty-state" style={{ padding: '1rem' }}>Cargando cotizaciones...</div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '14px' }}>
                         {/* Line 1: Opportunity cost */}
@@ -1317,7 +1320,7 @@ function App() {
                             )}
                             )
                           </strong>
-                          <div className="hint" style={{marginTop: '4px'}}>
+                          <div className="hint" style={{ marginTop: '4px' }}>
                             (Precio de venta: ${fmt(trade.ventaPrecio)} vs Valor actual: ${fmt(pVenta)})
                           </div>
                         </div>
@@ -1334,7 +1337,7 @@ function App() {
                             )}
                             )
                           </strong>
-                          <div className="hint" style={{marginTop: '4px'}}>
+                          <div className="hint" style={{ marginTop: '4px' }}>
                             (Precio de compra: ${fmt(trade.compraPrecio)} vs Valor actual: ${fmt(pCompra)})
                           </div>
                         </div>
@@ -1342,7 +1345,7 @@ function App() {
                         {/* Line 3: Net impact */}
                         <div style={{ padding: '16px', background: 'rgba(94, 106, 210, 0.1)', border: '1px solid rgba(94, 106, 210, 0.3)', borderRadius: '8px' }}>
                           En resumen, el impacto de la Rotación es:{' '}
-                          <strong className={netOutcome >= 0 ? 'positive' : 'negative'} style={{fontSize: '18px'}}>
+                          <strong className={netOutcome >= 0 ? 'positive' : 'negative'} style={{ fontSize: '18px' }}>
                             {netOutcome >= 0 ? '+' : '-'}${fmt(Math.abs(netOutcome))}
                             {dolarMep && (
                               <span style={{ fontSize: '14px', fontWeight: '400', opacity: 0.8, marginLeft: '10px' }}>
