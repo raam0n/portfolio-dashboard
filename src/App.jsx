@@ -1523,34 +1523,66 @@ function App() {
               {/* Net Summary Panel */}
               {evals.filter(e => !e.excluded).length > 0 && (() => {
                 let netResult = 0;
+                let totalBuyVol = 0;
+                let totalSellVol = 0;
+
                 evals.filter(e => !e.excluded).forEach(ev => {
                   const base = ev.ticker.replace(/\.BA$/i, '');
                   const curPrice = prices[ev.ticker] ?? prices[base] ?? null;
+                  const opTotal = ev.precio * ev.cantidad;
+
                   if (curPrice !== null) {
                     if (ev.tipo === 'compra') {
                        netResult += (curPrice - ev.precio) * ev.cantidad;
+                       totalBuyVol += opTotal;
                     } else {
                        netResult += (ev.precio - curPrice) * ev.cantidad;
+                       totalSellVol += opTotal;
                     }
                   }
                 });
 
+                const totalVol = totalBuyVol + totalSellVol;
+                const netPct = totalBuyVol > 0 ? (netResult / totalBuyVol) * 100 : 0;
+
                 return (
                   <div className="glass-panel" style={{ marginTop: '2rem', background: 'rgba(94, 106, 210, 0.1)', border: '1px solid rgba(94, 106, 210, 0.3)', padding: '1.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
                         <div className="panel-title" style={{ fontSize: '18px', marginBottom: '4px' }}>Resultado Neto Consolidado</div>
-                        <p className="hint">Suma de rendimientos (compras) y beneficios de oportunidad (ventas) de los activos seleccionados.</p>
+                        <p className="hint" style={{ marginBottom: '16px' }}>Suma de rendimientos (compras) y beneficios de oportunidad (ventas) seleccionados.</p>
+                        
+                        <div style={{ display: 'flex', gap: '2rem' }}>
+                          <div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Volumen Compras</div>
+                            <div style={{ fontSize: '15px', fontWeight: '600' }}>${fmt(totalBuyVol)}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Volumen Ventas</div>
+                            <div style={{ fontSize: '15px', fontWeight: '600' }}>${fmt(totalSellVol)}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Operado</div>
+                            <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--accent)' }}>${fmt(totalVol)}</div>
+                          </div>
+                        </div>
                       </div>
+
                       <div style={{ textAlign: 'right' }}>
-                        <div className={`metric-value ${netResult >= 0 ? 'positive' : 'negative'}`} style={{ fontSize: '28px' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Resultado Final</div>
+                        <div className={`metric-value ${netResult >= 0 ? 'positive' : 'negative'}`} style={{ fontSize: '32px', marginBottom: '4px' }}>
                           {netResult >= 0 ? '+' : '-'}${fmt(Math.abs(netResult))}
                         </div>
-                        {dolarMep && (
-                          <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                            ≈ US$ {fmt(Math.abs(netResult) / dolarMep)}
-                          </div>
-                        )}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px' }}>
+                          <span className={netResult >= 0 ? 'positive' : 'negative'} style={{ fontWeight: '700', fontSize: '16px' }}>
+                             {fmtPct(netPct)}
+                          </span>
+                          {dolarMep && (
+                            <span style={{ fontSize: '14px', color: 'var(--text-muted)', borderLeft: '1px solid var(--glass-border)', paddingLeft: '10px' }}>
+                              ≈ US$ {fmt(Math.abs(netResult) / dolarMep)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
