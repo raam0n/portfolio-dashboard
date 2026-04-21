@@ -933,22 +933,35 @@ function App() {
           {holdings.length > 0 && (() => {
             const byAsset = {};
             const byTipo = {};
+            const bySector = {};
+
+            // Map ticker to category from watchlist for sector chart
+            const catMap = Object.fromEntries(watchlist.map(w => [w.ticker, w.categoria]));
 
             holdings.forEach(h => {
               const yt = getYahooTicker(h) || h.ticker;
               const pc = prices[yt] ?? null;
               const valor = pc !== null ? pc * h.cantidad : h.precioEntrada * h.cantidad;
+
+              // 1. By Asset
               byAsset[h.ticker] = (byAsset[h.ticker] || 0) + valor;
+
+              // 2. By Type
               const tipoLabel = h.tipo === 'accion' ? 'Acción AR' : h.tipo === 'stock' ? 'Stock US' : h.tipo === 'cedear' ? 'CEDEAR' : 'Bono';
               byTipo[tipoLabel] = (byTipo[tipoLabel] || 0) + valor;
+
+              // 3. By Sector (from Watchlist Category)
+              const sectorLabel = catMap[h.ticker] || 'Otros';
+              bySector[sectorLabel] = (bySector[sectorLabel] || 0) + valor;
             });
 
             const toData = obj => Object.entries(obj).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
 
             return (
-              <div className="pie-charts-row pie-charts-row--2col">
+              <div className="pie-charts-row">
                 <PieChart data={toData(byAsset)} title="% por Activo" />
                 <PieChart data={toData(byTipo)} title="% por Tipo de Activo" />
+                <PieChart data={toData(bySector)} title="% por Sector" />
               </div>
             );
           })()}
