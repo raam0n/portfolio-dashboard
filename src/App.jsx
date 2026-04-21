@@ -251,6 +251,7 @@ function App() {
   const [operaciones, setOperaciones] = useState(() => JSON.parse(localStorage.getItem('portfolio_operaciones') || '[]'));
   const [watchlist, setWatchlist] = useState(() => JSON.parse(localStorage.getItem('portfolio_watchlist') || '[]'));
   const [trades, setTrades] = useState(() => JSON.parse(localStorage.getItem('portfolio_trades') || '[]'));
+  const [evals, setEvals] = useState(() => JSON.parse(localStorage.getItem('portfolio_evals') || '[]'));
 
   const [prices, setPrices] = useState(() => JSON.parse(localStorage.getItem('cached_prices') || '{}'));
   const [dailyStats, setDailyStats] = useState(() => JSON.parse(localStorage.getItem('cached_stats') || '{}'));
@@ -264,10 +265,12 @@ function App() {
   const [showAddWatchlist, setShowAddWatchlist] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAddTrade, setShowAddTrade] = useState(false);
+  const [showAddEval, setShowAddEval] = useState(false);
 
   // Trade form state
   const [tradeVentaId, setTradeVentaId] = useState('');
   const [tradeCompraId, setTradeCompraId] = useState('');
+  const [evalOpId, setEvalOpId] = useState('');
 
   // Form states
   const [newTipo, setNewTipo] = useState('accion');
@@ -302,7 +305,8 @@ function App() {
     localStorage.setItem('portfolio_operaciones', JSON.stringify(operaciones));
     localStorage.setItem('portfolio_watchlist', JSON.stringify(watchlist));
     localStorage.setItem('portfolio_trades', JSON.stringify(trades));
-  }, [holdings, operaciones, watchlist, trades]);
+    localStorage.setItem('portfolio_evals', JSON.stringify(evals));
+  }, [holdings, operaciones, watchlist, trades, evals]);
 
   // Persist prices separately whenever they are successfully updated
   useEffect(() => {
@@ -596,6 +600,32 @@ function App() {
     setTrades(trades.filter(t => t.id !== id));
   };
 
+  // --- EVALUATIONS BUSINESS LOGIC ---
+  const agregarEval = () => {
+    const op = operaciones.find(o => o.id === evalOpId);
+    if (!op) return alert('Seleccioná una operación del histórico.');
+    if (evals.find(e => e.opId === op.id)) return alert('Esta operación ya está siendo evaluada.');
+
+    const newEval = {
+      id: Date.now().toString(),
+      opId: op.id,
+      ticker: op.ticker,
+      cantidad: op.cantidad,
+      precio: op.precio,
+      fecha: op.fecha,
+      tipo: op.tipo
+    };
+
+    setEvals([...evals, newEval]);
+    setEvalOpId('');
+    setShowAddEval(false);
+  };
+
+  const eliminarEval = (id) => {
+    if (!window.confirm('¿Remover esta evaluación?')) return;
+    setEvals(evals.filter(e => e.id !== id));
+  };
+
 
   // --- IMP/EXP LOGIC ---
   const exportar = () => {
@@ -689,6 +719,7 @@ function App() {
           <button className={`tab-btn ${activeTab === 'operaciones' ? 'active' : ''}`} onClick={() => setActiveTab('operaciones')}>Histórico</button>
           <button className={`tab-btn ${activeTab === 'watchlist' ? 'active' : ''}`} onClick={() => setActiveTab('watchlist')}>Watchlist</button>
           <button className={`tab-btn ${activeTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveTab('trades')}>Trades</button>
+          <button className={`tab-btn ${activeTab === 'evaluacion' ? 'active' : ''}`} onClick={() => setActiveTab('evaluacion')}>Evaluación</button>
         </div>
         {dolarMep && (
           <div style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>
@@ -1356,6 +1387,115 @@ function App() {
                         </div>
                       </div>
                     )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* --- TAB 5: EVALUACIÓN --- */}
+      {activeTab === 'evaluacion' && (
+        <div className="glass-panel">
+          <div className="panel-header">
+            <div className="panel-title">Evaluación de Operaciones Individuales ({evals.length})</div>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowAddEval(!showAddEval)}>+ Agregar a Seguimiento</button>
+          </div>
+
+          {showAddEval && (
+            <div className="collapsible-content active">
+              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Nueva Evaluación</div>
+              {operaciones.length === 0 ? (
+                <div className="empty-state" style={{ padding: '1rem' }}>
+                  No hay operaciones en el histórico para evaluar.
+                </div>
+              ) : (
+                <div className="form-row">
+                  <div style={{ flex: 1 }}>
+                    <label>Seleccionar Operación</label>
+                    <select value={evalOpId} onChange={e => setEvalOpId(e.target.value)}>
+                      <option value="">— Seleccioná una operación —</option>
+                      {[...operaciones].sort((a,b) => b.fecha.localeCompare(a.fecha)).map(o => (
+                        <option key={o.id} value={o.id}>
+                          {o.fecha} · {o.ticker} · {o.tipo.toUpperCase()} {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                    <button className="btn btn-primary" onClick={agregarEval}>Agregar</button>
+                    <button className="btn" onClick={() => setShowAddEval(false)}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {evals.length === 0 && !showAddEval ? (
+            <div className="empty-state">
+              No estás evaluando ninguna operación. Agregá una para ver su rendimiento actual.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+              {evals.map(ev => {
+                const base = ev.ticker.replace(/\.BA$/i, '');
+                const curPrice = prices[ev.ticker] ?? prices[base] ?? null;
+                
+                let perfHtml = null;
+                if (curPrice === null) {
+                  perfHtml = <div className="empty-state" style={{ padding: '20px' }}>Cargando cotización...</div>;
+                } else {
+                  const diff = curPrice - ev.precio;
+                  const pct = (diff / ev.precio) * 100;
+                  const nominal = diff * ev.cantidad;
+
+                  if (ev.tipo === 'compra') {
+                    const isPos = diff >= 0;
+                    perfHtml = (
+                      <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Rendimiento desde la compra:</div>
+                        <div className={isPos ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
+                          {fmtPct(pct)} ({isPos ? '+' : '-'}${fmt(Math.abs(nominal))})
+                        </div>
+                        <div className="hint" style={{ marginTop: '8px' }}>
+                          Compra: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    const isGoodSale = diff <= 0;
+                    const opportunity = -nominal;
+                    const oppPct = -pct;
+                    perfHtml = (
+                      <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Análisis post-venta:</div>
+                        <div className={isGoodSale ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
+                          {isGoodSale ? 'Evitaste perder' : 'Dejaste de ganar'}{' '}
+                          {fmtPct(Math.abs(oppPct))} ({isGoodSale ? '+' : '-'}${fmt(Math.abs(opportunity))})
+                        </div>
+                        <div className="hint" style={{ marginTop: '8px' }}>
+                          Venta: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
+                        </div>
+                      </div>
+                    );
+                  }
+                }
+
+                return (
+                  <div key={ev.id} className="glass-panel" style={{ background: 'rgba(0,0,0,0.2)', position: 'relative' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>{ev.fecha}</div>
+                        <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{ev.ticker}</div>
+                      </div>
+                      <button className="btn btn-sm btn-danger" onClick={() => eliminarEval(ev.id)}>✕</button>
+                    </div>
+                    <div style={{ marginBottom: '12px' }}>
+                      <span className={`badge badge-${ev.tipo}`}>{ev.tipo}</span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>{fmt(ev.cantidad, 0)} nominales</span>
+                    </div>
+                    {perfHtml}
                   </div>
                 );
               })}
