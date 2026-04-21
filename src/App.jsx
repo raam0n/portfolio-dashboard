@@ -613,7 +613,8 @@ function App() {
       cantidad: op.cantidad,
       precio: op.precio,
       fecha: op.fecha,
-      tipo: op.tipo
+      tipo: op.tipo,
+      excluded: false
     };
 
     setEvals([...evals, newEval]);
@@ -624,6 +625,10 @@ function App() {
   const eliminarEval = (id) => {
     if (!window.confirm('¿Remover esta evaluación?')) return;
     setEvals(evals.filter(e => e.id !== id));
+  };
+
+  const toggleEvalExclusion = (id) => {
+    setEvals(evals.map(e => e.id === id ? { ...e, excluded: !e.excluded } : e));
   };
 
 
@@ -1437,69 +1442,121 @@ function App() {
               No estás evaluando ninguna operación. Agregá una para ver su rendimiento actual.
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-              {evals.map(ev => {
-                const base = ev.ticker.replace(/\.BA$/i, '');
-                const curPrice = prices[ev.ticker] ?? prices[base] ?? null;
-                
-                let perfHtml = null;
-                if (curPrice === null) {
-                  perfHtml = <div className="empty-state" style={{ padding: '20px' }}>Cargando cotización...</div>;
-                } else {
-                  const diff = curPrice - ev.precio;
-                  const pct = (diff / ev.precio) * 100;
-                  const nominal = diff * ev.cantidad;
-
-                  if (ev.tipo === 'compra') {
-                    const isPos = diff >= 0;
-                    perfHtml = (
-                      <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Rendimiento desde la compra:</div>
-                        <div className={isPos ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
-                          {fmtPct(pct)} ({isPos ? '+' : '-'}${fmt(Math.abs(nominal))})
-                        </div>
-                        <div className="hint" style={{ marginTop: '8px' }}>
-                          Compra: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
-                        </div>
-                      </div>
-                    );
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                {evals.map(ev => {
+                  const base = ev.ticker.replace(/\.BA$/i, '');
+                  const curPrice = prices[ev.ticker] ?? prices[base] ?? null;
+                  const opTotal = ev.precio * ev.cantidad;
+                  
+                  let perfHtml = null;
+                  if (curPrice === null) {
+                    perfHtml = <div className="empty-state" style={{ padding: '20px' }}>Cargando cotización...</div>;
                   } else {
-                    const isGoodSale = diff <= 0;
-                    const opportunity = -nominal;
-                    const oppPct = -pct;
-                    perfHtml = (
-                      <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Análisis post-venta:</div>
-                        <div className={isGoodSale ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
-                          {isGoodSale ? 'Evitaste perder' : 'Dejaste de ganar'}{' '}
-                          {fmtPct(Math.abs(oppPct))} ({isGoodSale ? '+' : '-'}${fmt(Math.abs(opportunity))})
+                    const diff = curPrice - ev.precio;
+                    const pct = (diff / ev.precio) * 100;
+                    const nominal = diff * ev.cantidad;
+
+                    if (ev.tipo === 'compra') {
+                      const isPos = diff >= 0;
+                      perfHtml = (
+                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Rendimiento desde la compra:</div>
+                          <div className={isPos ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
+                            {fmtPct(pct)} ({isPos ? '+' : '-'}${fmt(Math.abs(nominal))})
+                          </div>
+                          <div className="hint" style={{ marginTop: '8px' }}>
+                            Compra: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
+                          </div>
                         </div>
-                        <div className="hint" style={{ marginTop: '8px' }}>
-                          Venta: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
+                      );
+                    } else {
+                      const isGoodSale = diff <= 0;
+                      const opportunity = -nominal;
+                      const oppPct = -pct;
+                      perfHtml = (
+                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Análisis post-venta:</div>
+                          <div className={isGoodSale ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
+                            {isGoodSale ? 'Evitaste perder' : 'Dejaste de ganar'}{' '}
+                            {fmtPct(Math.abs(oppPct))} ({isGoodSale ? '+' : '-'}${fmt(Math.abs(opportunity))})
+                          </div>
+                          <div className="hint" style={{ marginTop: '8px' }}>
+                            Venta: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
+                          </div>
+                        </div>
+                      );
+                    }
+                  }
+
+                  return (
+                    <div key={ev.id} className="glass-panel" style={{ background: 'rgba(0,0,0,0.2)', position: 'relative', opacity: ev.excluded ? 0.5 : 1, transition: 'opacity 0.2s' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                        <div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>{ev.fecha}</div>
+                          <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{ev.ticker}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                           <label className="mcd-option" style={{ margin: 0, padding: '4px 8px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', border: '1px solid var(--glass-border)', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={!ev.excluded} onChange={() => toggleEvalExclusion(ev.id)} style={{ width: '12px', height: '12px' }} />
+                              <span style={{ fontSize: '10px', marginLeft: '4px' }}>Incluir</span>
+                           </label>
+                           <button className="btn btn-sm btn-danger" onClick={() => eliminarEval(ev.id)} style={{ padding: '2px 6px' }}>✕</button>
                         </div>
                       </div>
-                    );
+                      <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                        <div>
+                          <span className={`badge badge-${ev.tipo}`}>{ev.tipo}</span>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>{fmt(ev.cantidad, 0)} nominales</span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total operado</div>
+                          <div style={{ fontSize: '13px', fontWeight: '600' }}>${fmt(opTotal)}</div>
+                        </div>
+                      </div>
+                      {perfHtml}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Net Summary Panel */}
+              {evals.filter(e => !e.excluded).length > 0 && (() => {
+                let netResult = 0;
+                evals.filter(e => !e.excluded).forEach(ev => {
+                  const base = ev.ticker.replace(/\.BA$/i, '');
+                  const curPrice = prices[ev.ticker] ?? prices[base] ?? null;
+                  if (curPrice !== null) {
+                    if (ev.tipo === 'compra') {
+                       netResult += (curPrice - ev.precio) * ev.cantidad;
+                    } else {
+                       netResult += (ev.precio - curPrice) * ev.cantidad;
+                    }
                   }
-                }
+                });
 
                 return (
-                  <div key={ev.id} className="glass-panel" style={{ background: 'rgba(0,0,0,0.2)', position: 'relative' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                  <div className="glass-panel" style={{ marginTop: '2rem', background: 'rgba(94, 106, 210, 0.1)', border: '1px solid rgba(94, 106, 210, 0.3)', padding: '1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>{ev.fecha}</div>
-                        <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{ev.ticker}</div>
+                        <div className="panel-title" style={{ fontSize: '18px', marginBottom: '4px' }}>Resultado Neto Consolidado</div>
+                        <p className="hint">Suma de rendimientos (compras) y beneficios de oportunidad (ventas) de los activos seleccionados.</p>
                       </div>
-                      <button className="btn btn-sm btn-danger" onClick={() => eliminarEval(ev.id)}>✕</button>
+                      <div style={{ textAlign: 'right' }}>
+                        <div className={`metric-value ${netResult >= 0 ? 'positive' : 'negative'}`} style={{ fontSize: '28px' }}>
+                          {netResult >= 0 ? '+' : '-'}${fmt(Math.abs(netResult))}
+                        </div>
+                        {dolarMep && (
+                          <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                            ≈ US$ {fmt(Math.abs(netResult) / dolarMep)}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ marginBottom: '12px' }}>
-                      <span className={`badge badge-${ev.tipo}`}>{ev.tipo}</span>
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>{fmt(ev.cantidad, 0)} nominales</span>
-                    </div>
-                    {perfHtml}
                   </div>
                 );
-              })}
-            </div>
+              })()}
+            </>
           )}
         </div>
       )}
