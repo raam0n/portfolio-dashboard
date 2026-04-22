@@ -91,6 +91,172 @@ function PieChart({ data, title }) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+function HistoricalChart({ data, ticker, name }) {
+  const [range, setRange] = React.useState('1Y');
+  const [hoverIdx, setHoverIdx] = React.useState(null);
+
+  if (!data || !data.history || data.history.length === 0) {
+    return <div className="empty-state">No hay datos históricos suficientes para graficar.</div>;
+  }
+
+  // Sync prices and timestamps, and filter nulls
+  const history = data.history;
+  const timestamps = data.timestamps || [];
+  const fullData = history.map((p, i) => ({ p, t: timestamps[i] })).filter(d => d.p !== null);
+
+  let selection = [];
+  if (range === '1M') selection = fullData.slice(-22);
+  else if (range === '6M') selection = fullData.slice(-126);
+  else if (range === '1Y') selection = fullData.slice(-252);
+  else selection = fullData;
+
+  if (selection.length < 2) return <div className="empty-state">Datos insuficientes para el periodo seleccionado.</div>;
+
+  const points = selection.map(d => d.p);
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range_val = max - min;
+  const padding = range_val * 0.15;
+  const yMin = min - padding;
+  const yMax = max + padding;
+
+  const width = 800;
+  const height = 180;
+  const margin = { left: 50, right: 10, top: 10, bottom: 10 };
+  const chartW = width - margin.left - margin.right;
+  const chartH = height - margin.top - margin.bottom;
+
+  const getX = (i) => margin.left + (i / (selection.length - 1)) * chartW;
+  const getY = (v) => margin.top + chartH - ((v - yMin) / (yMax - yMin)) * chartH;
+
+  const pathData = selection.map((d, i) => `${i === 0 ? 'M' : 'L'}${getX(i)},${getY(d.p)}`).join(' ');
+  const areaData = `${pathData} L${getX(selection.length - 1)},${margin.top + chartH} L${margin.left},${margin.top + chartH} Z`;
+
+  const lastPrice = points[points.length - 1];
+  const firstPrice = points[0];
+  const change = lastPrice - firstPrice;
+  const changePct = (change / firstPrice) * 100;
+
+  const fmt = (n, dec = 2) => new Intl.NumberFormat('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
+  const fmtDate = (ts) => {
+    if (!ts) return '';
+    const d = new Date(ts * 1000);
+    return d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' });
+  };
+
+  const handleMouseMove = (e) => {
+    const svg = e.currentTarget;
+    const rect = svg.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * width;
+    if (x < margin.left) {
+      setHoverIdx(null);
+      return;
+    }
+    const chartX = x - margin.left;
+    const idx = Math.max(0, Math.min(selection.length - 1, Math.round((chartX / chartW) * (selection.length - 1))));
+    setHoverIdx(idx);
+  };
+
+  const hoverItem = hoverIdx !== null ? selection[hoverIdx] : null;
+
+  return (
+    <div className="expanded-panel-content">
+      <div className="chart-header">
+        <div className="chart-title-area">
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Evolución de Precio</div>
+          <h3>{ticker} <span style={{ fontWeight: '400', color: 'var(--text-muted)', fontSize: '14px' }}>— {name}</span></h3>
+        </div>
+        <div className="chart-range-selector">
+          {['1M', '6M', '1Y', 'MAX'].map(r => (
+            <button key={r} className={`range-btn ${range === r ? 'active' : ''}`} onClick={() => setRange(r)}>{r}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ position: 'relative', width: '100%', height: height + 'px' }}>
+        <svg 
+          viewBox={`0 0 ${width} ${height}`} 
+          preserveAspectRatio="none" 
+          style={{ width: '100%', height: '100%', display: 'block', overflow: 'visible', cursor: 'crosshair' }}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => setHoverIdx(null)}
+        >
+          <defs>
+            <linearGradient id={`grad-${ticker}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          
+          {/* Y-Axis Labels & Grid Lines */}
+          {[0, 0.25, 0.5, 0.75, 1].map(v => {
+             const yPos = margin.top + chartH - (v * chartH);
+             const val = yMin + (v * (yMax - yMin));
+             return (
+               <React.Fragment key={v}>
+                 <line x1={margin.left} y1={yPos} x2={width - margin.right} y2={yPos} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+                 <text x={margin.left - 8} y={yPos + 4} textAnchor="end" fill="var(--text-muted)" fontSize="10" fontFamily="inherit">${fmt(val, 0)}</text>
+               </React.Fragment>
+             );
+          })}
+
+          <path d={areaData} fill={`url(#grad-${ticker})`} />
+          <path d={pathData} fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px rgba(94, 106, 210, 0.3))' }} />
+          
+          {/* Last Price Indicator (if not hovering) */}
+          {hoverIdx === null && (
+            <>
+              <line x1={margin.left} y1={getY(lastPrice)} x2={width - margin.right} y2={getY(lastPrice)} stroke="var(--accent)" strokeWidth="1" strokeDasharray="4 4" opacity="0.4" />
+              <circle cx={getX(selection.length - 1)} cy={getY(lastPrice)} r="4" fill="var(--accent)" stroke="white" strokeWidth="1.5" />
+            </>
+          )}
+
+          {/* Hover Indicators */}
+          {hoverIdx !== null && hoverItem && (
+            <g>
+              <line x1={getX(hoverIdx)} y1={margin.top} x2={getX(hoverIdx)} y2={margin.top + chartH} stroke="white" strokeWidth="1" strokeDasharray="3 3" opacity="0.5" />
+              <circle cx={getX(hoverIdx)} cy={getY(hoverItem.p)} r="5" fill="var(--accent)" stroke="white" strokeWidth="2" />
+            </g>
+          )}
+        </svg>
+
+        {/* HTML Tooltip (to avoid preserveAspectRatio="none" squashing) */}
+        {hoverIdx !== null && hoverItem && (
+          <div className="chart-tooltip" style={{ 
+            left: `${(getX(hoverIdx) / width) * 100}%`,
+            top: `${(getY(hoverItem.p) / height) * 100}%`,
+            transform: `translate(${hoverIdx > selection.length / 2 ? '-110%' : '10%'}, -120%)`
+          }}>
+            <div className="tooltip-date">{fmtDate(hoverItem.t)}</div>
+            <div className="tooltip-price">${fmt(hoverItem.p)}</div>
+          </div>
+        )}
+      </div>
+
+      <div className="chart-stats">
+        <div className="chart-stat-item">
+          <span className="chart-stat-label">Precio {hoverIdx !== null ? 'Seleccionado' : 'Actual'}</span>
+          <span className="chart-stat-value">${fmt(hoverIdx !== null ? hoverItem.p : lastPrice)}</span>
+        </div>
+        <div className="chart-stat-item">
+          <span className="chart-stat-label">Rendimiento {range}</span>
+          <span className={`chart-stat-value ${change >= 0 ? 'positive' : 'negative'}`}>
+            {change >= 0 ? '+' : ''}{fmt(changePct)}%
+          </span>
+        </div>
+        <div className="chart-stat-item">
+          <span className="chart-stat-label">Mín. Periodo</span>
+          <span className="chart-stat-value">${fmt(min)}</span>
+        </div>
+        <div className="chart-stat-item">
+          <span className="chart-stat-label">Máx. Periodo</span>
+          <span className="chart-stat-value">${fmt(max)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Market Status Bar ─────────────────────────────────────────────────────────
 function formatMarketTime(unixTs) {
   if (!unixTs) return null;
@@ -266,6 +432,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [showAddEval, setShowAddEval] = useState(false);
+  const [expandedTicker, setExpandedTicker] = useState(null); // Ticker of the expanded row in Watchlist/Portfolio
 
   // Trade form state
   const [tradeVentaId, setTradeVentaId] = useState('');
@@ -338,6 +505,7 @@ function App() {
       const d1d = await r1d.json();
 
       const meta1d = d1d?.chart?.result?.[0]?.meta;
+      const timestamps = d5y?.chart?.result?.[0]?.timestamp || [];
       const adjquote = d5y?.chart?.result?.[0]?.indicators?.adjclose?.[0];
       const rawquote = d5y?.chart?.result?.[0]?.indicators?.quote?.[0];
       const closes = adjquote?.adjclose || rawquote?.close || [];
@@ -392,7 +560,7 @@ function App() {
       const isOpen = meta1d?.marketState === 'REGULAR' || isInTradingWindow;
       const regularMarketTime = meta1d?.regularMarketTime ?? null; // Unix timestamp
 
-      return { price, change, changePct, hist5d, hist1m, hist6m, hist1y, hist5y, isOpen, regularMarketTime };
+      return { price, change, changePct, hist5d, hist1m, hist6m, hist1y, hist5y, isOpen, regularMarketTime, history: closes, timestamps };
     } catch (e) {
       return null;
     }
@@ -893,34 +1061,43 @@ function App() {
                       const sign = pnlA >= 0 ? '+' : '';
 
                       return (
-                        <tr key={h.ticker}>
-                          <td>
-                            <div className="ticker-name">{h.ticker}</div>
-                            {h.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{h.nombre}</div>}
-                          </td>
-                          <td><span className={`badge badge-${h.tipo}`}>{h.tipo}</span></td>
-                          <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{h.mercado || (h.tipo === 'stock' ? 'NYSE/NASDAQ' : (h.tipo === 'bono' ? 'OTC' : 'BCBA'))}</span></td>
-                          <td>{fmt(h.cantidad, 0)}</td>
-                          <td>${fmt(h.precioEntrada)}</td>
-                          <td>
-                            <strong>
-                              {pc !== null ? `$${fmt(pc)}` : (
-                                h.tipo === 'bono' ? (
-                                  <button className="btn btn-sm" onClick={() => editBonoPrecio(h.ticker)}>Fijar P.</button>
-                                ) : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>
+                        <React.Fragment key={h.ticker}>
+                          <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === h.ticker ? null : h.ticker)}>
+                            <td>
+                              <div className="ticker-name">{h.ticker}</div>
+                              {h.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{h.nombre}</div>}
+                            </td>
+                            <td><span className={`badge badge-${h.tipo}`}>{h.tipo}</span></td>
+                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{h.mercado || (h.tipo === 'stock' ? 'NYSE/NASDAQ' : (h.tipo === 'bono' ? 'OTC' : 'BCBA'))}</span></td>
+                            <td>{fmt(h.cantidad, 0)}</td>
+                            <td>${fmt(h.precioEntrada)}</td>
+                            <td>
+                              <strong>
+                                {pc !== null ? `$${fmt(pc)}` : (
+                                  h.tipo === 'bono' ? (
+                                    <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); editBonoPrecio(h.ticker); }}>Fijar P.</button>
+                                  ) : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>
+                                )}
+                              </strong>
+                              {stats && pc !== null && h.tipo !== 'bono' && (
+                                <div className={stats.change >= 0 ? 'positive' : 'negative'} style={{ fontSize: '11px', marginTop: '4px' }}>
+                                  {fmtPct(stats.changePct)}
+                                </div>
                               )}
-                            </strong>
-                            {stats && pc !== null && h.tipo !== 'bono' && (
-                              <div className={stats.change >= 0 ? 'positive' : 'negative'} style={{ fontSize: '11px', marginTop: '4px' }}>
-                                {fmtPct(stats.changePct)}
-                              </div>
-                            )}
-                          </td>
-                          <td>{valor !== null ? '$' + fmt(valor) : '—'}</td>
-                          <td className={cssPnl}>{pnlA !== null ? sign + '$' + fmt(pnlA) : '—'}</td>
-                          <td className={cssPnl}><strong>{fmtPct(pnlP)}</strong></td>
-                          <td><button className="btn btn-sm btn-danger" onClick={() => eliminarHolding(h.ticker)}>✕</button></td>
-                        </tr>
+                            </td>
+                            <td>{valor !== null ? '$' + fmt(valor) : '—'}</td>
+                            <td className={cssPnl}>{pnlA !== null ? sign + '$' + fmt(pnlA) : '—'}</td>
+                            <td className={cssPnl}><strong>{fmtPct(pnlP)}</strong></td>
+                            <td><button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); eliminarHolding(h.ticker); }}>✕</button></td>
+                          </tr>
+                          {expandedTicker === h.ticker && (
+                            <tr className="expanded-panel-row">
+                              <td colSpan="10">
+                                <HistoricalChart data={stats} ticker={h.ticker} name={h.nombre} />
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
@@ -1204,11 +1381,10 @@ function App() {
                       const ytB = getYahooTicker(b) || b.ticker;
                       const pctA = dailyStats[ytA]?.changePct ?? null;
                       const pctB = dailyStats[ytB]?.changePct ?? null;
-                      // Items with no data sink to the bottom
                       if (pctA === null && pctB === null) return 0;
                       if (pctA === null) return 1;
                       if (pctB === null) return -1;
-                      return pctB - pctA; // descending: best performers first
+                      return pctB - pctA;
                     }).map(w => {
                       const yt = getYahooTicker(w) || w.ticker;
                       const pc = prices[yt] ?? null;
@@ -1228,35 +1404,44 @@ function App() {
                       };
 
                       return (
-                        <tr key={`${w.ticker}-${w.mercado || 'BCBA'}`}>
-                          <td>
-                            <div className="ticker-name">{w.ticker}</div>
-                            {w.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{w.nombre}</div>}
-                          </td>
-                          <td><span className={`badge badge-${w.tipo}`}>{w.tipo}</span></td>
-                          <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.mercado || (w.tipo === 'stock' ? 'NYSE/NASDAQ' : 'BCBA')}</span></td>
-                          <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.categoria || '—'}</span></td>
-                          <td>
-                            <strong className={pc !== null && stats && !stats.isOpen ? 'price-stale' : ''}>
-                              {pc !== null ? `$${fmt(pc)}` : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>}
-                            </strong>
-                            {pc !== null && stats && (
-                              <div>
-                                <span className={`mkt-price-badge mkt-price-badge--${stats.isOpen ? 'open' : 'closed'}`}>
-                                  <span className="mkt-price-badge__dot" />
-                                  {stats.isOpen ? 'En vivo' : 'Cierre ant.'}
-                                </span>
-                              </div>
-                            )}
-                          </td>
-                          <td className={todayCss}><strong>{todayText}</strong></td>
-                          <td>{stats ? fmtHist(stats.hist5d) : '—'}</td>
-                          <td>{stats ? fmtHist(stats.hist1m) : '—'}</td>
-                          <td>{stats ? fmtHist(stats.hist6m) : '—'}</td>
-                          <td>{stats ? fmtHist(stats.hist1y) : '—'}</td>
-                          <td>{stats ? fmtHist(stats.hist5y) : '—'}</td>
-                          <td><button className="btn btn-sm btn-danger" onClick={() => eliminarWatchlist(w.ticker)}>✕</button></td>
-                        </tr>
+                        <React.Fragment key={`${w.ticker}-${w.mercado || 'BCBA'}`}>
+                          <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === w.ticker ? null : w.ticker)}>
+                            <td>
+                              <div className="ticker-name">{w.ticker}</div>
+                              {w.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{w.nombre}</div>}
+                            </td>
+                            <td><span className={`badge badge-${w.tipo}`}>{w.tipo}</span></td>
+                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.mercado || (w.tipo === 'stock' ? 'NYSE/NASDAQ' : 'BCBA')}</span></td>
+                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.categoria || '—'}</span></td>
+                            <td>
+                              <strong className={pc !== null && stats && !stats.isOpen ? 'price-stale' : ''}>
+                                {pc !== null ? `$${fmt(pc)}` : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>}
+                              </strong>
+                              {pc !== null && stats && (
+                                <div>
+                                  <span className={`mkt-price-badge mkt-price-badge--${stats.isOpen ? 'open' : 'closed'}`}>
+                                    <span className="mkt-price-badge__dot" />
+                                    {stats.isOpen ? 'En vivo' : 'Cierre ant.'}
+                                  </span>
+                                </div>
+                              )}
+                            </td>
+                            <td className={todayCss}><strong>{todayText}</strong></td>
+                            <td>{stats ? fmtHist(stats.hist5d) : '—'}</td>
+                            <td>{stats ? fmtHist(stats.hist1m) : '—'}</td>
+                            <td>{stats ? fmtHist(stats.hist6m) : '—'}</td>
+                            <td>{stats ? fmtHist(stats.hist1y) : '—'}</td>
+                            <td>{stats ? fmtHist(stats.hist5y) : '—'}</td>
+                            <td><button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); eliminarWatchlist(w.ticker); }}>✕</button></td>
+                          </tr>
+                          {expandedTicker === w.ticker && (
+                            <tr className="expanded-panel-row">
+                              <td colSpan="12">
+                                <HistoricalChart data={stats} ticker={w.ticker} name={w.nombre} />
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                 </tbody>

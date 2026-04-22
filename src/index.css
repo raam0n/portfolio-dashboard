@@ -799,6 +799,96 @@ textarea:focus {
   line-height: 1.4;
 }
 
+/* ── Expandable Rows & Historical Charts ─────────────────────────────────── */
+.expandable-row {
+  cursor: pointer;
+}
+
+.expanded-panel-row td {
+  padding: 0 !important;
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(94, 106, 210, 0.03);
+}
+
+.expanded-panel-content {
+  padding: 24px;
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 20px;
+}
+
+.chart-title-area h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.chart-range-selector {
+  display: flex;
+  gap: 4px;
+  background: rgba(0,0,0,0.2);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+}
+
+.range-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.range-btn:hover {
+  color: var(--text-main);
+  background: rgba(255,255,255,0.05);
+}
+
+.range-btn.active {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 2px 8px rgba(94, 106, 210, 0.4);
+}
+
+.chart-stats {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+.chart-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chart-stat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chart-stat-value {
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .mkt-pill__status {
   font-size: 10px;
   font-weight: 500;
@@ -864,7 +954,39 @@ textarea:focus {
 }
 
 .mkt-price-badge--closed .mkt-price-badge__dot {
-  background: var(--negative);
+  background: var(--text-muted);
+}
+
+/* --- Chart Tooltip --- */
+.chart-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(20, 23, 40, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 90px;
+  transition: transform 0.1s ease-out;
+}
+
+.tooltip-date {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tooltip-price {
+  font-size: 15px;
+  color: white;
+  font-weight: 700;
 }
 
 /* Price text dimmed when market closed — applied to the <strong> wrapper */
