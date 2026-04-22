@@ -1463,44 +1463,45 @@ function App() {
                   const opTotal = ev.precio * ev.cantidad;
                   
                   let perfHtml = null;
-                  if (curPrice === null) {
-                    perfHtml = <div className="empty-state" style={{ padding: '20px' }}>Cargando cotización...</div>;
-                  } else {
-                    const diff = curPrice - ev.precio;
-                    const pct = (diff / ev.precio) * 100;
-                    const nominal = diff * ev.cantidad;
+                    let cardResult = null;
+                    if (curPrice !== null) {
+                      const diff = curPrice - ev.precio;
+                      const pct = (diff / ev.precio) * 100;
+                      const nominal = diff * ev.cantidad;
 
-                    if (ev.tipo === 'compra') {
-                      const isPos = diff >= 0;
-                      perfHtml = (
-                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Rendimiento desde la compra:</div>
-                          <div className={isPos ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
-                            {fmtPct(pct)} ({isPos ? '+' : '-'}${fmt(Math.abs(nominal))})
+                      if (ev.tipo === 'compra') {
+                        cardResult = nominal;
+                        const isPos = diff >= 0;
+                        perfHtml = (
+                          <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Rendimiento desde la compra:</div>
+                            <div className={isPos ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
+                              {fmtPct(pct)} ({isPos ? '+' : '-'}${fmt(Math.abs(nominal))})
+                            </div>
+                            <div className="hint" style={{ marginTop: '8px' }}>
+                              Compra: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
+                            </div>
                           </div>
-                          <div className="hint" style={{ marginTop: '8px' }}>
-                            Compra: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
+                        );
+                      } else {
+                        cardResult = -nominal;
+                        const isGoodSale = diff <= 0;
+                        const opportunity = -nominal;
+                        const oppPct = -pct;
+                        perfHtml = (
+                          <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Análisis post-venta:</div>
+                            <div className={isGoodSale ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
+                              {isGoodSale ? 'Evitaste perder' : 'Dejaste de ganar'}{' '}
+                              {fmtPct(Math.abs(oppPct))} ({isGoodSale ? '+' : '-'}${fmt(Math.abs(opportunity))})
+                            </div>
+                            <div className="hint" style={{ marginTop: '8px' }}>
+                              Venta: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    } else {
-                      const isGoodSale = diff <= 0;
-                      const opportunity = -nominal;
-                      const oppPct = -pct;
-                      perfHtml = (
-                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Análisis post-venta:</div>
-                          <div className={isGoodSale ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
-                            {isGoodSale ? 'Evitaste perder' : 'Dejaste de ganar'}{' '}
-                            {fmtPct(Math.abs(oppPct))} ({isGoodSale ? '+' : '-'}${fmt(Math.abs(opportunity))})
-                          </div>
-                          <div className="hint" style={{ marginTop: '8px' }}>
-                            Venta: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
-                          </div>
-                        </div>
-                      );
+                        );
+                      }
                     }
-                  }
 
                   return (
                     <div key={ev.id} className="glass-panel" style={{ background: 'rgba(0,0,0,0.2)', position: 'relative', opacity: ev.excluded ? 0.5 : 1, transition: 'opacity 0.2s' }}>
@@ -1524,7 +1525,18 @@ function App() {
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total operado</div>
-                          <div style={{ fontSize: '13px', fontWeight: '600' }}>${fmt(opTotal)}</div>
+                          <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>${fmt(opTotal)}</div>
+                          
+                          {cardResult !== null && (
+                            <>
+                              <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                                {ev.tipo === 'compra' ? 'Res. por Tenencia' : 'Res. por Venta'}
+                              </div>
+                              <div style={{ fontSize: '13px', fontWeight: '600' }} className={cardResult >= 0 ? 'positive' : 'negative'}>
+                                {cardResult >= 0 ? '+' : '-'}${fmt(Math.abs(cardResult))}
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                       {perfHtml}
@@ -1539,6 +1551,9 @@ function App() {
                 let totalBuyVol = 0;
                 let totalSellVol = 0;
 
+                let totalHoldingResult = 0;
+                let totalSaleResult = 0;
+
                 evals.filter(e => !e.excluded).forEach(ev => {
                   const base = ev.ticker.replace(/\.BA$/i, '');
                   const curPrice = prices[ev.ticker] ?? prices[base] ?? null;
@@ -1546,10 +1561,14 @@ function App() {
 
                   if (curPrice !== null) {
                     if (ev.tipo === 'compra') {
-                       netResult += (curPrice - ev.precio) * ev.cantidad;
+                       const res = (curPrice - ev.precio) * ev.cantidad;
+                       netResult += res;
+                       totalHoldingResult += res;
                        totalBuyVol += opTotal;
                     } else {
-                       netResult += (ev.precio - curPrice) * ev.cantidad;
+                       const res = (ev.precio - curPrice) * ev.cantidad;
+                       netResult += res;
+                       totalSaleResult += res;
                        totalSellVol += opTotal;
                     }
                   }
@@ -1559,44 +1578,69 @@ function App() {
                 const netPct = totalBuyVol > 0 ? (netResult / totalBuyVol) * 100 : 0;
 
                 return (
-                  <div className="glass-panel" style={{ marginTop: '2rem', background: 'rgba(94, 106, 210, 0.1)', border: '1px solid rgba(94, 106, 210, 0.3)', padding: '1.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div className="glass-panel" style={{ marginTop: '2rem', background: 'rgba(94, 106, 210, 0.08)', border: '1px solid rgba(94, 106, 210, 0.25)', padding: '1.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '2rem' }}>
+                      
+                      {/* Left: Title and Volumes */}
                       <div style={{ flex: 1 }}>
-                        <div className="panel-title" style={{ fontSize: '18px', marginBottom: '4px' }}>Resultado Neto Consolidado</div>
-                        <p className="hint" style={{ marginBottom: '16px' }}>Suma de rendimientos (compras) y beneficios de oportunidad (ventas) seleccionados.</p>
+                        <div className="panel-title" style={{ fontSize: '20px', marginBottom: '6px' }}>Resultado Neto Consolidado</div>
+                        <p className="hint" style={{ marginBottom: '24px', fontSize: '13px' }}>Suma de rendimientos (compras) y beneficios de oportunidad (ventas) seleccionados.</p>
                         
-                        <div style={{ display: 'flex', gap: '2rem' }}>
+                        <div style={{ display: 'flex', gap: '2.5rem' }}>
                           <div>
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Volumen Compras</div>
-                            <div style={{ fontSize: '15px', fontWeight: '600' }}>${fmt(totalBuyVol)}</div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Volumen Compras</div>
+                            <div style={{ fontSize: '16px', fontWeight: '700' }}>${fmt(totalBuyVol)}</div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Volumen Ventas</div>
-                            <div style={{ fontSize: '15px', fontWeight: '600' }}>${fmt(totalSellVol)}</div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Volumen Ventas</div>
+                            <div style={{ fontSize: '16px', fontWeight: '700' }}>${fmt(totalSellVol)}</div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Operado</div>
-                            <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--accent)' }}>${fmt(totalVol)}</div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Total Operado</div>
+                            <div style={{ fontSize: '16px', fontWeight: '700', color: '#6366f1' }}>${fmt(totalVol)}</div>
                           </div>
                         </div>
                       </div>
 
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Resultado Final</div>
-                        <div className={`metric-value ${netResult >= 0 ? 'positive' : 'negative'}`} style={{ fontSize: '32px', marginBottom: '4px' }}>
-                          {netResult >= 0 ? '+' : '-'}${fmt(Math.abs(netResult))}
+                      {/* Right: Specific Results and Total */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '3rem' }}>
+                        
+                        {/* Stacked Mid Boxes */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'right', minWidth: '160px' }}>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Res. por Tenencia</div>
+                            <div style={{ fontSize: '16px', fontWeight: '700' }} className={totalHoldingResult >= 0 ? 'positive' : 'negative'}>
+                              {totalHoldingResult >= 0 ? '+' : '-'}${fmt(Math.abs(totalHoldingResult))}
+                            </div>
+                          </div>
+                          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'right', minWidth: '160px' }}>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Res. por Venta</div>
+                            <div style={{ fontSize: '16px', fontWeight: '700' }} className={totalSaleResult >= 0 ? 'positive' : 'negative'}>
+                              {totalSaleResult >= 0 ? '+' : '-'}${fmt(Math.abs(totalSaleResult))}
+                            </div>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px' }}>
-                          <span className={netResult >= 0 ? 'positive' : 'negative'} style={{ fontWeight: '700', fontSize: '16px' }}>
-                             {fmtPct(netPct)}
-                          </span>
-                          {dolarMep && (
-                            <span style={{ fontSize: '14px', color: 'var(--text-muted)', borderLeft: '1px solid var(--glass-border)', paddingLeft: '10px' }}>
-                              ≈ US$ {fmt(Math.abs(netResult) / dolarMep)}
+
+                        {/* Far Right: Total Result */}
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px', opacity: 0.8 }}>Resultado Final</div>
+                          <div className={`metric-value ${netResult >= 0 ? 'positive' : 'negative'}`} style={{ fontSize: '42px', fontWeight: '800', lineHeight: '1', marginBottom: '8px' }}>
+                            {netResult >= 0 ? '+' : '-'}${fmt(Math.abs(netResult))}
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
+                            <span className={netResult >= 0 ? 'positive' : 'negative'} style={{ fontWeight: '700', fontSize: '18px' }}>
+                               {fmtPct(netPct)}
                             </span>
-                          )}
+                            {dolarMep && (
+                              <span style={{ fontSize: '15px', color: 'var(--text-muted)', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '12px' }}>
+                                ≈ US$ {fmt(Math.abs(netResult) / dolarMep)}
+                              </span>
+                            )}
+                          </div>
                         </div>
+
                       </div>
+
                     </div>
                   </div>
                 );
