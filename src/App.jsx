@@ -1463,45 +1463,44 @@ function App() {
                   const opTotal = ev.precio * ev.cantidad;
                   
                   let perfHtml = null;
-                    let cardResult = null;
-                    if (curPrice !== null) {
-                      const diff = curPrice - ev.precio;
-                      const pct = (diff / ev.precio) * 100;
-                      const nominal = diff * ev.cantidad;
+                  if (curPrice === null) {
+                    perfHtml = <div className="empty-state" style={{ padding: '20px' }}>Cargando cotización...</div>;
+                  } else {
+                    const diff = curPrice - ev.precio;
+                    const pct = (diff / ev.precio) * 100;
+                    const nominal = diff * ev.cantidad;
 
-                      if (ev.tipo === 'compra') {
-                        cardResult = nominal;
-                        const isPos = diff >= 0;
-                        perfHtml = (
-                          <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Rendimiento desde la compra:</div>
-                            <div className={isPos ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
-                              {fmtPct(pct)} ({isPos ? '+' : '-'}${fmt(Math.abs(nominal))})
-                            </div>
-                            <div className="hint" style={{ marginTop: '8px' }}>
-                              Compra: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
-                            </div>
+                    if (ev.tipo === 'compra') {
+                      const isPos = diff >= 0;
+                      perfHtml = (
+                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Rendimiento desde la compra:</div>
+                          <div className={isPos ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
+                            {fmtPct(pct)} ({isPos ? '+' : '-'}${fmt(Math.abs(nominal))})
                           </div>
-                        );
-                      } else {
-                        cardResult = -nominal;
-                        const isGoodSale = diff <= 0;
-                        const opportunity = -nominal;
-                        const oppPct = -pct;
-                        perfHtml = (
-                          <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Análisis post-venta:</div>
-                            <div className={isGoodSale ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
-                              {isGoodSale ? 'Evitaste perder' : 'Dejaste de ganar'}{' '}
-                              {fmtPct(Math.abs(oppPct))} ({isGoodSale ? '+' : '-'}${fmt(Math.abs(opportunity))})
-                            </div>
-                            <div className="hint" style={{ marginTop: '8px' }}>
-                              Venta: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
-                            </div>
+                          <div className="hint" style={{ marginTop: '8px' }}>
+                            Compra: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
                           </div>
-                        );
-                      }
+                        </div>
+                      );
+                    } else {
+                      const isGoodSale = diff <= 0;
+                      const opportunity = -nominal;
+                      const oppPct = -pct;
+                      perfHtml = (
+                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Análisis post-venta:</div>
+                          <div className={isGoodSale ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
+                            {isGoodSale ? 'Evitaste perder' : 'Dejaste de ganar'}{' '}
+                            {fmtPct(Math.abs(oppPct))} ({isGoodSale ? '+' : '-'}${fmt(Math.abs(opportunity))})
+                          </div>
+                          <div className="hint" style={{ marginTop: '8px' }}>
+                            Venta: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
+                          </div>
+                        </div>
+                      );
                     }
+                  }
 
                   return (
                     <div key={ev.id} className="glass-panel" style={{ background: 'rgba(0,0,0,0.2)', position: 'relative', opacity: ev.excluded ? 0.5 : 1, transition: 'opacity 0.2s' }}>
@@ -1525,18 +1524,7 @@ function App() {
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total operado</div>
-                          <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>${fmt(opTotal)}</div>
-                          
-                          {cardResult !== null && (
-                            <>
-                              <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                                {ev.tipo === 'compra' ? 'Res. por Tenencia' : 'Res. por Venta'}
-                              </div>
-                              <div style={{ fontSize: '13px', fontWeight: '600' }} className={cardResult >= 0 ? 'positive' : 'negative'}>
-                                {cardResult >= 0 ? '+' : '-'}${fmt(Math.abs(cardResult))}
-                              </div>
-                            </>
-                          )}
+                          <div style={{ fontSize: '13px', fontWeight: '600' }}>${fmt(opTotal)}</div>
                         </div>
                       </div>
                       {perfHtml}
