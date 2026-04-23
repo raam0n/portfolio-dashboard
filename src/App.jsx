@@ -7,6 +7,32 @@ const CHART_COLORS = [
   '#a855f7', '#ec4899', '#14b8a6', '#f97316', '#84cc16',
   '#06b6d4', '#e11d48', '#8b5cf6', '#22d3ee', '#fb923c',
 ];
+const GLOBAL_INDICES = [
+  { ticker: '^GSPC', name: 'S&P 500', desc: 'Benchmark principal del mercado estadounidense.' },
+  { ticker: '^DJI', name: 'Dow Jones', desc: 'Índice industrial de referencia de las 30 mayores empresas de EE.UU.' },
+  { ticker: '^IXIC', name: 'Nasdaq', desc: 'Índice enfocado en empresas tecnológicas y de crecimiento.' },
+  { ticker: '^VIX', name: 'VIX (Miedo)', desc: 'Índice de volatilidad; clave para medir el sentimiento de "miedo" en el mercado.' },
+  { ticker: '^STOXX50E', name: 'Euro Stoxx 50', desc: 'El índice más representativo de las 50 mayores empresas de la Eurozona.' },
+  { ticker: 'EWZ', name: 'Bovespa (USD)', desc: 'iShares MSCI Brazil ETF; usado como proxy del mercado brasileño en dólares.' },
+  { ticker: 'MERVAL_USD', name: 'Merval (USD)', desc: 'Índice S&P Merval dividido por el Dólar CCL. Refleja el valor real en dólares de las acciones argentinas.', isCalculated: true },
+  { ticker: '^TNX', name: '10Y Yield', desc: 'Rendimiento del bono del Tesoro a 10 años. Si sube, suele presionar a la baja a las acciones y encarece el crédito.' },
+  { ticker: 'GC=F', name: 'Oro', desc: 'Futuros del Oro. Activo refugio por excelencia ante incertidumbre o inflación.' },
+  { ticker: 'DX-Y.NYB', name: 'DXY', desc: 'Índice Dólar. Mide la fortaleza del dólar frente a otras divisas. Si sube, los emergentes suelen sufrir.' },
+  { ticker: 'BTC-USD', name: 'Bitcoin', desc: 'Referencia principal del mercado de criptoactivos.' },
+];
+
+const fmt = (n, dec = 2) => {
+  if (n == null || isNaN(n)) return '—';
+  return new Intl.NumberFormat('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
+};
+
+const fmtPct = (n) => {
+  if (n == null || isNaN(n)) return '—';
+  const sign = n >= 0 ? '+' : '';
+  return `${sign}${fmt(n, 2)}%`;
+};
+
+
 
 function PieChart({ data, title }) {
   const [hovered, setHovered] = React.useState(null);
@@ -137,7 +163,6 @@ function HistoricalChart({ data, ticker, name }) {
   const change = lastPrice - firstPrice;
   const changePct = (change / firstPrice) * 100;
 
-  const fmt = (n, dec = 2) => new Intl.NumberFormat('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
   const fmtDate = (ts) => {
     if (!ts) return '';
     const d = new Date(ts * 1000);
@@ -409,6 +434,31 @@ function MultiCheckDropdown({ placeholder, options, selected, onChange }) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Index Ticker Bar ──────────────────────────────────────────────────────────
+function IndexTickerBar({ dailyStats }) {
+  const items = [...GLOBAL_INDICES, ...GLOBAL_INDICES];
+  return (
+    <div className="index-ticker-bar">
+      <div className="index-ticker-container">
+        {items.map((idx, i) => {
+          const stats = dailyStats[idx.ticker];
+          if (!stats) return null;
+          const isPos = stats.change >= 0;
+          return (
+            <div key={`${idx.ticker}-${i}`} className="index-item">
+              <span className="index-name">{idx.name}</span>
+              <span className="index-value">{idx.ticker === 'BTC-USD' ? '' : '$'}{fmt(stats.price, idx.ticker === 'BTC-USD' || idx.ticker === '^TNX' ? 2 : 2)}</span>
+              <span className={`index-change ${isPos ? 'positive' : 'negative'}`}>
+                {isPos ? '▲' : '▼'} {Math.abs(stats.changePct).toFixed(2)}%
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 
 function App() {
   const [activeTab, setActiveTab] = useState('portfolio'); // 'portfolio', 'operaciones', 'watchlist', 'trades'
@@ -422,6 +472,8 @@ function App() {
   const [prices, setPrices] = useState(() => JSON.parse(localStorage.getItem('cached_prices') || '{}'));
   const [dailyStats, setDailyStats] = useState(() => JSON.parse(localStorage.getItem('cached_stats') || '{}'));
   const [dolarMep, setDolarMep] = useState(null);
+  const [dolarCcl, setDolarCcl] = useState(null);
+
   const [status, setStatus] = useState('loading'); // 'loading', 'ok', 'error'
   const [statusText, setStatusText] = useState('Cargando precios...');
 
@@ -603,6 +655,17 @@ function App() {
       }
     }
 
+    // 1.5 Global Indices
+    const indicesToFetch = [...GLOBAL_INDICES.filter(i => !i.isCalculated).map(i => i.ticker)];
+    if (GLOBAL_INDICES.some(i => i.ticker === 'MERVAL_USD')) {
+      if (!indicesToFetch.includes('IMV.BA')) indicesToFetch.push('IMV.BA');
+      if (!indicesToFetch.includes('^MERV')) indicesToFetch.push('^MERV');
+    }
+    for (const ticker of indicesToFetch) {
+      const data = await fetchPrice(ticker);
+      if (data) applyData(ticker, ticker, data);
+    }
+
     // 2. Fetch older operations not currently tracked manually
     for (const op of operaciones) {
       const base = clean(op.ticker);
@@ -625,8 +688,23 @@ function App() {
       const mepR = await fetch('https://dolarapi.com/v1/dolares/bolsa');
       const mepD = await mepR.json();
       if (mepD && mepD.venta) setDolarMep(mepD.venta);
+
+      const cclR = await fetch('https://dolarapi.com/v1/dolares/contadoconliqui');
+      const cclD = await cclR.json();
+      if (cclD && cclD.venta) {
+        setDolarCcl(cclD.venta);
+        const mArs = newStats['IMV.BA'] || newStats['^MERV'];
+        if (mArs) {
+          applyData('MERVAL_USD', 'MERVAL_USD', {
+            ...mArs,
+            price: mArs.price / cclD.venta,
+            change: mArs.change / cclD.venta,
+            history: (mArs.history || []).map(v => v ? v / cclD.venta : null)
+          });
+        }
+      }
     } catch (e) {
-      console.warn('MEP fetch error', e);
+      console.warn('DolarAPI fetch error', e);
     }
 
     setPrices(newPrices);
@@ -636,16 +714,6 @@ function App() {
     setStatusText(`Actualizado ${ts}`);
   };
 
-  const fmt = (n, dec = 2) => {
-    if (n == null || isNaN(n)) return '—';
-    return new Intl.NumberFormat('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
-  };
-
-  const fmtPct = (n) => {
-    if (n == null || isNaN(n)) return '—';
-    const sign = n >= 0 ? '+' : '';
-    return `${sign}${fmt(n, 2)}%`;
-  };
 
   // --- HOLDINGS BUSINESS LOGIC ---
   const agregarHolding = () => {
@@ -891,6 +959,7 @@ function App() {
           <button className={`tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`} onClick={() => setActiveTab('portfolio')}>Mi Portfolio</button>
           <button className={`tab-btn ${activeTab === 'operaciones' ? 'active' : ''}`} onClick={() => setActiveTab('operaciones')}>Histórico</button>
           <button className={`tab-btn ${activeTab === 'watchlist' ? 'active' : ''}`} onClick={() => setActiveTab('watchlist')}>Watchlist</button>
+          <button className={`tab-btn ${activeTab === 'mercados' ? 'active' : ''}`} onClick={() => setActiveTab('mercados')}>Mercados</button>
           <button className={`tab-btn ${activeTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveTab('trades')}>Trades</button>
           <button className={`tab-btn ${activeTab === 'evaluacion' ? 'active' : ''}`} onClick={() => setActiveTab('evaluacion')}>Evaluación</button>
         </div>
@@ -900,6 +969,9 @@ function App() {
           </div>
         )}
       </nav>
+
+      {/* Global Index Bar */}
+      <IndexTickerBar dailyStats={dailyStats} />
 
       {/* Settings Panel (Global Drawer) */}
       {showSettings && (
@@ -1450,6 +1522,82 @@ function App() {
           </div>
         </div>
       )}
+      {/* --- TAB: MERCADOS --- */}
+      {activeTab === 'mercados' && (
+        <div className="glass-panel">
+          <div className="panel-header">
+            <div className="panel-title">Referencia de Mercados Globales</div>
+          </div>
+          
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Indicador</th>
+                  <th>Precio</th>
+                  <th>Variación Hoy</th>
+                  <th>1 Mes</th>
+                  <th>6 Meses</th>
+                  <th>1 Año</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...GLOBAL_INDICES].sort((a, b) => (dailyStats[a.ticker]?.changePct ?? 0) - (dailyStats[b.ticker]?.changePct ?? 0)).map(idx => {
+                  const stats = dailyStats[idx.ticker];
+                  if (!stats) return null;
+                  
+                  const isPos = stats.change >= 0;
+                  const fmtHist = (val) => {
+                    if (val == null) return <span style={{ color: '#666' }}>—</span>;
+                    let css = val >= 0 ? 'positive' : 'negative';
+                    return <span className={css}><strong>{fmtPct(val)}</strong></span>;
+                  };
+
+                  return (
+                    <React.Fragment key={idx.ticker}>
+                      <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === idx.ticker ? null : idx.ticker)}>
+                        <td>
+                          <div className="ticker-name">{idx.name}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{idx.ticker}</div>
+                        </td>
+                        <td>
+                          <strong className={!stats.isOpen ? 'price-stale' : ''}>
+                            {idx.ticker === 'BTC-USD' ? '' : '$'}{fmt(stats.price, idx.ticker === 'BTC-USD' || idx.ticker === '^TNX' ? 2 : 2)}
+                          </strong>
+                        </td>
+                        <td className={isPos ? 'positive' : 'negative'}>
+                          <strong>{fmtPct(stats.changePct)}</strong>
+                        </td>
+                        <td>{fmtHist(stats.hist1m)}</td>
+                        <td>{fmtHist(stats.hist6m)}</td>
+                        <td>{fmtHist(stats.hist1y)}</td>
+                        <td style={{ color: 'var(--accent)', fontSize: '12px' }}>{expandedTicker === idx.ticker ? '▲ Info' : '▼ Info'}</td>
+                      </tr>
+                      {expandedTicker === idx.ticker && (
+                        <tr className="expanded-panel-row">
+                          <td colSpan="7">
+                            <div className="market-detail-container">
+                              <div className="market-explanation">
+                                <h4>Acerca de {idx.name}</h4>
+                                <p>{idx.desc}</p>
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <HistoricalChart data={stats} ticker={idx.ticker} name={idx.name} />
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
 
       {/* --- TAB 4: TRADES --- */}
       {activeTab === 'trades' && (
