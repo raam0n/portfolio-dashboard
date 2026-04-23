@@ -18,6 +18,8 @@ const GLOBAL_INDICES = [
   { ticker: '^TNX', name: '10Y Yield', desc: 'Rendimiento del bono del Tesoro a 10 años. Si sube, suele presionar a la baja a las acciones y encarece el crédito.' },
   { ticker: 'GC=F', name: 'Oro', desc: 'Futuros del Oro. Activo refugio por excelencia ante incertidumbre o inflación.' },
   { ticker: 'DX-Y.NYB', name: 'DXY', desc: 'Índice Dólar. Mide la fortaleza del dólar frente a otras divisas. Si sube, los emergentes suelen sufrir.' },
+  { ticker: 'CL=F', name: 'WTI Oil', desc: 'Crudo West Texas Intermediate. Referencia principal del petróleo en EE.UU.' },
+  { ticker: 'BZ=F', name: 'Brent Oil', desc: 'Petróleo Brent. Referencia global para el mercado europeo y mundial.' },
   { ticker: 'BTC-USD', name: 'Bitcoin', desc: 'Referencia principal del mercado de criptoactivos.' },
 ];
 
