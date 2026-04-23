@@ -1543,7 +1543,7 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {[...GLOBAL_INDICES].sort((a, b) => (dailyStats[a.ticker]?.changePct ?? 0) - (dailyStats[b.ticker]?.changePct ?? 0)).map(idx => {
+                {[...GLOBAL_INDICES].sort((a, b) => (dailyStats[b.ticker]?.changePct ?? 0) - (dailyStats[a.ticker]?.changePct ?? 0)).map(idx => {
                   const stats = dailyStats[idx.ticker];
                   if (!stats) return null;
                   
