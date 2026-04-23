@@ -438,7 +438,8 @@ function MultiCheckDropdown({ placeholder, options, selected, onChange }) {
 
 // ── Index Ticker Bar ──────────────────────────────────────────────────────────
 function IndexTickerBar({ dailyStats }) {
-  const items = [...GLOBAL_INDICES, ...GLOBAL_INDICES];
+  const sorted = [...GLOBAL_INDICES].sort((a, b) => (dailyStats[b.ticker]?.changePct ?? 0) - (dailyStats[a.ticker]?.changePct ?? 0));
+  const items = [...sorted, ...sorted];
   return (
     <div className="index-ticker-bar">
       <div className="index-ticker-container">
