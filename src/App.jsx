@@ -490,8 +490,8 @@ function App() {
   const [expandedTicker, setExpandedTicker] = useState(null); // Ticker of the expanded row in Watchlist/Portfolio
 
   // Trade form state
-  const [tradeVentaId, setTradeVentaId] = useState('');
   const [tradeCompraId, setTradeCompraId] = useState('');
+  const [tradeVentaId, setTradeVentaId] = useState('');
   const [evalOpId, setEvalOpId] = useState('');
 
   // Form states
@@ -968,8 +968,8 @@ function App() {
           <button className={`tab-btn ${activeTab === 'operaciones' ? 'active' : ''}`} onClick={() => setActiveTab('operaciones')}>Histórico</button>
           <button className={`tab-btn ${activeTab === 'watchlist' ? 'active' : ''}`} onClick={() => setActiveTab('watchlist')}>Watchlist</button>
           <button className={`tab-btn ${activeTab === 'mercados' ? 'active' : ''}`} onClick={() => setActiveTab('mercados')}>Mercados</button>
-          <button className={`tab-btn ${activeTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveTab('trades')}>Trades</button>
           <button className={`tab-btn ${activeTab === 'evaluacion' ? 'active' : ''}`} onClick={() => setActiveTab('evaluacion')}>Evaluación</button>
+          <button className={`tab-btn ${activeTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveTab('trades')}>Trades</button>
         </div>
         {dolarMep && (
           <div style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>
@@ -1680,7 +1680,7 @@ function App() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
                       <div>
                         <h3 style={{ fontSize: '15px', marginBottom: '4px' }}>
-                          {trade.ventaFecha} · Trade Cerrado: <span style={{ color: 'var(--accent)' }}>{trade.compraTicker}</span>
+                          <span style={{ opacity: 0.7 }}>{trade.compraFecha} → {trade.ventaFecha}</span> · Trade Cerrado: <span style={{ color: 'var(--accent)' }}>{trade.compraTicker}</span>
                           {trade.compraTicker !== trade.ventaTicker && (
                             <span style={{ color: 'var(--text-muted)', fontSize: '12px', marginLeft: '6px' }}>
                               (Venta de {trade.ventaTicker})
@@ -1688,7 +1688,7 @@ function App() {
                           )}
                         </h3>
                         <p className="hint">
-                          Compra: {trade.compraFecha} · Venta: {trade.ventaFecha}
+                          Compra: ${fmt(trade.compraPrecio)} · Venta: ${fmt(trade.ventaPrecio)}
                         </p>
                       </div>
                       <button className="btn btn-sm btn-danger" onClick={() => eliminarTrade(trade.id)} style={{ flexShrink: 0, marginLeft: '12px' }}>✕</button>
