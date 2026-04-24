@@ -811,31 +811,36 @@ function App() {
 
   // --- TRADES BUSINESS LOGIC ---
   const agregarTrade = () => {
-    const opVenta = operaciones.find(o => o.id === tradeVentaId);
     const opCompra = operaciones.find(o => o.id === tradeCompraId);
-    if (!opVenta || !opCompra) return alert('Seleccioná una operación de venta y una de compra.');
-    if (opVenta.id === opCompra.id) return alert('Seleccioná dos operaciones distintas.');
+    const opVenta = operaciones.find(o => o.id === tradeVentaId);
+    if (!opCompra || !opVenta) return alert('Seleccioná una operación de compra y una de venta.');
+    if (opCompra.ticker !== opVenta.ticker) {
+      if (!window.confirm('La compra y la venta son de activos distintos. ¿Seguro que querés emparejarlos como un trade?')) {
+        return;
+      }
+    }
 
     const trade = {
       id: Date.now().toString(),
+      compraOpId: opCompra.id,
+      compraTicker: opCompra.ticker,
+      compraCantidad: opCompra.cantidad,
+      compraPrecio: opCompra.precio,
+      compraFecha: opCompra.fecha,
       ventaOpId: opVenta.id,
       ventaTicker: opVenta.ticker,
       ventaCantidad: opVenta.cantidad,
       ventaPrecio: opVenta.precio,
       ventaFecha: opVenta.fecha,
-      compraTicker: opCompra.ticker,
-      compraCantidad: opCompra.cantidad,
-      compraPrecio: opCompra.precio,
-      compraFecha: opCompra.fecha,
     };
     setTrades([...trades, trade]);
-    setTradeVentaId('');
     setTradeCompraId('');
+    setTradeVentaId('');
     setShowAddTrade(false);
   };
 
   const eliminarTrade = (id) => {
-    if (!window.confirm('¿Eliminar este análisis de trade?')) return;
+    if (!window.confirm('¿Eliminar este trade cerrado?')) return;
     setTrades(trades.filter(t => t.id !== id));
   };
 
@@ -1606,14 +1611,14 @@ function App() {
       {activeTab === 'trades' && (
         <div className="glass-panel">
           <div className="panel-header">
-            <div className="panel-title">Análisis de Trades y Rotaciones ({trades.length})</div>
+            <div className="panel-title">Operaciones Cerradas (Trades) ({trades.length})</div>
             <button className="btn btn-primary btn-sm" onClick={() => setShowAddTrade(!showAddTrade)}>+ Agregar Trade</button>
           </div>
 
           {/* Add Trade Form */}
           {showAddTrade && (
             <div className="collapsible-content active">
-              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Nueva Rotación</div>
+              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Registrar Trade Cerrado</div>
               {operaciones.length < 2 ? (
                 <div className="empty-state" style={{ padding: '1rem' }}>
                   Necesitás al menos dos operaciones registradas en el Histórico para crear un análisis.
@@ -1622,18 +1627,7 @@ function App() {
                 <>
                   <div className="form-row">
                     <div>
-                      <label>Operación Vendida (¿Qué vendiste?)</label>
-                      <select value={tradeVentaId} onChange={e => setTradeVentaId(e.target.value)}>
-                        <option value="">— Seleccioná una venta —</option>
-                        {operaciones.filter(o => o.tipo === 'venta').sort((a, b) => b.fecha.localeCompare(a.fecha)).map(o => (
-                          <option key={o.id} value={o.id}>
-                            {o.fecha} · {o.ticker} · Venta {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label>Operación Comprada (¿Qué compraste?)</label>
+                      <label>Operación de Compra (Entrada)</label>
                       <select value={tradeCompraId} onChange={e => setTradeCompraId(e.target.value)}>
                         <option value="">— Seleccioná una compra —</option>
                         {operaciones.filter(o => o.tipo === 'compra').sort((a, b) => b.fecha.localeCompare(a.fecha)).map(o => (
@@ -1643,8 +1637,19 @@ function App() {
                         ))}
                       </select>
                     </div>
+                    <div>
+                      <label>Operación de Venta (Salida)</label>
+                      <select value={tradeVentaId} onChange={e => setTradeVentaId(e.target.value)}>
+                        <option value="">— Seleccioná una venta —</option>
+                        {operaciones.filter(o => o.tipo === 'venta').sort((a, b) => b.fecha.localeCompare(a.fecha)).map(o => (
+                          <option key={o.id} value={o.id}>
+                            {o.fecha} · {o.ticker} · Venta {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <button className="btn btn-primary" onClick={agregarTrade}>Guardar Rotación</button>
+                  <button className="btn btn-primary" onClick={agregarTrade}>Guardar Trade</button>
                   <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddTrade(false)}>Cancelar</button>
                 </>
               )}
@@ -1654,24 +1659,20 @@ function App() {
           {/* Trade Cards */}
           {trades.length === 0 && !showAddTrade ? (
             <div className="empty-state">
-              Sin análisis de trades todavía. Agregá uno para comenzar.
+              Sin operaciones cerradas registradas todavía. Agregá un trade para comenzar.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
               {trades.map(trade => {
-                const ventaBase = trade.ventaTicker.replace(/\.BA$/i, '');
-                const compraBase = trade.compraTicker.replace(/\.BA$/i, '');
-                const pVenta = prices[trade.ventaTicker] ?? prices[ventaBase] ?? null;
-                const pCompra = prices[trade.compraTicker] ?? prices[compraBase] ?? null;
-
-                // Opportunity cost: what you gave up by selling
-                const ventaDiff = pVenta !== null ? (pVenta - trade.ventaPrecio) * trade.ventaCantidad : null;
-                const ventaPct = pVenta !== null ? ((pVenta - trade.ventaPrecio) / trade.ventaPrecio) * 100 : null;
-                // Actual gain/loss: what you got by buying
-                const compraDiff = pCompra !== null ? (pCompra - trade.compraPrecio) * trade.compraCantidad : null;
-                const compraPct = pCompra !== null ? ((pCompra - trade.compraPrecio) / trade.compraPrecio) * 100 : null;
-                // Net: did the switch beat doing nothing?
-                const netOutcome = (ventaDiff !== null && compraDiff !== null) ? compraDiff - ventaDiff : null;
+                // Calculate PnL based on the quantity sold to match the buy price accurately.
+                const qty = Math.min(trade.compraCantidad, trade.ventaCantidad);
+                const montoCompraOperado = trade.compraPrecio * qty;
+                const montoVentaOperado = trade.ventaPrecio * qty;
+                
+                const nominalDiff = montoVentaOperado - montoCompraOperado;
+                const pctDiff = montoCompraOperado > 0 ? (nominalDiff / montoCompraOperado) * 100 : 0;
+                
+                const isPos = nominalDiff >= 0;
 
                 return (
                   <div key={trade.id} className="glass-panel" style={{ background: 'rgba(0,0,0,0.2)', position: 'relative' }}>
@@ -1679,68 +1680,43 @@ function App() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
                       <div>
                         <h3 style={{ fontSize: '15px', marginBottom: '4px' }}>
-                          {trade.compraFecha} · Rotación: <span style={{ color: 'var(--negative)' }}>{trade.ventaTicker}</span> → <span style={{ color: 'var(--positive)' }}>{trade.compraTicker}</span>
+                          {trade.ventaFecha} · Trade Cerrado: <span style={{ color: 'var(--accent)' }}>{trade.compraTicker}</span>
+                          {trade.compraTicker !== trade.ventaTicker && (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '12px', marginLeft: '6px' }}>
+                              (Venta de {trade.ventaTicker})
+                            </span>
+                          )}
                         </h3>
                         <p className="hint">
-                          Venta {trade.ventaTicker} {fmt(trade.ventaCantidad, 0)} @ ${fmt(trade.ventaPrecio)} &nbsp;|&nbsp; Compra {trade.compraTicker} {fmt(trade.compraCantidad, 0)} @ ${fmt(trade.compraPrecio)}
+                          Compra: {trade.compraFecha} · Venta: {trade.ventaFecha}
                         </p>
                       </div>
                       <button className="btn btn-sm btn-danger" onClick={() => eliminarTrade(trade.id)} style={{ flexShrink: 0, marginLeft: '12px' }}>✕</button>
                     </div>
 
                     {/* Scenario output */}
-                    {(pVenta === null || pCompra === null) ? (
-                      <div className="empty-state" style={{ padding: '1rem' }}>Cargando cotizaciones...</div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '14px' }}>
-                        {/* Line 1: Opportunity cost */}
-                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                          Si hubieras conservado <strong>{trade.ventaTicker}</strong>, ahora tendrías {ventaDiff >= 0 ? 'una ganancia' : 'una pérdida'} de:{' '}
-                          <strong className={ventaDiff >= 0 ? 'positive' : 'negative'}>
-                            {fmtPct(ventaPct)} ({ventaDiff >= 0 ? '+' : '-'}${fmt(Math.abs(ventaDiff))}
-                            {dolarMep && (
-                              <span style={{ fontSize: '13px', fontWeight: '400', opacity: 0.8, marginLeft: '8px' }}>
-                                ≈ US$ {fmt(Math.abs(ventaDiff) / dolarMep)}
-                              </span>
-                            )}
-                            )
-                          </strong>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '14px' }}>
+                      <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                        Compraste a <strong>${fmt(trade.compraPrecio)}</strong> y lo vendiste a <strong>${fmt(trade.ventaPrecio)}</strong>.
+                        {trade.compraCantidad !== trade.ventaCantidad && (
                           <div className="hint" style={{ marginTop: '4px' }}>
-                            (Precio de venta: ${fmt(trade.ventaPrecio)} vs Valor actual: ${fmt(pVenta)})
+                            Cantidades originales: Compra {fmt(trade.compraCantidad, 0)} | Venta {fmt(trade.ventaCantidad, 0)}. Cálculo basado en {fmt(qty, 0)} nominales para igualar.
                           </div>
-                        </div>
-
-                        {/* Line 2: Actual trade result */}
-                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                          Al haber comprado <strong>{trade.compraTicker}</strong>, obtuviste {compraDiff >= 0 ? 'una ganancia' : 'una pérdida'} de:{' '}
-                          <strong className={compraDiff >= 0 ? 'positive' : 'negative'}>
-                            {fmtPct(compraPct)} ({compraDiff >= 0 ? '+' : '-'}${fmt(Math.abs(compraDiff))}
-                            {dolarMep && (
-                              <span style={{ fontSize: '13px', fontWeight: '400', opacity: 0.8, marginLeft: '8px' }}>
-                                ≈ US$ {fmt(Math.abs(compraDiff) / dolarMep)}
-                              </span>
-                            )}
-                            )
-                          </strong>
-                          <div className="hint" style={{ marginTop: '4px' }}>
-                            (Precio de compra: ${fmt(trade.compraPrecio)} vs Valor actual: ${fmt(pCompra)})
-                          </div>
-                        </div>
-
-                        {/* Line 3: Net impact */}
-                        <div style={{ padding: '16px', background: 'rgba(94, 106, 210, 0.1)', border: '1px solid rgba(94, 106, 210, 0.3)', borderRadius: '8px' }}>
-                          En resumen, el impacto de la Rotación es:{' '}
-                          <strong className={netOutcome >= 0 ? 'positive' : 'negative'} style={{ fontSize: '18px' }}>
-                            {netOutcome >= 0 ? '+' : '-'}${fmt(Math.abs(netOutcome))}
-                            {dolarMep && (
-                              <span style={{ fontSize: '14px', fontWeight: '400', opacity: 0.8, marginLeft: '10px' }}>
-                                ≈ US$ {fmt(Math.abs(netOutcome) / dolarMep)}
-                              </span>
-                            )}
-                          </strong>
-                        </div>
+                        )}
                       </div>
-                    )}
+
+                      <div style={{ padding: '16px', background: isPos ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: `1px solid ${isPos ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`, borderRadius: '8px' }}>
+                        Resultado del Trade:{' '}
+                        <strong className={isPos ? 'positive' : 'negative'} style={{ fontSize: '18px' }}>
+                          {fmtPct(pctDiff)} ({isPos ? '+' : '-'}${fmt(Math.abs(nominalDiff))})
+                        </strong>
+                        {dolarMep && (
+                          <span style={{ fontSize: '14px', fontWeight: '400', opacity: 0.8, marginLeft: '10px' }}>
+                            ≈ US$ {fmt(Math.abs(nominalDiff) / dolarMep)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 );
               })}
