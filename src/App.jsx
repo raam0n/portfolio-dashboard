@@ -833,7 +833,7 @@ function App() {
       ventaPrecio: opVenta.precio,
       ventaFecha: opVenta.fecha,
     };
-    setTrades([...trades, trade]);
+    setTrades([trade, ...trades]);
     setTradeCompraId('');
     setTradeVentaId('');
     setShowAddTrade(false);
