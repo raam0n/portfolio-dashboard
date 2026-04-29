@@ -878,7 +878,7 @@ function App() {
 
   // --- IMP/EXP LOGIC ---
   const exportar = () => {
-    const json = JSON.stringify({ holdings, operaciones, watchlist }, null, 2);
+    const json = JSON.stringify({ holdings, operaciones, watchlist, trades, evals }, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -887,7 +887,7 @@ function App() {
   };
 
   const copiarJSON = () => {
-    const json = JSON.stringify({ holdings, operaciones, watchlist }, null, 2);
+    const json = JSON.stringify({ holdings, operaciones, watchlist, trades, evals }, null, 2);
     navigator.clipboard.writeText(json).then(() => alert('JSON Copiado'));
   };
 
@@ -900,6 +900,8 @@ function App() {
       setHoldings(data.holdings);
       setOperaciones(data.operaciones);
       setWatchlist(Array.isArray(data.watchlist) ? data.watchlist : []);
+      setTrades(Array.isArray(data.trades) ? data.trades : []);
+      setEvals(Array.isArray(data.evals) ? data.evals : []);
       setPrices({});
       setImportJson('');
       setShowSettings(false);
@@ -911,7 +913,7 @@ function App() {
   const borrarTodo = () => {
     const typed = window.prompt('Escribí "BORRAR" para formatear todo.');
     if (typed === 'BORRAR') {
-      setHoldings([]); setOperaciones([]); setWatchlist([]); setPrices({});
+      setHoldings([]); setOperaciones([]); setWatchlist([]); setTrades([]); setEvals([]); setPrices({});
       setShowSettings(false);
     }
   };
