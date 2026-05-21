@@ -921,6 +921,7 @@ function App() {
   // Computations
   let totalValor = 0;
   let totalCosto = 0;
+  let totalDailyChange = 0;
 
   holdings.forEach(h => {
     const yt = getYahooTicker(h) || h.ticker;
@@ -930,10 +931,20 @@ function App() {
 
     if (valor !== null) totalValor += valor;
     totalCosto += costo;
+
+    const stats = dailyStats[yt] ?? null;
+    if (stats && stats.change != null && !isNaN(stats.change)) {
+      totalDailyChange += stats.change * h.cantidad;
+    }
   });
 
   const pnlT = totalValor - totalCosto;
   const pnlTP = totalCosto > 0 ? (pnlT / totalCosto) * 100 : 0;
+
+  const totalPreviousValor = totalValor - totalDailyChange;
+  const totalDailyChangePct = (totalPreviousValor > 0 && totalValor > 0)
+    ? (totalDailyChange / totalPreviousValor) * 100
+    : 0;
 
   // Watchlist: items visible after type + category filters (before per-ticker exclusion)
   const wlVisibleBeforeExclude = watchlist
@@ -1029,15 +1040,35 @@ function App() {
               )}
             </div>
             <div className="glass-panel metric-card">
-              <div className="metric-label">Ganancia/Pérdida Absoluta ($)</div>
-              <div className={`metric-value ${holdings.length === 0 ? '' : (pnlT >= 0 ? 'positive' : 'negative')}`}>
-                {holdings.length > 0 ? `${pnlT >= 0 ? '+$' : '-$'}${fmt(Math.abs(pnlT))}` : '—'}
+              <div className="metric-label">Cambio Diario</div>
+              <div className="metric-value">
+                <span className={holdings.length === 0 ? '' : (totalDailyChange >= 0 ? 'positive' : 'negative')}>
+                  {holdings.length > 0 ? `${totalDailyChange >= 0 ? '+$' : '-$'}${fmt(Math.abs(totalDailyChange))}` : '—'}
+                </span>
+                {holdings.length > 0 && (
+                  <span className={totalDailyChangePct >= 0 ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '500', marginLeft: '4px' }}>
+                    ({fmtPct(totalDailyChangePct)})
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                Resultado de la jornada
               </div>
             </div>
             <div className="glass-panel metric-card">
-              <div className="metric-label">Rendimiento Total (%)</div>
-              <div className={`metric-value ${holdings.length === 0 ? '' : (pnlTP >= 0 ? 'positive' : 'negative')}`}>
-                {holdings.length > 0 ? fmtPct(pnlTP) : '—'}
+              <div className="metric-label">Ganancia/Pérdida Total</div>
+              <div className="metric-value">
+                <span className={holdings.length === 0 ? '' : (pnlT >= 0 ? 'positive' : 'negative')}>
+                  {holdings.length > 0 ? `${pnlT >= 0 ? '+$' : '-$'}${fmt(Math.abs(pnlT))}` : '—'}
+                </span>
+                {holdings.length > 0 && (
+                  <span className={pnlTP >= 0 ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '500', marginLeft: '4px' }}>
+                    ({fmtPct(pnlTP)})
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                Rendimiento histórico acumulado
               </div>
             </div>
           </div>
