@@ -7,6 +7,7 @@
 ### Added
 - Se incorporó un **Toggle (Interruptor)** interactivo en la cabecera de las tarjetas de métricas del portfolio, permitiendo alternar la visualización global de todos los saldos entre Pesos Argentinos (ARS) y Dólares (USD).
 - **Gráfico "% por Activo":** Ahora agrupa automáticamente bajo la categoría "Otros" a todos aquellos activos que representen menos del 1% del valor total de la cartera, mejorando la legibilidad.
+- **Soporte de Liquidez (Caja):** Ahora es posible cargar saldos líquidos disponibles ("Efectivo") con ticker ARS o USD. Estos se suman al total de la cartera, tienen valuación fija de 1 y contabilizan para los cálculos y gráficos de distribución global, permitiendo trackear el capital inactivo.
 
 ### Changed
 - Se unificó el tamaño y peso tipográfico de las cifras en dólares y pesos en las tarjetas, logrando una estética más armónica y prolija.

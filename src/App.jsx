@@ -546,6 +546,7 @@ function App() {
   }, [holdings, watchlist]);
 
   const getYahooTicker = (h) => {
+    if (h.tipo === 'efectivo') return null;
     if (h.tipo === 'accion' || h.tipo === 'cedear') return h.ticker + '.BA';
     if (h.tipo === 'stock') return h.ticker;
     return null;
@@ -965,14 +966,14 @@ function App() {
 
   holdings.forEach(h => {
     const yt = getYahooTicker(h) || h.ticker;
-    const pc = prices[yt] ?? null;
-    const stats = dailyStats[yt] ?? null;
+    const pc = h.tipo === 'efectivo' ? 1 : (prices[yt] ?? null);
+    const stats = h.tipo === 'efectivo' ? { price: 1, change: 0, changePct: 0 } : (dailyStats[yt] ?? null);
 
     const qty = h.cantidad;
     const costUnit = h.precioEntrada;
 
     if (pc !== null) {
-      const isUsdAsset = h.tipo === 'stock';
+      const isUsdAsset = h.tipo === 'stock' || (h.tipo === 'efectivo' && h.ticker === 'USD');
       
       let valARS = 0;
       let valUSD = 0;
@@ -1018,7 +1019,7 @@ function App() {
       totalDailyChangeUSD += changeUSD;
     } else {
       // pc is null, fallback just for costs
-      const isUsdAsset = h.tipo === 'stock';
+      const isUsdAsset = h.tipo === 'stock' || (h.tipo === 'efectivo' && h.ticker === 'USD');
       if (isUsdAsset) {
         totalCostoUSD += costUnit * qty;
         totalCostoARS += costUnit * qty * mepToday;
@@ -1215,11 +1216,13 @@ function App() {
                       if (t === 'accion' || t === 'cedear') setNewMercado('BCBA');
                       else if (t === 'stock') setNewMercado('NYSE/NASDAQ');
                       else if (t === 'bono') setNewMercado('OTC');
+                      else if (t === 'efectivo') setNewMercado('Caja');
                     }}>
                       <option value="accion">Acción AR</option>
                       <option value="cedear">CEDEAR</option>
                       <option value="stock">Stock US</option>
                       <option value="bono">Bono</option>
+                      <option value="efectivo">Efectivo</option>
                     </select>
                   </div>
                   <div>
@@ -1361,7 +1364,7 @@ function App() {
               byAsset[h.ticker] = (byAsset[h.ticker] || 0) + valor;
 
               // 2. By Type
-              const tipoLabel = h.tipo === 'accion' ? 'Acción AR' : h.tipo === 'stock' ? 'Stock US' : h.tipo === 'cedear' ? 'CEDEAR' : 'Bono';
+              const tipoLabel = h.tipo === 'accion' ? 'Acción AR' : h.tipo === 'stock' ? 'Stock US' : h.tipo === 'cedear' ? 'CEDEAR' : h.tipo === 'efectivo' ? 'Efectivo' : 'Bono';
               byTipo[tipoLabel] = (byTipo[tipoLabel] || 0) + valor;
 
               // 3. By Sector (from Watchlist Category)
@@ -1416,6 +1419,7 @@ function App() {
                     <option value="cedear">CEDEAR</option>
                     <option value="stock">Stock US</option>
                     <option value="bono">Bono</option>
+                    <option value="efectivo">Efectivo</option>
                   </select>
                 </div>
                 <div>
