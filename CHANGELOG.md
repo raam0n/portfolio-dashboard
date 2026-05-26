@@ -6,6 +6,7 @@
 
 ### Added
 - Se incorporó un **Toggle (Interruptor)** interactivo en la cabecera de las tarjetas de métricas del portfolio, permitiendo alternar la visualización global de todos los saldos entre Pesos Argentinos (ARS) y Dólares (USD).
+- **Gráfico "% por Activo":** Ahora agrupa automáticamente bajo la categoría "Otros" a todos aquellos activos que representen menos del 1% del valor total de la cartera, mejorando la legibilidad.
 
 ### Changed
 - Se unificó el tamaño y peso tipográfico de las cifras en dólares y pesos en las tarjetas, logrando una estética más armónica y prolija.

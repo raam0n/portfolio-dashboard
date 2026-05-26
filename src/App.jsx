@@ -1369,11 +1369,26 @@ function App() {
               bySector[sectorLabel] = (bySector[sectorLabel] || 0) + valor;
             });
 
+            // Group <1% assets into 'Otros'
+            const threshold = totalValor * 0.01;
+            const byAssetGrouped = {};
+            let otrosAssetValue = 0;
+            Object.entries(byAsset).forEach(([ticker, valor]) => {
+              if (valor < threshold) {
+                otrosAssetValue += valor;
+              } else {
+                byAssetGrouped[ticker] = valor;
+              }
+            });
+            if (otrosAssetValue > 0) {
+              byAssetGrouped['Otros'] = otrosAssetValue;
+            }
+
             const toData = obj => Object.entries(obj).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
 
             return (
               <div className="pie-charts-row">
-                <PieChart data={toData(byAsset)} title="% por Activo" />
+                <PieChart data={toData(byAssetGrouped)} title="% por Activo" />
                 <PieChart data={toData(byTipo)} title="% por Tipo de Activo" />
                 <PieChart data={toData(bySector)} title="% por Sector" />
               </div>
