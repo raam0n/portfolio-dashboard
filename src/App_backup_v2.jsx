@@ -7,34 +7,6 @@ const CHART_COLORS = [
   '#a855f7', '#ec4899', '#14b8a6', '#f97316', '#84cc16',
   '#06b6d4', '#e11d48', '#8b5cf6', '#22d3ee', '#fb923c',
 ];
-const GLOBAL_INDICES = [
-  { ticker: '^GSPC', name: 'S&P 500', desc: 'Benchmark principal del mercado estadounidense.' },
-  { ticker: '^DJI', name: 'Dow Jones', desc: 'Índice industrial de referencia de las 30 mayores empresas de EE.UU.' },
-  { ticker: '^IXIC', name: 'Nasdaq', desc: 'Índice enfocado en empresas tecnológicas y de crecimiento.' },
-  { ticker: '^VIX', name: 'VIX (Miedo)', desc: 'Índice de volatilidad; clave para medir el sentimiento de "miedo" en el mercado.' },
-  { ticker: '^STOXX50E', name: 'Euro Stoxx 50', desc: 'El índice más representativo de las 50 mayores empresas de la Eurozona.' },
-  { ticker: 'EWZ', name: 'Bovespa (USD)', desc: 'iShares MSCI Brazil ETF; usado como proxy del mercado brasileño en dólares.' },
-  { ticker: 'MERVAL_USD', name: 'Merval (USD)', desc: 'Índice S&P Merval dividido por el Dólar CCL. Refleja el valor real en dólares de las acciones argentinas.', isCalculated: true },
-  { ticker: '^TNX', name: '10Y Yield', desc: 'Rendimiento del bono del Tesoro a 10 años. Si sube, suele presionar a la baja a las acciones y encarece el crédito.' },
-  { ticker: 'GC=F', name: 'Oro', desc: 'Futuros del Oro. Activo refugio por excelencia ante incertidumbre o inflación.' },
-  { ticker: 'DX-Y.NYB', name: 'DXY', desc: 'Índice Dólar. Mide la fortaleza del dólar frente a otras divisas. Si sube, los emergentes suelen sufrir.' },
-  { ticker: 'CL=F', name: 'WTI Oil', desc: 'Crudo West Texas Intermediate. Referencia principal del petróleo en EE.UU.' },
-  { ticker: 'BZ=F', name: 'Brent Oil', desc: 'Petróleo Brent. Referencia global para el mercado europeo y mundial.' },
-  { ticker: 'BTC-USD', name: 'Bitcoin', desc: 'Referencia principal del mercado de criptoactivos.' },
-];
-
-const fmt = (n, dec = 2) => {
-  if (n == null || isNaN(n)) return '—';
-  return new Intl.NumberFormat('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
-};
-
-const fmtPct = (n) => {
-  if (n == null || isNaN(n)) return '—';
-  const sign = n >= 0 ? '+' : '';
-  return `${sign}${fmt(n, 2)}%`;
-};
-
-
 
 function PieChart({ data, title }) {
   const [hovered, setHovered] = React.useState(null);
@@ -118,171 +90,6 @@ function PieChart({ data, title }) {
   );
 }
 // ─────────────────────────────────────────────────────────────────────────────
-
-function HistoricalChart({ data, ticker, name }) {
-  const [range, setRange] = React.useState('1Y');
-  const [hoverIdx, setHoverIdx] = React.useState(null);
-
-  if (!data || !data.history || data.history.length === 0) {
-    return <div className="empty-state">No hay datos históricos suficientes para graficar.</div>;
-  }
-
-  // Sync prices and timestamps, and filter nulls
-  const history = data.history;
-  const timestamps = data.timestamps || [];
-  const fullData = history.map((p, i) => ({ p, t: timestamps[i] })).filter(d => d.p !== null);
-
-  let selection = [];
-  if (range === '1M') selection = fullData.slice(-22);
-  else if (range === '6M') selection = fullData.slice(-126);
-  else if (range === '1Y') selection = fullData.slice(-252);
-  else selection = fullData;
-
-  if (selection.length < 2) return <div className="empty-state">Datos insuficientes para el periodo seleccionado.</div>;
-
-  const points = selection.map(d => d.p);
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const range_val = max - min;
-  const padding = range_val * 0.15;
-  const yMin = min - padding;
-  const yMax = max + padding;
-
-  const width = 800;
-  const height = 180;
-  const margin = { left: 50, right: 10, top: 10, bottom: 10 };
-  const chartW = width - margin.left - margin.right;
-  const chartH = height - margin.top - margin.bottom;
-
-  const getX = (i) => margin.left + (i / (selection.length - 1)) * chartW;
-  const getY = (v) => margin.top + chartH - ((v - yMin) / (yMax - yMin)) * chartH;
-
-  const pathData = selection.map((d, i) => `${i === 0 ? 'M' : 'L'}${getX(i)},${getY(d.p)}`).join(' ');
-  const areaData = `${pathData} L${getX(selection.length - 1)},${margin.top + chartH} L${margin.left},${margin.top + chartH} Z`;
-
-  const lastPrice = points[points.length - 1];
-  const firstPrice = points[0];
-  const change = lastPrice - firstPrice;
-  const changePct = (change / firstPrice) * 100;
-
-  const fmtDate = (ts) => {
-    if (!ts) return '';
-    const d = new Date(ts * 1000);
-    return d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' });
-  };
-
-  const handleMouseMove = (e) => {
-    const svg = e.currentTarget;
-    const rect = svg.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * width;
-    if (x < margin.left) {
-      setHoverIdx(null);
-      return;
-    }
-    const chartX = x - margin.left;
-    const idx = Math.max(0, Math.min(selection.length - 1, Math.round((chartX / chartW) * (selection.length - 1))));
-    setHoverIdx(idx);
-  };
-
-  const hoverItem = hoverIdx !== null ? selection[hoverIdx] : null;
-
-  return (
-    <div className="expanded-panel-content">
-      <div className="chart-header">
-        <div className="chart-title-area">
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Evolución de Precio</div>
-          <h3>{ticker} <span style={{ fontWeight: '400', color: 'var(--text-muted)', fontSize: '14px' }}>— {name}</span></h3>
-        </div>
-        <div className="chart-range-selector">
-          {['1M', '6M', '1Y', 'MAX'].map(r => (
-            <button key={r} className={`range-btn ${range === r ? 'active' : ''}`} onClick={() => setRange(r)}>{r}</button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ position: 'relative', width: '100%', height: height + 'px' }}>
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="none"
-          style={{ width: '100%', height: '100%', display: 'block', overflow: 'visible', cursor: 'crosshair' }}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={() => setHoverIdx(null)}
-        >
-          <defs>
-            <linearGradient id={`grad-${ticker}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-
-          {/* Y-Axis Labels & Grid Lines */}
-          {[0, 0.25, 0.5, 0.75, 1].map(v => {
-            const yPos = margin.top + chartH - (v * chartH);
-            const val = yMin + (v * (yMax - yMin));
-            return (
-              <React.Fragment key={v}>
-                <line x1={margin.left} y1={yPos} x2={width - margin.right} y2={yPos} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-                <text x={margin.left - 8} y={yPos + 4} textAnchor="end" fill="var(--text-muted)" fontSize="10" fontFamily="inherit">${fmt(val, 0)}</text>
-              </React.Fragment>
-            );
-          })}
-
-          <path d={areaData} fill={`url(#grad-${ticker})`} />
-          <path d={pathData} fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px rgba(94, 106, 210, 0.3))' }} />
-
-          {/* Last Price Indicator (if not hovering) */}
-          {hoverIdx === null && (
-            <>
-              <line x1={margin.left} y1={getY(lastPrice)} x2={width - margin.right} y2={getY(lastPrice)} stroke="var(--accent)" strokeWidth="1" strokeDasharray="4 4" opacity="0.4" />
-              <circle cx={getX(selection.length - 1)} cy={getY(lastPrice)} r="4" fill="var(--accent)" stroke="white" strokeWidth="1.5" />
-            </>
-          )}
-
-          {/* Hover Indicators */}
-          {hoverIdx !== null && hoverItem && (
-            <g>
-              <line x1={getX(hoverIdx)} y1={margin.top} x2={getX(hoverIdx)} y2={margin.top + chartH} stroke="white" strokeWidth="1" strokeDasharray="3 3" opacity="0.5" />
-              <circle cx={getX(hoverIdx)} cy={getY(hoverItem.p)} r="5" fill="var(--accent)" stroke="white" strokeWidth="2" />
-            </g>
-          )}
-        </svg>
-
-        {/* HTML Tooltip (to avoid preserveAspectRatio="none" squashing) */}
-        {hoverIdx !== null && hoverItem && (
-          <div className="chart-tooltip" style={{
-            left: `${(getX(hoverIdx) / width) * 100}%`,
-            top: `${(getY(hoverItem.p) / height) * 100}%`,
-            transform: `translate(${hoverIdx > selection.length / 2 ? '-110%' : '10%'}, -120%)`
-          }}>
-            <div className="tooltip-date">{fmtDate(hoverItem.t)}</div>
-            <div className="tooltip-price">${fmt(hoverItem.p)}</div>
-          </div>
-        )}
-      </div>
-
-      <div className="chart-stats">
-        <div className="chart-stat-item">
-          <span className="chart-stat-label">Precio {hoverIdx !== null ? 'Seleccionado' : 'Actual'}</span>
-          <span className="chart-stat-value">${fmt(hoverIdx !== null ? hoverItem.p : lastPrice)}</span>
-        </div>
-        <div className="chart-stat-item">
-          <span className="chart-stat-label">Rendimiento {range}</span>
-          <span className={`chart-stat-value ${change >= 0 ? 'positive' : 'negative'}`}>
-            {change >= 0 ? '+' : ''}{fmt(changePct)}%
-          </span>
-        </div>
-        <div className="chart-stat-item">
-          <span className="chart-stat-label">Mín. Periodo</span>
-          <span className="chart-stat-value">${fmt(min)}</span>
-        </div>
-        <div className="chart-stat-item">
-          <span className="chart-stat-label">Máx. Periodo</span>
-          <span className="chart-stat-value">${fmt(max)}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Market Status Bar ─────────────────────────────────────────────────────────
 function formatMarketTime(unixTs) {
@@ -436,32 +243,6 @@ function MultiCheckDropdown({ placeholder, options, selected, onChange }) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ── Index Ticker Bar ──────────────────────────────────────────────────────────
-function IndexTickerBar({ dailyStats }) {
-  const sorted = [...GLOBAL_INDICES].sort((a, b) => (dailyStats[b.ticker]?.changePct ?? 0) - (dailyStats[a.ticker]?.changePct ?? 0));
-  const items = [...sorted, ...sorted];
-  return (
-    <div className="index-ticker-bar">
-      <div className="index-ticker-container">
-        {items.map((idx, i) => {
-          const stats = dailyStats[idx.ticker];
-          if (!stats) return null;
-          const isPos = stats.change >= 0;
-          return (
-            <div key={`${idx.ticker}-${i}`} className="index-item">
-              <span className="index-name">{idx.name}</span>
-              <span className="index-value">{idx.ticker === 'BTC-USD' ? '' : '$'}{fmt(stats.price, idx.ticker === 'BTC-USD' || idx.ticker === '^TNX' ? 2 : 2)}</span>
-              <span className={`index-change ${isPos ? 'positive' : 'negative'}`}>
-                {isPos ? '▲' : '▼'} {Math.abs(stats.changePct).toFixed(2)}%
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 
 function App() {
   const [activeTab, setActiveTab] = useState('portfolio'); // 'portfolio', 'operaciones', 'watchlist', 'trades'
@@ -475,9 +256,6 @@ function App() {
   const [prices, setPrices] = useState(() => JSON.parse(localStorage.getItem('cached_prices') || '{}'));
   const [dailyStats, setDailyStats] = useState(() => JSON.parse(localStorage.getItem('cached_stats') || '{}'));
   const [dolarMep, setDolarMep] = useState(null);
-  const [dolarMepPrev, setDolarMepPrev] = useState(null);
-  const [dolarCcl, setDolarCcl] = useState(null);
-
   const [status, setStatus] = useState('loading'); // 'loading', 'ok', 'error'
   const [statusText, setStatusText] = useState('Cargando precios...');
 
@@ -488,11 +266,10 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [showAddEval, setShowAddEval] = useState(false);
-  const [expandedTicker, setExpandedTicker] = useState(null); // Ticker of the expanded row in Watchlist/Portfolio
 
   // Trade form state
-  const [tradeCompraId, setTradeCompraId] = useState('');
   const [tradeVentaId, setTradeVentaId] = useState('');
+  const [tradeCompraId, setTradeCompraId] = useState('');
   const [evalOpId, setEvalOpId] = useState('');
 
   // Form states
@@ -521,7 +298,7 @@ function App() {
   const [wlExcludedTickers, setWlExcludedTickers] = useState([]);
 
   const [importJson, setImportJson] = useState('');
-  const [currencyMode, setCurrencyMode] = useState('ARS');
+
   // Persist storage whenever collections change
   useEffect(() => {
     localStorage.setItem('portfolio_holdings', JSON.stringify(holdings));
@@ -561,7 +338,6 @@ function App() {
       const d1d = await r1d.json();
 
       const meta1d = d1d?.chart?.result?.[0]?.meta;
-      const timestamps = d5y?.chart?.result?.[0]?.timestamp || [];
       const adjquote = d5y?.chart?.result?.[0]?.indicators?.adjclose?.[0];
       const rawquote = d5y?.chart?.result?.[0]?.indicators?.quote?.[0];
       const closes = adjquote?.adjclose || rawquote?.close || [];
@@ -616,7 +392,7 @@ function App() {
       const isOpen = meta1d?.marketState === 'REGULAR' || isInTradingWindow;
       const regularMarketTime = meta1d?.regularMarketTime ?? null; // Unix timestamp
 
-      return { price, change, changePct, hist5d, hist1m, hist6m, hist1y, hist5y, isOpen, regularMarketTime, history: closes, timestamps, prevClose };
+      return { price, change, changePct, hist5d, hist1m, hist6m, hist1y, hist5y, isOpen, regularMarketTime };
     } catch (e) {
       return null;
     }
@@ -659,17 +435,6 @@ function App() {
       }
     }
 
-    // 1.5 Global Indices
-    const indicesToFetch = [...GLOBAL_INDICES.filter(i => !i.isCalculated).map(i => i.ticker)];
-    if (GLOBAL_INDICES.some(i => i.ticker === 'MERVAL_USD')) {
-      if (!indicesToFetch.includes('IMV.BA')) indicesToFetch.push('IMV.BA');
-      if (!indicesToFetch.includes('^MERV')) indicesToFetch.push('^MERV');
-    }
-    for (const ticker of indicesToFetch) {
-      const data = await fetchPrice(ticker);
-      if (data) applyData(ticker, ticker, data);
-    }
-
     // 2. Fetch older operations not currently tracked manually
     for (const op of operaciones) {
       const base = clean(op.ticker);
@@ -692,55 +457,8 @@ function App() {
       const mepR = await fetch('https://dolarapi.com/v1/dolares/bolsa');
       const mepD = await mepR.json();
       if (mepD && mepD.venta) setDolarMep(mepD.venta);
-
-      const cclR = await fetch('https://dolarapi.com/v1/dolares/contadoconliqui');
-      const cclD = await cclR.json();
-      if (cclD && cclD.venta) {
-        setDolarCcl(cclD.venta);
-        const mArs = newStats['IMV.BA'] || newStats['^MERV'];
-        if (mArs) {
-          applyData('MERVAL_USD', 'MERVAL_USD', {
-            ...mArs,
-            price: mArs.price / cclD.venta,
-            change: mArs.change / cclD.venta,
-            history: (mArs.history || []).map(v => v ? v / cclD.venta : null)
-          });
-        }
-      }
     } catch (e) {
-      console.warn('DolarAPI fetch error', e);
-    }
-
-    // Calculate implied Dolar MEP yesterday close using AL30/AL30D or GGAL as fallback
-    let mepPrevVal = null;
-    try {
-      const [al30Data, al30dData] = await Promise.all([
-        fetchPrice('AL30.BA'),
-        fetchPrice('AL30D.BA')
-      ]);
-      if (al30Data && al30dData && al30dData.prevClose > 0) {
-        mepPrevVal = al30Data.prevClose / al30dData.prevClose;
-      }
-    } catch (e) {
-      console.warn("Failed to fetch AL30 MEP proxy:", e);
-    }
-
-    if (!mepPrevVal) {
-      try {
-        const [ggalAr, ggalUs] = await Promise.all([
-          fetchPrice('GGAL.BA'),
-          fetchPrice('GGAL')
-        ]);
-        if (ggalAr && ggalUs && ggalUs.prevClose > 0) {
-          mepPrevVal = (ggalAr.prevClose / ggalUs.prevClose) * 10;
-        }
-      } catch (e) {
-        console.warn("Failed to fetch GGAL MEP proxy:", e);
-      }
-    }
-
-    if (mepPrevVal) {
-      setDolarMepPrev(mepPrevVal);
+      console.warn('MEP fetch error', e);
     }
 
     setPrices(newPrices);
@@ -750,6 +468,16 @@ function App() {
     setStatusText(`Actualizado ${ts}`);
   };
 
+  const fmt = (n, dec = 2) => {
+    if (n == null || isNaN(n)) return '—';
+    return new Intl.NumberFormat('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
+  };
+
+  const fmtPct = (n) => {
+    if (n == null || isNaN(n)) return '—';
+    const sign = n >= 0 ? '+' : '';
+    return `${sign}${fmt(n, 2)}%`;
+  };
 
   // --- HOLDINGS BUSINESS LOGIC ---
   const agregarHolding = () => {
@@ -844,36 +572,31 @@ function App() {
 
   // --- TRADES BUSINESS LOGIC ---
   const agregarTrade = () => {
-    const opCompra = operaciones.find(o => o.id === tradeCompraId);
     const opVenta = operaciones.find(o => o.id === tradeVentaId);
-    if (!opCompra || !opVenta) return alert('Seleccioná una operación de compra y una de venta.');
-    if (opCompra.ticker !== opVenta.ticker) {
-      if (!window.confirm('La compra y la venta son de activos distintos. ¿Seguro que querés emparejarlos como un trade?')) {
-        return;
-      }
-    }
+    const opCompra = operaciones.find(o => o.id === tradeCompraId);
+    if (!opVenta || !opCompra) return alert('Seleccioná una operación de venta y una de compra.');
+    if (opVenta.id === opCompra.id) return alert('Seleccioná dos operaciones distintas.');
 
     const trade = {
       id: Date.now().toString(),
-      compraOpId: opCompra.id,
-      compraTicker: opCompra.ticker,
-      compraCantidad: opCompra.cantidad,
-      compraPrecio: opCompra.precio,
-      compraFecha: opCompra.fecha,
       ventaOpId: opVenta.id,
       ventaTicker: opVenta.ticker,
       ventaCantidad: opVenta.cantidad,
       ventaPrecio: opVenta.precio,
       ventaFecha: opVenta.fecha,
+      compraTicker: opCompra.ticker,
+      compraCantidad: opCompra.cantidad,
+      compraPrecio: opCompra.precio,
+      compraFecha: opCompra.fecha,
     };
-    setTrades([trade, ...trades]);
-    setTradeCompraId('');
+    setTrades([...trades, trade]);
     setTradeVentaId('');
+    setTradeCompraId('');
     setShowAddTrade(false);
   };
 
   const eliminarTrade = (id) => {
-    if (!window.confirm('¿Eliminar este trade cerrado?')) return;
+    if (!window.confirm('¿Eliminar este análisis de trade?')) return;
     setTrades(trades.filter(t => t.id !== id));
   };
 
@@ -911,7 +634,7 @@ function App() {
 
   // --- IMP/EXP LOGIC ---
   const exportar = () => {
-    const json = JSON.stringify({ holdings, operaciones, watchlist, trades, evals }, null, 2);
+    const json = JSON.stringify({ holdings, operaciones, watchlist }, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -920,7 +643,7 @@ function App() {
   };
 
   const copiarJSON = () => {
-    const json = JSON.stringify({ holdings, operaciones, watchlist, trades, evals }, null, 2);
+    const json = JSON.stringify({ holdings, operaciones, watchlist }, null, 2);
     navigator.clipboard.writeText(json).then(() => alert('JSON Copiado'));
   };
 
@@ -933,8 +656,6 @@ function App() {
       setHoldings(data.holdings);
       setOperaciones(data.operaciones);
       setWatchlist(Array.isArray(data.watchlist) ? data.watchlist : []);
-      setTrades(Array.isArray(data.trades) ? data.trades : []);
-      setEvals(Array.isArray(data.evals) ? data.evals : []);
       setPrices({});
       setImportJson('');
       setShowSettings(false);
@@ -946,109 +667,27 @@ function App() {
   const borrarTodo = () => {
     const typed = window.prompt('Escribí "BORRAR" para formatear todo.');
     if (typed === 'BORRAR') {
-      setHoldings([]); setOperaciones([]); setWatchlist([]); setTrades([]); setEvals([]); setPrices({});
+      setHoldings([]); setOperaciones([]); setWatchlist([]); setPrices({});
       setShowSettings(false);
     }
   };
 
   // Computations
-  let totalValorARS = 0;
-  let totalCostoARS = 0;
-  let totalDailyChangeARS = 0;
-
-  let totalValorUSD = 0;
-  let totalCostoUSD = 0;
-  let totalDailyChangeUSD = 0;
-
-  const mepPrev = dolarMepPrev || dolarMep || 1;
-  const mepToday = dolarMep || 1;
+  let totalValor = 0;
+  let totalCosto = 0;
 
   holdings.forEach(h => {
     const yt = getYahooTicker(h) || h.ticker;
     const pc = prices[yt] ?? null;
-    const stats = dailyStats[yt] ?? null;
+    const valor = pc !== null ? pc * h.cantidad : null;
+    const costo = h.precioEntrada * h.cantidad;
 
-    const qty = h.cantidad;
-    const costUnit = h.precioEntrada;
-
-    if (pc !== null) {
-      const isUsdAsset = h.tipo === 'stock';
-      
-      let valARS = 0;
-      let valUSD = 0;
-      let costARS = 0;
-      let costUSD = 0;
-      let changeARS = 0;
-      let changeUSD = 0;
-
-      if (isUsdAsset) {
-        // Stock US (NYSE/NASDAQ)
-        valUSD = pc * qty;
-        costUSD = costUnit * qty;
-        valARS = valUSD * mepToday;
-        costARS = costUSD * mepToday;
-
-        if (stats && stats.change != null && !isNaN(stats.change)) {
-          changeUSD = stats.change * qty;
-          const prevValUSD = valUSD - changeUSD;
-          const prevValARS = prevValUSD * mepPrev;
-          changeARS = valARS - prevValARS;
-        }
-      } else {
-        // Argentine Asset (Accion, Cedear, Bono)
-        valARS = pc * qty;
-        costARS = costUnit * qty;
-        valUSD = valARS / mepToday;
-        costUSD = costARS / mepToday;
-
-        if (stats && stats.change != null && !isNaN(stats.change)) {
-          changeARS = stats.change * qty;
-          const prevValARS = valARS - changeARS;
-          const prevValUSD = prevValARS / mepPrev;
-          changeUSD = valUSD - prevValUSD;
-        }
-      }
-
-      totalValorARS += valARS;
-      totalCostoARS += costARS;
-      totalDailyChangeARS += changeARS;
-
-      totalValorUSD += valUSD;
-      totalCostoUSD += costUSD;
-      totalDailyChangeUSD += changeUSD;
-    } else {
-      // pc is null, fallback just for costs
-      const isUsdAsset = h.tipo === 'stock';
-      if (isUsdAsset) {
-        totalCostoUSD += costUnit * qty;
-        totalCostoARS += costUnit * qty * mepToday;
-      } else {
-        totalCostoARS += costUnit * qty;
-        totalCostoUSD += costUnit * qty / mepToday;
-      }
-    }
+    if (valor !== null) totalValor += valor;
+    totalCosto += costo;
   });
-
-  const totalValor = totalValorARS;
-  const totalCosto = totalCostoARS;
-  const totalDailyChange = totalDailyChangeARS;
 
   const pnlT = totalValor - totalCosto;
   const pnlTP = totalCosto > 0 ? (pnlT / totalCosto) * 100 : 0;
-
-  const pnlTUSD = totalValorUSD - totalCostoUSD;
-  const pnlTPUSD = totalCostoUSD > 0 ? (pnlTUSD / totalCostoUSD) * 100 : 0;
-
-  const totalPreviousValor = totalValor - totalDailyChange;
-  const totalDailyChangePct = (totalPreviousValor > 0 && totalValor > 0)
-    ? (totalDailyChange / totalPreviousValor) * 100
-    : 0;
-
-  // USD daily percentage calculation
-  const totalPreviousValorUSD = totalValorUSD - totalDailyChangeUSD;
-  const totalDailyChangePctUSD = (totalPreviousValorUSD > 0 && totalValorUSD > 0)
-    ? (totalDailyChangeUSD / totalPreviousValorUSD) * 100
-    : 0;
 
   // Watchlist: items visible after type + category filters (before per-ticker exclusion)
   const wlVisibleBeforeExclude = watchlist
@@ -1084,9 +723,8 @@ function App() {
           <button className={`tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`} onClick={() => setActiveTab('portfolio')}>Mi Portfolio</button>
           <button className={`tab-btn ${activeTab === 'operaciones' ? 'active' : ''}`} onClick={() => setActiveTab('operaciones')}>Histórico</button>
           <button className={`tab-btn ${activeTab === 'watchlist' ? 'active' : ''}`} onClick={() => setActiveTab('watchlist')}>Watchlist</button>
-          <button className={`tab-btn ${activeTab === 'mercados' ? 'active' : ''}`} onClick={() => setActiveTab('mercados')}>Mercados</button>
-          <button className={`tab-btn ${activeTab === 'evaluacion' ? 'active' : ''}`} onClick={() => setActiveTab('evaluacion')}>Evaluación</button>
           <button className={`tab-btn ${activeTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveTab('trades')}>Trades</button>
+          <button className={`tab-btn ${activeTab === 'evaluacion' ? 'active' : ''}`} onClick={() => setActiveTab('evaluacion')}>Evaluación</button>
         </div>
         {dolarMep && (
           <div style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>
@@ -1094,9 +732,6 @@ function App() {
           </div>
         )}
       </nav>
-
-      {/* Global Index Bar */}
-      <IndexTickerBar dailyStats={dailyStats} />
 
       {/* Settings Panel (Global Drawer) */}
       {showSettings && (
@@ -1131,73 +766,33 @@ function App() {
       {/* --- TAB 1: PORTFOLIO --- */}
       {activeTab === 'portfolio' && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '-0.75rem', marginBottom: '0.125rem' }}>
-            <div style={{ display: 'flex', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px', overflow: 'hidden' }}>
-              <button className={`btn btn-sm ${currencyMode === 'ARS' ? 'active' : ''}`} style={{ border: 'none', borderRadius: 0, background: currencyMode === 'ARS' ? 'var(--accent)' : 'transparent', color: currencyMode === 'ARS' ? '#fff' : 'var(--text-muted)' }} onClick={() => setCurrencyMode('ARS')}>ARS</button>
-              <button className={`btn btn-sm ${currencyMode === 'USD' ? 'active' : ''}`} style={{ border: 'none', borderRadius: 0, background: currencyMode === 'USD' ? 'var(--accent)' : 'transparent', color: currencyMode === 'USD' ? '#fff' : 'var(--text-muted)' }} onClick={() => setCurrencyMode('USD')}>USD</button>
-            </div>
-          </div>
           <div className="metrics-grid">
             <div className="glass-panel metric-card">
               <div className="metric-label">Valor Total</div>
               <div className="metric-value" id="m-total">
-                {holdings.length > 0 ? (currencyMode === 'ARS' ? `$${fmt(totalValor)}` : `US$ ${fmt(totalValorUSD)}`) : '—'}
+                {holdings.length > 0 ? `$${fmt(totalValor)}` : '—'}
               </div>
-            </div>
-            <div className="glass-panel metric-card">
-              <div className="metric-label">Cambio Diario</div>
-              <div className="metric-value" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', margin: '4px 0' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                  {currencyMode === 'ARS' ? (
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                      <span className={holdings.length === 0 ? '' : (totalDailyChange >= 0 ? 'positive' : 'negative')}>
-                        {holdings.length > 0 ? `${totalDailyChange >= 0 ? '+$' : '-$'}${fmt(Math.abs(totalDailyChange))}` : '—'}
-                      </span>
-                      {holdings.length > 0 && (
-                        <span className={totalDailyChangePct >= 0 ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '500', marginLeft: '4px' }}>
-                          ({fmtPct(totalDailyChangePct)})
-                        </span>
-                      )}
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '4px', textTransform: 'uppercase', fontWeight: '600' }}>ARS</span>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                      <span className={holdings.length === 0 ? '' : (totalDailyChangeUSD >= 0 ? 'positive' : 'negative')}>
-                        {holdings.length > 0 ? `${totalDailyChangeUSD >= 0 ? '+US$ ' : '-US$ '}${fmt(Math.abs(totalDailyChangeUSD))}` : '—'}
-                      </span>
-                      {holdings.length > 0 && (
-                        <span className={totalDailyChangePctUSD >= 0 ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '500', marginLeft: '4px' }}>
-                          ({fmtPct(totalDailyChangePctUSD)})
-                        </span>
-                      )}
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '4px', textTransform: 'uppercase', fontWeight: '600' }}>USD</span>
-                    </div>
-                  )}
+              {dolarMep && holdings.length > 0 && (
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  ≈ US$ {fmt(totalValor / dolarMep)} <span style={{ fontSize: '10px' }}>(MEP: ${fmt(dolarMep)})</span>
                 </div>
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 'auto' }}>
-                Resultado real de la jornada
+              )}
+            </div>
+            <div className="glass-panel metric-card">
+              <div className="metric-label">Ganancia/Pérdida Absoluta ($)</div>
+              <div className={`metric-value ${holdings.length === 0 ? '' : (pnlT >= 0 ? 'positive' : 'negative')}`}>
+                {holdings.length > 0 ? `${pnlT >= 0 ? '+$' : '-$'}${fmt(Math.abs(pnlT))}` : '—'}
               </div>
             </div>
             <div className="glass-panel metric-card">
-              <div className="metric-label">Ganancia/Pérdida Total</div>
-              <div className="metric-value">
-                <span className={holdings.length === 0 ? '' : (pnlT >= 0 ? 'positive' : 'negative')}>
-                  {holdings.length > 0 ? `${pnlT >= 0 ? '+$' : '-$'}${fmt(Math.abs(pnlT))}` : '—'}
-                </span>
-                {holdings.length > 0 && (
-                  <span className={pnlTP >= 0 ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '500', marginLeft: '4px' }}>
-                    ({fmtPct(pnlTP)})
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 'auto' }}>
-                Rendimiento histórico acumulado
+              <div className="metric-label">Rendimiento Total (%)</div>
+              <div className={`metric-value ${holdings.length === 0 ? '' : (pnlTP >= 0 ? 'positive' : 'negative')}`}>
+                {holdings.length > 0 ? fmtPct(pnlTP) : '—'}
               </div>
             </div>
           </div>
 
-          <div className="glass-panel" style={{ marginTop: '0.75rem' }}>
+          <div className="glass-panel" style={{ marginTop: '1.5rem' }}>
             <div className="panel-header">
               <div className="panel-title">Tus Activos ({holdings.length})</div>
               <button className="btn btn-primary btn-sm" onClick={() => setShowAddHolding(!showAddHolding)}>+ Agregar Holding</button>
@@ -1298,43 +893,34 @@ function App() {
                       const sign = pnlA >= 0 ? '+' : '';
 
                       return (
-                        <React.Fragment key={h.ticker}>
-                          <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === h.ticker ? null : h.ticker)}>
-                            <td>
-                              <div className="ticker-name">{h.ticker}</div>
-                              {h.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{h.nombre}</div>}
-                            </td>
-                            <td><span className={`badge badge-${h.tipo}`}>{h.tipo}</span></td>
-                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{h.mercado || (h.tipo === 'stock' ? 'NYSE/NASDAQ' : (h.tipo === 'bono' ? 'OTC' : 'BCBA'))}</span></td>
-                            <td>{fmt(h.cantidad, 0)}</td>
-                            <td>${fmt(h.precioEntrada)}</td>
-                            <td>
-                              <strong>
-                                {pc !== null ? `$${fmt(pc)}` : (
-                                  h.tipo === 'bono' ? (
-                                    <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); editBonoPrecio(h.ticker); }}>Fijar P.</button>
-                                  ) : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>
-                                )}
-                              </strong>
-                              {stats && pc !== null && h.tipo !== 'bono' && (
-                                <div className={stats.change >= 0 ? 'positive' : 'negative'} style={{ fontSize: '11px', marginTop: '4px' }}>
-                                  {fmtPct(stats.changePct)}
-                                </div>
+                        <tr key={h.ticker}>
+                          <td>
+                            <div className="ticker-name">{h.ticker}</div>
+                            {h.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{h.nombre}</div>}
+                          </td>
+                          <td><span className={`badge badge-${h.tipo}`}>{h.tipo}</span></td>
+                          <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{h.mercado || (h.tipo === 'stock' ? 'NYSE/NASDAQ' : (h.tipo === 'bono' ? 'OTC' : 'BCBA'))}</span></td>
+                          <td>{fmt(h.cantidad, 0)}</td>
+                          <td>${fmt(h.precioEntrada)}</td>
+                          <td>
+                            <strong>
+                              {pc !== null ? `$${fmt(pc)}` : (
+                                h.tipo === 'bono' ? (
+                                  <button className="btn btn-sm" onClick={() => editBonoPrecio(h.ticker)}>Fijar P.</button>
+                                ) : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>
                               )}
-                            </td>
-                            <td>{valor !== null ? '$' + fmt(valor) : '—'}</td>
-                            <td className={cssPnl}>{pnlA !== null ? sign + '$' + fmt(pnlA) : '—'}</td>
-                            <td className={cssPnl}><strong>{fmtPct(pnlP)}</strong></td>
-                            <td><button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); eliminarHolding(h.ticker); }}>✕</button></td>
-                          </tr>
-                          {expandedTicker === h.ticker && (
-                            <tr className="expanded-panel-row">
-                              <td colSpan="10">
-                                <HistoricalChart data={stats} ticker={h.ticker} name={h.nombre} />
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
+                            </strong>
+                            {stats && pc !== null && h.tipo !== 'bono' && (
+                              <div className={stats.change >= 0 ? 'positive' : 'negative'} style={{ fontSize: '11px', marginTop: '4px' }}>
+                                {fmtPct(stats.changePct)}
+                              </div>
+                            )}
+                          </td>
+                          <td>{valor !== null ? '$' + fmt(valor) : '—'}</td>
+                          <td className={cssPnl}>{pnlA !== null ? sign + '$' + fmt(pnlA) : '—'}</td>
+                          <td className={cssPnl}><strong>{fmtPct(pnlP)}</strong></td>
+                          <td><button className="btn btn-sm btn-danger" onClick={() => eliminarHolding(h.ticker)}>✕</button></td>
+                        </tr>
                       );
                     })}
                   </tbody>
@@ -1618,10 +1204,11 @@ function App() {
                       const ytB = getYahooTicker(b) || b.ticker;
                       const pctA = dailyStats[ytA]?.changePct ?? null;
                       const pctB = dailyStats[ytB]?.changePct ?? null;
+                      // Items with no data sink to the bottom
                       if (pctA === null && pctB === null) return 0;
                       if (pctA === null) return 1;
                       if (pctB === null) return -1;
-                      return pctB - pctA;
+                      return pctB - pctA; // descending: best performers first
                     }).map(w => {
                       const yt = getYahooTicker(w) || w.ticker;
                       const pc = prices[yt] ?? null;
@@ -1641,44 +1228,35 @@ function App() {
                       };
 
                       return (
-                        <React.Fragment key={`${w.ticker}-${w.mercado || 'BCBA'}`}>
-                          <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === w.ticker ? null : w.ticker)}>
-                            <td>
-                              <div className="ticker-name">{w.ticker}</div>
-                              {w.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{w.nombre}</div>}
-                            </td>
-                            <td><span className={`badge badge-${w.tipo}`}>{w.tipo}</span></td>
-                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.mercado || (w.tipo === 'stock' ? 'NYSE/NASDAQ' : 'BCBA')}</span></td>
-                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.categoria || '—'}</span></td>
-                            <td>
-                              <strong className={pc !== null && stats && !stats.isOpen ? 'price-stale' : ''}>
-                                {pc !== null ? `$${fmt(pc)}` : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>}
-                              </strong>
-                              {pc !== null && stats && (
-                                <div>
-                                  <span className={`mkt-price-badge mkt-price-badge--${stats.isOpen ? 'open' : 'closed'}`}>
-                                    <span className="mkt-price-badge__dot" />
-                                    {stats.isOpen ? 'En vivo' : 'Cierre ant.'}
-                                  </span>
-                                </div>
-                              )}
-                            </td>
-                            <td className={todayCss}><strong>{todayText}</strong></td>
-                            <td>{stats ? fmtHist(stats.hist5d) : '—'}</td>
-                            <td>{stats ? fmtHist(stats.hist1m) : '—'}</td>
-                            <td>{stats ? fmtHist(stats.hist6m) : '—'}</td>
-                            <td>{stats ? fmtHist(stats.hist1y) : '—'}</td>
-                            <td>{stats ? fmtHist(stats.hist5y) : '—'}</td>
-                            <td><button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); eliminarWatchlist(w.ticker); }}>✕</button></td>
-                          </tr>
-                          {expandedTicker === w.ticker && (
-                            <tr className="expanded-panel-row">
-                              <td colSpan="12">
-                                <HistoricalChart data={stats} ticker={w.ticker} name={w.nombre} />
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
+                        <tr key={`${w.ticker}-${w.mercado || 'BCBA'}`}>
+                          <td>
+                            <div className="ticker-name">{w.ticker}</div>
+                            {w.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{w.nombre}</div>}
+                          </td>
+                          <td><span className={`badge badge-${w.tipo}`}>{w.tipo}</span></td>
+                          <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.mercado || (w.tipo === 'stock' ? 'NYSE/NASDAQ' : 'BCBA')}</span></td>
+                          <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.categoria || '—'}</span></td>
+                          <td>
+                            <strong className={pc !== null && stats && !stats.isOpen ? 'price-stale' : ''}>
+                              {pc !== null ? `$${fmt(pc)}` : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>}
+                            </strong>
+                            {pc !== null && stats && (
+                              <div>
+                                <span className={`mkt-price-badge mkt-price-badge--${stats.isOpen ? 'open' : 'closed'}`}>
+                                  <span className="mkt-price-badge__dot" />
+                                  {stats.isOpen ? 'En vivo' : 'Cierre ant.'}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          <td className={todayCss}><strong>{todayText}</strong></td>
+                          <td>{stats ? fmtHist(stats.hist5d) : '—'}</td>
+                          <td>{stats ? fmtHist(stats.hist1m) : '—'}</td>
+                          <td>{stats ? fmtHist(stats.hist6m) : '—'}</td>
+                          <td>{stats ? fmtHist(stats.hist1y) : '—'}</td>
+                          <td>{stats ? fmtHist(stats.hist5y) : '—'}</td>
+                          <td><button className="btn btn-sm btn-danger" onClick={() => eliminarWatchlist(w.ticker)}>✕</button></td>
+                        </tr>
                       );
                     })}
                 </tbody>
@@ -1687,95 +1265,19 @@ function App() {
           </div>
         </div>
       )}
-      {/* --- TAB: MERCADOS --- */}
-      {activeTab === 'mercados' && (
-        <div className="glass-panel">
-          <div className="panel-header">
-            <div className="panel-title">Referencia de Mercados Globales</div>
-          </div>
-
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Indicador</th>
-                  <th>Precio</th>
-                  <th>Variación Hoy</th>
-                  <th>1 Mes</th>
-                  <th>6 Meses</th>
-                  <th>1 Año</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...GLOBAL_INDICES].sort((a, b) => (dailyStats[b.ticker]?.changePct ?? 0) - (dailyStats[a.ticker]?.changePct ?? 0)).map(idx => {
-                  const stats = dailyStats[idx.ticker];
-                  if (!stats) return null;
-
-                  const isPos = stats.change >= 0;
-                  const fmtHist = (val) => {
-                    if (val == null) return <span style={{ color: '#666' }}>—</span>;
-                    let css = val >= 0 ? 'positive' : 'negative';
-                    return <span className={css}><strong>{fmtPct(val)}</strong></span>;
-                  };
-
-                  return (
-                    <React.Fragment key={idx.ticker}>
-                      <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === idx.ticker ? null : idx.ticker)}>
-                        <td>
-                          <div className="ticker-name">{idx.name}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{idx.ticker}</div>
-                        </td>
-                        <td>
-                          <strong className={!stats.isOpen ? 'price-stale' : ''}>
-                            {idx.ticker === 'BTC-USD' ? '' : '$'}{fmt(stats.price, idx.ticker === 'BTC-USD' || idx.ticker === '^TNX' ? 2 : 2)}
-                          </strong>
-                        </td>
-                        <td className={isPos ? 'positive' : 'negative'}>
-                          <strong>{fmtPct(stats.changePct)}</strong>
-                        </td>
-                        <td>{fmtHist(stats.hist1m)}</td>
-                        <td>{fmtHist(stats.hist6m)}</td>
-                        <td>{fmtHist(stats.hist1y)}</td>
-                        <td style={{ color: 'var(--accent)', fontSize: '12px' }}>{expandedTicker === idx.ticker ? '▲ Info' : '▼ Info'}</td>
-                      </tr>
-                      {expandedTicker === idx.ticker && (
-                        <tr className="expanded-panel-row">
-                          <td colSpan="7">
-                            <div className="market-detail-container">
-                              <div className="market-explanation">
-                                <h4>Acerca de {idx.name}</h4>
-                                <p>{idx.desc}</p>
-                              </div>
-                              <div style={{ flex: 1 }}>
-                                <HistoricalChart data={stats} ticker={idx.ticker} name={idx.name} />
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
 
       {/* --- TAB 4: TRADES --- */}
       {activeTab === 'trades' && (
         <div className="glass-panel">
           <div className="panel-header">
-            <div className="panel-title">Operaciones Cerradas (Trades) ({trades.length})</div>
+            <div className="panel-title">Análisis de Trades y Rotaciones ({trades.length})</div>
             <button className="btn btn-primary btn-sm" onClick={() => setShowAddTrade(!showAddTrade)}>+ Agregar Trade</button>
           </div>
 
           {/* Add Trade Form */}
           {showAddTrade && (
             <div className="collapsible-content active">
-              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Registrar Trade Cerrado</div>
+              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Nueva Rotación</div>
               {operaciones.length < 2 ? (
                 <div className="empty-state" style={{ padding: '1rem' }}>
                   Necesitás al menos dos operaciones registradas en el Histórico para crear un análisis.
@@ -1784,18 +1286,7 @@ function App() {
                 <>
                   <div className="form-row">
                     <div>
-                      <label>Operación de Compra (Entrada)</label>
-                      <select value={tradeCompraId} onChange={e => setTradeCompraId(e.target.value)}>
-                        <option value="">— Seleccioná una compra —</option>
-                        {operaciones.filter(o => o.tipo === 'compra').sort((a, b) => b.fecha.localeCompare(a.fecha)).map(o => (
-                          <option key={o.id} value={o.id}>
-                            {o.fecha} · {o.ticker} · Compra {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label>Operación de Venta (Salida)</label>
+                      <label>Operación Vendida (¿Qué vendiste?)</label>
                       <select value={tradeVentaId} onChange={e => setTradeVentaId(e.target.value)}>
                         <option value="">— Seleccioná una venta —</option>
                         {operaciones.filter(o => o.tipo === 'venta').sort((a, b) => b.fecha.localeCompare(a.fecha)).map(o => (
@@ -1805,8 +1296,19 @@ function App() {
                         ))}
                       </select>
                     </div>
+                    <div>
+                      <label>Operación Comprada (¿Qué compraste?)</label>
+                      <select value={tradeCompraId} onChange={e => setTradeCompraId(e.target.value)}>
+                        <option value="">— Seleccioná una compra —</option>
+                        {operaciones.filter(o => o.tipo === 'compra').sort((a, b) => b.fecha.localeCompare(a.fecha)).map(o => (
+                          <option key={o.id} value={o.id}>
+                            {o.fecha} · {o.ticker} · Compra {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <button className="btn btn-primary" onClick={agregarTrade}>Guardar Trade</button>
+                  <button className="btn btn-primary" onClick={agregarTrade}>Guardar Rotación</button>
                   <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddTrade(false)}>Cancelar</button>
                 </>
               )}
@@ -1816,20 +1318,24 @@ function App() {
           {/* Trade Cards */}
           {trades.length === 0 && !showAddTrade ? (
             <div className="empty-state">
-              Sin operaciones cerradas registradas todavía. Agregá un trade para comenzar.
+              Sin análisis de trades todavía. Agregá uno para comenzar.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
               {trades.map(trade => {
-                // Calculate PnL based on the quantity sold to match the buy price accurately.
-                const qty = Math.min(trade.compraCantidad, trade.ventaCantidad);
-                const montoCompraOperado = trade.compraPrecio * qty;
-                const montoVentaOperado = trade.ventaPrecio * qty;
+                const ventaBase = trade.ventaTicker.replace(/\.BA$/i, '');
+                const compraBase = trade.compraTicker.replace(/\.BA$/i, '');
+                const pVenta = prices[trade.ventaTicker] ?? prices[ventaBase] ?? null;
+                const pCompra = prices[trade.compraTicker] ?? prices[compraBase] ?? null;
 
-                const nominalDiff = montoVentaOperado - montoCompraOperado;
-                const pctDiff = montoCompraOperado > 0 ? (nominalDiff / montoCompraOperado) * 100 : 0;
-
-                const isPos = nominalDiff >= 0;
+                // Opportunity cost: what you gave up by selling
+                const ventaDiff = pVenta !== null ? (pVenta - trade.ventaPrecio) * trade.ventaCantidad : null;
+                const ventaPct = pVenta !== null ? ((pVenta - trade.ventaPrecio) / trade.ventaPrecio) * 100 : null;
+                // Actual gain/loss: what you got by buying
+                const compraDiff = pCompra !== null ? (pCompra - trade.compraPrecio) * trade.compraCantidad : null;
+                const compraPct = pCompra !== null ? ((pCompra - trade.compraPrecio) / trade.compraPrecio) * 100 : null;
+                // Net: did the switch beat doing nothing?
+                const netOutcome = (ventaDiff !== null && compraDiff !== null) ? compraDiff - ventaDiff : null;
 
                 return (
                   <div key={trade.id} className="glass-panel" style={{ background: 'rgba(0,0,0,0.2)', position: 'relative' }}>
@@ -1837,43 +1343,68 @@ function App() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
                       <div>
                         <h3 style={{ fontSize: '15px', marginBottom: '4px' }}>
-                          <span style={{ opacity: 0.7 }}>{trade.compraFecha} → {trade.ventaFecha}</span> · Trade Cerrado: <span style={{ color: 'var(--accent)' }}>{trade.compraTicker}</span>
-                          {trade.compraTicker !== trade.ventaTicker && (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '12px', marginLeft: '6px' }}>
-                              (Venta de {trade.ventaTicker})
-                            </span>
-                          )}
+                          {trade.compraFecha} · Rotación: <span style={{ color: 'var(--negative)' }}>{trade.ventaTicker}</span> → <span style={{ color: 'var(--positive)' }}>{trade.compraTicker}</span>
                         </h3>
                         <p className="hint">
-                          Compra: ${fmt(trade.compraPrecio)} · Venta: ${fmt(trade.ventaPrecio)}
+                          Venta {trade.ventaTicker} {fmt(trade.ventaCantidad, 0)} @ ${fmt(trade.ventaPrecio)} &nbsp;|&nbsp; Compra {trade.compraTicker} {fmt(trade.compraCantidad, 0)} @ ${fmt(trade.compraPrecio)}
                         </p>
                       </div>
                       <button className="btn btn-sm btn-danger" onClick={() => eliminarTrade(trade.id)} style={{ flexShrink: 0, marginLeft: '12px' }}>✕</button>
                     </div>
 
                     {/* Scenario output */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '14px' }}>
-                      <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                        Compraste a <strong>${fmt(trade.compraPrecio)}</strong> y lo vendiste a <strong>${fmt(trade.ventaPrecio)}</strong>.
-                        {trade.compraCantidad !== trade.ventaCantidad && (
+                    {(pVenta === null || pCompra === null) ? (
+                      <div className="empty-state" style={{ padding: '1rem' }}>Cargando cotizaciones...</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '14px' }}>
+                        {/* Line 1: Opportunity cost */}
+                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                          Si hubieras conservado <strong>{trade.ventaTicker}</strong>, ahora tendrías {ventaDiff >= 0 ? 'una ganancia' : 'una pérdida'} de:{' '}
+                          <strong className={ventaDiff >= 0 ? 'positive' : 'negative'}>
+                            {fmtPct(ventaPct)} ({ventaDiff >= 0 ? '+' : '-'}${fmt(Math.abs(ventaDiff))}
+                            {dolarMep && (
+                              <span style={{ fontSize: '13px', fontWeight: '400', opacity: 0.8, marginLeft: '8px' }}>
+                                ≈ US$ {fmt(Math.abs(ventaDiff) / dolarMep)}
+                              </span>
+                            )}
+                            )
+                          </strong>
                           <div className="hint" style={{ marginTop: '4px' }}>
-                            Cantidades originales: Compra {fmt(trade.compraCantidad, 0)} | Venta {fmt(trade.ventaCantidad, 0)}. Cálculo basado en {fmt(qty, 0)} nominales para igualar.
+                            (Precio de venta: ${fmt(trade.ventaPrecio)} vs Valor actual: ${fmt(pVenta)})
                           </div>
-                        )}
-                      </div>
+                        </div>
 
-                      <div style={{ padding: '16px', background: isPos ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: `1px solid ${isPos ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`, borderRadius: '8px' }}>
-                        Resultado del Trade:{' '}
-                        <strong className={isPos ? 'positive' : 'negative'} style={{ fontSize: '18px' }}>
-                          {fmtPct(pctDiff)} ({isPos ? '+' : '-'}${fmt(Math.abs(nominalDiff))})
-                        </strong>
-                        {dolarMep && (
-                          <span style={{ fontSize: '14px', fontWeight: '400', opacity: 0.8, marginLeft: '10px' }}>
-                            ≈ US$ {fmt(Math.abs(nominalDiff) / dolarMep)}
-                          </span>
-                        )}
+                        {/* Line 2: Actual trade result */}
+                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                          Al haber comprado <strong>{trade.compraTicker}</strong>, obtuviste {compraDiff >= 0 ? 'una ganancia' : 'una pérdida'} de:{' '}
+                          <strong className={compraDiff >= 0 ? 'positive' : 'negative'}>
+                            {fmtPct(compraPct)} ({compraDiff >= 0 ? '+' : '-'}${fmt(Math.abs(compraDiff))}
+                            {dolarMep && (
+                              <span style={{ fontSize: '13px', fontWeight: '400', opacity: 0.8, marginLeft: '8px' }}>
+                                ≈ US$ {fmt(Math.abs(compraDiff) / dolarMep)}
+                              </span>
+                            )}
+                            )
+                          </strong>
+                          <div className="hint" style={{ marginTop: '4px' }}>
+                            (Precio de compra: ${fmt(trade.compraPrecio)} vs Valor actual: ${fmt(pCompra)})
+                          </div>
+                        </div>
+
+                        {/* Line 3: Net impact */}
+                        <div style={{ padding: '16px', background: 'rgba(94, 106, 210, 0.1)', border: '1px solid rgba(94, 106, 210, 0.3)', borderRadius: '8px' }}>
+                          En resumen, el impacto de la Rotación es:{' '}
+                          <strong className={netOutcome >= 0 ? 'positive' : 'negative'} style={{ fontSize: '18px' }}>
+                            {netOutcome >= 0 ? '+' : '-'}${fmt(Math.abs(netOutcome))}
+                            {dolarMep && (
+                              <span style={{ fontSize: '14px', fontWeight: '400', opacity: 0.8, marginLeft: '10px' }}>
+                                ≈ US$ {fmt(Math.abs(netOutcome) / dolarMep)}
+                              </span>
+                            )}
+                          </strong>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 );
               })}
@@ -1903,7 +1434,7 @@ function App() {
                     <label>Seleccionar Operación</label>
                     <select value={evalOpId} onChange={e => setEvalOpId(e.target.value)}>
                       <option value="">— Seleccioná una operación —</option>
-                      {[...operaciones].sort((a, b) => b.fecha.localeCompare(a.fecha)).map(o => (
+                      {[...operaciones].sort((a,b) => b.fecha.localeCompare(a.fecha)).map(o => (
                         <option key={o.id} value={o.id}>
                           {o.fecha} · {o.ticker} · {o.tipo.toUpperCase()} {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
                         </option>
@@ -1930,7 +1461,7 @@ function App() {
                   const base = ev.ticker.replace(/\.BA$/i, '');
                   const curPrice = prices[ev.ticker] ?? prices[base] ?? null;
                   const opTotal = ev.precio * ev.cantidad;
-
+                  
                   let perfHtml = null;
                   if (curPrice === null) {
                     perfHtml = <div className="empty-state" style={{ padding: '20px' }}>Cargando cotización...</div>;
@@ -1979,11 +1510,11 @@ function App() {
                           <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{ev.ticker}</div>
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <label className="mcd-option" style={{ margin: 0, padding: '4px 8px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', border: '1px solid var(--glass-border)', cursor: 'pointer' }}>
-                            <input type="checkbox" checked={!ev.excluded} onChange={() => toggleEvalExclusion(ev.id)} style={{ width: '12px', height: '12px' }} />
-                            <span style={{ fontSize: '10px', marginLeft: '4px' }}>Incluir</span>
-                          </label>
-                          <button className="btn btn-sm btn-danger" onClick={() => eliminarEval(ev.id)} style={{ padding: '2px 6px' }}>✕</button>
+                           <label className="mcd-option" style={{ margin: 0, padding: '4px 8px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', border: '1px solid var(--glass-border)', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={!ev.excluded} onChange={() => toggleEvalExclusion(ev.id)} style={{ width: '12px', height: '12px' }} />
+                              <span style={{ fontSize: '10px', marginLeft: '4px' }}>Incluir</span>
+                           </label>
+                           <button className="btn btn-sm btn-danger" onClick={() => eliminarEval(ev.id)} style={{ padding: '2px 6px' }}>✕</button>
                         </div>
                       </div>
                       <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -2018,15 +1549,15 @@ function App() {
 
                   if (curPrice !== null) {
                     if (ev.tipo === 'compra') {
-                      const res = (curPrice - ev.precio) * ev.cantidad;
-                      netResult += res;
-                      totalHoldingResult += res;
-                      totalBuyVol += opTotal;
+                       const res = (curPrice - ev.precio) * ev.cantidad;
+                       netResult += res;
+                       totalHoldingResult += res;
+                       totalBuyVol += opTotal;
                     } else {
-                      const res = (ev.precio - curPrice) * ev.cantidad;
-                      netResult += res;
-                      totalSaleResult += res;
-                      totalSellVol += opTotal;
+                       const res = (ev.precio - curPrice) * ev.cantidad;
+                       netResult += res;
+                       totalSaleResult += res;
+                       totalSellVol += opTotal;
                     }
                   }
                 });
@@ -2037,12 +1568,12 @@ function App() {
                 return (
                   <div className="glass-panel" style={{ marginTop: '2rem', background: 'rgba(94, 106, 210, 0.08)', border: '1px solid rgba(94, 106, 210, 0.25)', padding: '1.75rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '2rem' }}>
-
+                      
                       {/* Left: Title and Volumes */}
                       <div style={{ flex: 1 }}>
                         <div className="panel-title" style={{ fontSize: '20px', marginBottom: '6px' }}>Resultado Neto Consolidado</div>
                         <p className="hint" style={{ marginBottom: '24px', fontSize: '13px' }}>Suma de rendimientos (compras) y beneficios de oportunidad (ventas) seleccionados.</p>
-
+                        
                         <div style={{ display: 'flex', gap: '2.5rem' }}>
                           <div>
                             <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Volumen Compras</div>
@@ -2061,7 +1592,7 @@ function App() {
 
                       {/* Right: Specific Results and Total */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '3rem' }}>
-
+                        
                         {/* Stacked Mid Boxes */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                           <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'right', minWidth: '160px' }}>
@@ -2086,7 +1617,7 @@ function App() {
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
                             <span className={netResult >= 0 ? 'positive' : 'negative'} style={{ fontWeight: '700', fontSize: '18px' }}>
-                              {fmtPct(netPct)}
+                               {fmtPct(netPct)}
                             </span>
                             {dolarMep && (
                               <span style={{ fontSize: '15px', color: 'var(--text-muted)', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '12px' }}>

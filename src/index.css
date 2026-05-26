@@ -108,7 +108,7 @@ body {
   display: flex;
   gap: 1rem;
   border-bottom: 1px solid var(--glass-border);
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .tab-btn {
