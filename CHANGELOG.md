@@ -1,5 +1,16 @@
 # CHANGELOG - Balanz Overview
 
+## [v1.12] - 2026-05-27 03:52
+
+*Archivos modificados: `src/App.jsx`, `CHANGELOG.md`*
+
+### Added
+- **Columna "%" en Mis Activos:** Se incorporó una nueva columna que calcula e ilustra el porcentaje que representa cada activo respecto al valor total de la cartera (considerando conversiones multimoneda).
+- **Ordenamiento dinámico:** Ahora es posible ordenar la tabla de "Mis Activos" haciendo clic en las cabeceras. Se puede ordenar Alfabéticamente, por Tipo, por % de Cartera, por P&L $, y por P&L %.
+
+### Changed
+- **Visualización de Efectivo:** Se corrigió el comportamiento del activo 'Efectivo' (caja) para que su precio actual ya no muestre "cargando..." de forma indefinida, sino que exhiba un guión ("—") acorde a la estética de activos sin cotización variable.
+
 ## [v1.11] - 2026-05-27 03:25
 
 *Archivos modificados: `src/App.jsx`, `src/index.css`, `CHANGELOG.md`*

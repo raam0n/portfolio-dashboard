@@ -489,6 +489,7 @@ function App() {
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [showAddEval, setShowAddEval] = useState(false);
   const [expandedTicker, setExpandedTicker] = useState(null); // Ticker of the expanded row in Watchlist/Portfolio
+  const [holdingsSort, setHoldingsSort] = useState('default'); // 'default', 'alpha', 'pct', 'pnlA', 'pnlP'
 
   // Trade form state
   const [tradeCompraId, setTradeCompraId] = useState('');
@@ -1282,70 +1283,93 @@ function App() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Activo</th>
-                      <th>Tipo</th>
+                      <th onClick={() => setHoldingsSort('alpha')} style={{cursor: 'pointer'}} title="Ordenar Alfabéticamente">Activo {holdingsSort === 'alpha' ? '↓' : ''}</th>
+                      <th onClick={() => setHoldingsSort('default')} style={{cursor: 'pointer'}} title="Ordenar por Tipo">Tipo {holdingsSort === 'default' ? '↓' : ''}</th>
                       <th>Mercado</th>
+                      <th onClick={() => setHoldingsSort('pct')} style={{cursor: 'pointer'}} title="Ordenar por % de Cartera">% {holdingsSort === 'pct' ? '↓' : ''}</th>
                       <th>Cant.</th>
                       <th>P. Compra</th>
                       <th>P. Actual</th>
                       <th>Valor ($)</th>
-                      <th>P&L $</th>
-                      <th>P&L %</th>
+                      <th onClick={() => setHoldingsSort('pnlA')} style={{cursor: 'pointer'}} title="Ordenar por P&L $">P&L $ {holdingsSort === 'pnlA' ? '↓' : ''}</th>
+                      <th onClick={() => setHoldingsSort('pnlP')} style={{cursor: 'pointer'}} title="Ordenar por P&L %">P&L % {holdingsSort === 'pnlP' ? '↓' : ''}</th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {[...holdings].sort(sortUnified).map(h => {
-                      const yt = getYahooTicker(h) || h.ticker;
-                      const pc = prices[yt] ?? null;
-                      const stats = dailyStats[yt] ?? null;
-                      const valor = pc !== null ? pc * h.cantidad : null;
-                      const costo = h.precioEntrada * h.cantidad;
-                      const pnlA = valor !== null ? valor - costo : null;
-                      const pnlP = (valor !== null && costo > 0) ? (pnlA / costo) * 100 : null;
-                      const cssPnl = pnlA == null ? 'neutral' : (pnlA >= 0 ? 'positive' : 'negative');
-                      const sign = pnlA >= 0 ? '+' : '';
-
-                      return (
-                        <React.Fragment key={h.ticker}>
-                          <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === h.ticker ? null : h.ticker)}>
-                            <td>
-                              <div className="ticker-name">{h.ticker}</div>
-                              {h.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{h.nombre}</div>}
-                            </td>
-                            <td><span className={`badge badge-${h.tipo}`}>{h.tipo}</span></td>
-                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{h.mercado || (h.tipo === 'stock' ? 'NYSE/NASDAQ' : (h.tipo === 'bono' ? 'OTC' : 'BCBA'))}</span></td>
-                            <td>{fmt(h.cantidad, 0)}</td>
-                            <td>${fmt(h.precioEntrada)}</td>
-                            <td>
-                              <strong>
-                                {pc !== null ? `$${fmt(pc)}` : (
-                                  h.tipo === 'bono' ? (
-                                    <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); editBonoPrecio(h.ticker); }}>Fijar P.</button>
-                                  ) : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>
-                                )}
-                              </strong>
-                              {stats && pc !== null && h.tipo !== 'bono' && (
-                                <div className={stats.change >= 0 ? 'positive' : 'negative'} style={{ fontSize: '11px', marginTop: '4px' }}>
-                                  {fmtPct(stats.changePct)}
-                                </div>
-                              )}
-                            </td>
-                            <td>{valor !== null ? '$' + fmt(valor) : '—'}</td>
-                            <td className={cssPnl}>{pnlA !== null ? sign + '$' + fmt(pnlA) : '—'}</td>
-                            <td className={cssPnl}><strong>{fmtPct(pnlP)}</strong></td>
-                            <td><button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); eliminarHolding(h.ticker); }}>✕</button></td>
-                          </tr>
-                          {expandedTicker === h.ticker && (
-                            <tr className="expanded-panel-row">
-                              <td colSpan="10">
-                                <HistoricalChart data={stats} ticker={h.ticker} name={h.nombre} />
+                    {(() => {
+                      const enriched = holdings.map(h => {
+                        const isEfectivo = h.tipo === 'efectivo';
+                        const yt = getYahooTicker(h) || h.ticker;
+                        const pc = isEfectivo ? 1 : (prices[yt] ?? null);
+                        const stats = isEfectivo ? { change: 0, changePct: 0 } : (dailyStats[yt] ?? null);
+                        const valor = pc !== null ? pc * h.cantidad : null;
+                        const costo = h.precioEntrada * h.cantidad;
+                        const pnlA = valor !== null ? valor - costo : null;
+                        const pnlP = (valor !== null && costo > 0) ? (pnlA / costo) * 100 : null;
+                        
+                        const isUsdAsset = h.tipo === 'stock' || (isEfectivo && h.ticker === 'USD');
+                        const mepToday = dolarMep || 1;
+                        const valARS = valor !== null ? (isUsdAsset ? valor * mepToday : valor) : (isUsdAsset ? costo * mepToday : costo);
+                        const pct = (valARS > 0 && totalValor > 0) ? (valARS / totalValor) * 100 : 0;
+                        
+                        return { h, yt, pc, stats, valor, costo, pnlA, pnlP, pct, isEfectivo };
+                      });
+                      
+                      enriched.sort((a, b) => {
+                        if (holdingsSort === 'alpha') return a.h.ticker.localeCompare(b.h.ticker);
+                        if (holdingsSort === 'pct') return b.pct - a.pct;
+                        if (holdingsSort === 'pnlA') return (b.pnlA || -Infinity) - (a.pnlA || -Infinity);
+                        if (holdingsSort === 'pnlP') return (b.pnlP || -Infinity) - (a.pnlP || -Infinity);
+                        return sortUnified(a.h, b.h);
+                      });
+                      
+                      return enriched.map(({ h, yt, pc, stats, valor, costo, pnlA, pnlP, pct, isEfectivo }) => {
+                        const cssPnl = pnlA == null ? 'neutral' : (pnlA >= 0 ? 'positive' : 'negative');
+                        const sign = pnlA >= 0 ? '+' : '';
+                        
+                        return (
+                          <React.Fragment key={h.ticker}>
+                            <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === h.ticker ? null : h.ticker)}>
+                              <td>
+                                <div className="ticker-name">{h.ticker}</div>
+                                {h.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{h.nombre}</div>}
                               </td>
+                              <td><span className={`badge badge-${h.tipo}`}>{h.tipo}</span></td>
+                              <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{h.mercado || (h.tipo === 'stock' ? 'NYSE/NASDAQ' : (h.tipo === 'bono' ? 'OTC' : 'BCBA'))}</span></td>
+                              <td><span className="badge badge-neutral" style={{fontSize: '11px', padding: '2px 4px'}}>{fmtPct(pct)}</span></td>
+                              <td>{fmt(h.cantidad, 0)}</td>
+                              <td>${fmt(h.precioEntrada)}</td>
+                              <td>
+                                <strong>
+                                  {pc !== null ? (isEfectivo ? '—' : `$${fmt(pc)}`) : (
+                                    h.tipo === 'bono' ? (
+                                      <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); editBonoPrecio(h.ticker); }}>Fijar P.</button>
+                                    ) : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>
+                                  )}
+                                </strong>
+                                {stats && pc !== null && !isEfectivo && h.tipo !== 'bono' && (
+                                  <div className={stats.change >= 0 ? 'positive' : 'negative'} style={{ fontSize: '11px', marginTop: '4px' }}>
+                                    {fmtPct(stats.changePct)}
+                                  </div>
+                                )}
+                              </td>
+                              <td>{valor !== null ? '$' + fmt(valor) : '—'}</td>
+                              <td className={cssPnl}>{pnlA !== null ? sign + '$' + fmt(pnlA) : '—'}</td>
+                              <td className={cssPnl}><strong>{fmtPct(pnlP)}</strong></td>
+                              <td><button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); eliminarHolding(h.ticker); }}>✕</button></td>
                             </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
+                            {expandedTicker === h.ticker && (
+                              <tr className="expanded-panel-row">
+                                <td colSpan="11">
+                                  <HistoricalChart data={stats} ticker={h.ticker} name={h.nombre} />
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      });
+                    })()}
                   </tbody>
                 </table>
               )}
