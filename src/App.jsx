@@ -516,8 +516,12 @@ function App() {
   const [wlMercado, setWlMercado] = useState('BCBA');
   const [wlNombre, setWlNombre] = useState('');
   const [wlCategoria, setWlCategoria] = useState('');
+  const [wlSubcategoria, setWlSubcategoria] = useState('');
+  const [wlPais, setWlPais] = useState('');
   const [wlTypeFilters, setWlTypeFilters] = useState([]);
   const [wlCatFilters, setWlCatFilters] = useState([]);
+  const [wlSubcatFilters, setWlSubcatFilters] = useState([]);
+  const [wlPaisFilters, setWlPaisFilters] = useState([]);
   const [wlExcludedTickers, setWlExcludedTickers] = useState([]);
 
   const [importJson, setImportJson] = useState('');
@@ -805,10 +809,10 @@ function App() {
     if (!ticker) return alert('Completá el ticker.');
     if (watchlist.find(w => w.ticker === ticker && w.mercado === wlMercado)) return alert('Ya está en la watchlist con ese mercado.');
 
-    const w = { ticker, tipo: wlTipo, mercado: wlMercado, nombre: wlNombre.trim(), categoria: wlCategoria.trim() };
+    const w = { ticker, tipo: wlTipo, mercado: wlMercado, nombre: wlNombre.trim(), categoria: wlCategoria.trim(), subcategoria: wlSubcategoria.trim(), pais: wlPais.trim() };
 
     setWatchlist([...watchlist, w]);
-    setWlTicker(''); setWlNombre(''); setWlCategoria('');
+    setWlTicker(''); setWlNombre(''); setWlCategoria(''); setWlSubcategoria(''); setWlPais('');
     setShowAddWatchlist(false);
   };
 
@@ -1054,7 +1058,9 @@ function App() {
   // Watchlist: items visible after type + category filters (before per-ticker exclusion)
   const wlVisibleBeforeExclude = watchlist
     .filter(w => wlTypeFilters.length === 0 || wlTypeFilters.includes(w.tipo))
-    .filter(w => wlCatFilters.length === 0 || wlCatFilters.includes(w.categoria || ''));
+    .filter(w => wlCatFilters.length === 0 || wlCatFilters.includes(w.categoria || ''))
+    .filter(w => wlSubcatFilters.length === 0 || wlSubcatFilters.includes(w.subcategoria || ''))
+    .filter(w => wlPaisFilters.length === 0 || wlPaisFilters.includes(w.pais || ''));
 
   // Sort utility for unified grouping: type then alphabetical
   const typePriority = { 'accion': 1, 'bono': 2, 'cedear': 3, 'stock': 4 };
@@ -1544,6 +1550,20 @@ function App() {
               />
 
               <MultiCheckDropdown
+                placeholder="Todas las subcategorías"
+                options={[...new Set(watchlist.map(w => w.subcategoria).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
+                selected={wlSubcatFilters}
+                onChange={setWlSubcatFilters}
+              />
+
+              <MultiCheckDropdown
+                placeholder="Todos los países"
+                options={[...new Set(watchlist.map(w => w.pais).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
+                selected={wlPaisFilters}
+                onChange={setWlPaisFilters}
+              />
+
+              <MultiCheckDropdown
                 placeholder="Ocultar activo..."
                 options={wlVisibleBeforeExclude.map(w => ({ value: `${w.ticker}-${w.mercado || 'BCBA'}`, label: w.ticker }))}
                 selected={wlExcludedTickers}
@@ -1599,6 +1619,14 @@ function App() {
                   <label>Categoría (ej: Tech, Banking)</label>
                   <input value={wlCategoria} onChange={e => setWlCategoria(e.target.value)} placeholder="ej: Tech" />
                 </div>
+                <div>
+                  <label>Subcategoría</label>
+                  <input value={wlSubcategoria} onChange={e => setWlSubcategoria(e.target.value)} placeholder="ej: Hardware" />
+                </div>
+                <div>
+                  <label>País</label>
+                  <input value={wlPais} onChange={e => setWlPais(e.target.value)} placeholder="ej: USA" />
+                </div>
               </div>
               <button className="btn btn-primary" onClick={agregarWatchlist}>Guardar en Watchlist</button>
               <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddWatchlist(false)}>Cancelar</button>
@@ -1619,6 +1647,8 @@ function App() {
                     <th>Tipo</th>
                     <th>Mercado</th>
                     <th>Categoría</th>
+                    <th>Subcategoría</th>
+                    <th>País</th>
                     <th>P. Mercado</th>
                     <th>1 Día</th>
                     <th>5 Días</th>
@@ -1669,6 +1699,8 @@ function App() {
                             <td><span className={`badge badge-${w.tipo}`}>{w.tipo}</span></td>
                             <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.mercado || (w.tipo === 'stock' ? 'NYSE/NASDAQ' : 'BCBA')}</span></td>
                             <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.categoria || '—'}</span></td>
+                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.subcategoria || '—'}</span></td>
+                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.pais || '—'}</span></td>
                             <td>
                               <strong className={pc !== null && stats && !stats.isOpen ? 'price-stale' : ''}>
                                 {pc !== null ? `$${fmt(pc)}` : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>}
