@@ -2,12 +2,15 @@
 
 ## [v1.11] - 2026-05-27 03:25
 
-*Archivos modificados: `src/App.jsx`, `CHANGELOG.md`*
+*Archivos modificados: `src/App.jsx`, `src/index.css`, `CHANGELOG.md`*
 
 ### Added
 - **Campos adicionales en Watchlist:** Se añadieron los campos opcionales "Subcategoría" y "País de origen" al registrar nuevos activos en la lista de seguimiento.
 - **Visualización mejorada en tabla:** Se agregaron columnas dedicadas para "Subcategoría" y "País" dentro de la tabla de la Watchlist.
 - **Filtros multi-selección:** Se implementaron filtros basados en `MultiCheckDropdown` para filtrar de forma dinámica la Watchlist según la subcategoría o el país de origen de los activos.
+
+### Changed
+- **Ampliación del contenedor principal:** Se incrementó el ancho máximo de la aplicación (`.app-container`) de `1200px` a `1600px` para aprovechar mejor el espacio lateral en pantallas grandes y evitar desplazamientos horizontales incómodos en tablas extensas.
 
 ## [v1.10] - 2026-05-26 18:53
 
