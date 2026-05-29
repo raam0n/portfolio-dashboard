@@ -644,11 +644,32 @@ function App() {
       newStats[base] = data;
     };
 
+    // Fetch Data912 arg bonds live data
+    let argBondsData = {};
+    try {
+      const bondsRes = await fetch('https://data912.com/live/arg_bonds');
+      if (bondsRes.ok) {
+        const bondsArray = await bondsRes.json();
+        bondsArray.forEach(b => {
+          argBondsData[b.symbol] = b;
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to fetch Data912 bonds:", e);
+    }
+
     // 1. Fetch current holdings AND watchlist items
     const trackedItems = [...holdings, ...watchlist];
     for (const h of trackedItems) {
       if (h.tipo === 'bono') {
-        if (h.precioActual !== undefined) {
+        const bondApiData = argBondsData[h.ticker];
+        if (bondApiData) {
+          const price = bondApiData.c;
+          const changePct = bondApiData.pct_change || 0;
+          const prevClose = price / (1 + (changePct / 100));
+          const change = price - prevClose;
+          applyData(h.ticker, h.ticker, { price, change, changePct, isOpen: true });
+        } else if (h.precioActual !== undefined) {
           applyData(h.ticker, h.ticker, { price: h.precioActual, change: 0, changePct: 0 });
         }
         continue;
