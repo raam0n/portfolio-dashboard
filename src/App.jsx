@@ -664,7 +664,7 @@ function App() {
       if (h.tipo === 'bono') {
         const bondApiData = argBondsData[h.ticker];
         if (bondApiData) {
-          const price = bondApiData.c;
+          const price = bondApiData.c / 100;
           const changePct = bondApiData.pct_change || 0;
           const prevClose = price / (1 + (changePct / 100));
           const change = price - prevClose;
