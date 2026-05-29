@@ -1138,7 +1138,7 @@ function App() {
             <div>
               <label>Exportar Datos (JSON)</label>
               <p className="hint" style={{ marginBottom: '8px' }}>Guardá este JSON de forma segura como backup.</p>
-              <textarea readOnly rows="4" style={{ fontFamily: 'monospace', fontSize: '11px' }} value={JSON.stringify({ holdings, operaciones, watchlist }, null, 2)}></textarea>
+              <textarea readOnly rows="4" style={{ fontFamily: 'monospace', fontSize: '11px' }} value={JSON.stringify({ holdings, operaciones, watchlist, trades, evals }, null, 2)}></textarea>
               <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
                 <button className="btn" onClick={exportar}>Descargar Archivo</button>
                 <button className="btn" onClick={copiarJSON}>Copiar</button>
