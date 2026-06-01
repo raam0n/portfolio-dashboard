@@ -715,10 +715,14 @@ function App() {
       }
     }
 
+    let fetchedDolarMep = null;
     try {
       const mepR = await fetch('https://dolarapi.com/v1/dolares/bolsa');
       const mepD = await mepR.json();
-      if (mepD && mepD.venta) setDolarMep(mepD.venta);
+      if (mepD && mepD.venta) {
+        setDolarMep(mepD.venta);
+        fetchedDolarMep = mepD.venta;
+      }
 
       const cclR = await fetch('https://dolarapi.com/v1/dolares/contadoconliqui');
       const cclD = await cclR.json();
@@ -738,18 +742,22 @@ function App() {
       console.warn('DolarAPI fetch error', e);
     }
 
-    // Calculate implied Dolar MEP yesterday close using AL30/AL30D or GGAL as fallback
+    // Calculate implied Dolar MEP yesterday close using AL30/AL30D data912 or GGAL as fallback
     let mepPrevVal = null;
+    let mepProxyTodayVal = null;
     try {
-      const [al30Data, al30dData] = await Promise.all([
-        fetchPrice('AL30.BA'),
-        fetchPrice('AL30D.BA')
-      ]);
-      if (al30Data && al30dData && al30dData.prevClose > 0) {
-        mepPrevVal = al30Data.prevClose / al30dData.prevClose;
+      const b_al30 = argBondsData['AL30'];
+      const b_al30d = argBondsData['AL30D'];
+      if (b_al30 && b_al30d && b_al30d.c > 0) {
+        const al30_prev = b_al30.c / (1 + (b_al30.pct_change || 0) / 100);
+        const al30d_prev = b_al30d.c / (1 + (b_al30d.pct_change || 0) / 100);
+        if (al30d_prev > 0) {
+          mepPrevVal = al30_prev / al30d_prev;
+          mepProxyTodayVal = b_al30.c / b_al30d.c;
+        }
       }
     } catch (e) {
-      console.warn("Failed to fetch AL30 MEP proxy:", e);
+      console.warn("Failed to fetch AL30 MEP proxy from data912:", e);
     }
 
     if (!mepPrevVal) {
@@ -758,8 +766,9 @@ function App() {
           fetchPrice('GGAL.BA'),
           fetchPrice('GGAL')
         ]);
-        if (ggalAr && ggalUs && ggalUs.prevClose > 0) {
+        if (ggalAr && ggalUs && ggalUs.prevClose > 0 && ggalUs.price > 0) {
           mepPrevVal = (ggalAr.prevClose / ggalUs.prevClose) * 10;
+          mepProxyTodayVal = (ggalAr.price / ggalUs.price) * 10;
         }
       } catch (e) {
         console.warn("Failed to fetch GGAL MEP proxy:", e);
@@ -767,7 +776,12 @@ function App() {
     }
 
     if (mepPrevVal) {
-      setDolarMepPrev(mepPrevVal);
+      if (fetchedDolarMep && mepProxyTodayVal) {
+        const ratio = mepPrevVal / mepProxyTodayVal;
+        setDolarMepPrev(fetchedDolarMep * ratio);
+      } else {
+        setDolarMepPrev(mepPrevVal);
+      }
     }
 
     setPrices(newPrices);
