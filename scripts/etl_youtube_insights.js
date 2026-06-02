@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
-import Parser from 'rss-parser';
+import ytSearch from 'yt-search';
 import { YoutubeTranscript } from 'youtube-transcript';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -24,7 +24,6 @@ if (!geminiApiKey) {
 const genAI = new GoogleGenerativeAI(geminiApiKey);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
-const parser = new Parser();
 
 async function runETL() {
   console.log("Iniciando ETL de YouTube Insights...");
@@ -47,18 +46,23 @@ async function runETL() {
   for (const channel of channels) {
     console.log(`\nProcesando canal: ${channel.channel_name} (${channel.channel_id})`);
     try {
-      // 2. Obtener videos por RSS
-      const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel.channel_id}`;
-      const feed = await parser.parseURL(feedUrl);
+      // 2. Obtener videos buscando el nombre del canal
+      const searchResult = await ytSearch(channel.channel_name);
       
-      if (!feed.items || feed.items.length === 0) {
-        console.log("No se encontraron videos en el feed.");
+      // Filtramos para asegurarnos de que el video sea realmente del canal
+      const channelVideos = searchResult.videos.filter(v => 
+        v.author.name.toLowerCase().includes(channel.channel_name.toLowerCase()) ||
+        channel.channel_name.toLowerCase().includes(v.author.name.toLowerCase())
+      );
+
+      if (channelVideos.length === 0) {
+        console.log("No se encontraron videos recientes para este canal en la búsqueda.");
         continue;
       }
 
-      // Tomamos el último video
-      const latestVideo = feed.items[0];
-      const videoId = latestVideo.id.replace('yt:video:', '');
+      // Tomamos el último video (yt-search los ordena por relevancia/fecha generalmente)
+      const latestVideo = channelVideos[0];
+      const videoId = latestVideo.videoId;
       console.log(`Último video: ${latestVideo.title} (ID: ${videoId})`);
 
       // 3. Verificar si el video ya existe en la DB
@@ -131,7 +135,7 @@ async function runETL() {
           tickers_mentioned: tickers,
           sector: sector,
           thesis_summary: summary,
-          published_at: latestVideo.pubDate
+          published_at: latestVideo.timestamp || new Date().toISOString()
         }]);
 
       if (insertError) {
