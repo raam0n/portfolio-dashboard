@@ -1,0 +1,940 @@
+{
+  "holdings": [
+    {
+      "ticker": "GGAL",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "Banco Galicia",
+      "cantidad": 2229,
+      "precioEntrada": 6725.9
+    },
+    {
+      "ticker": "YPFD",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "YPF",
+      "cantidad": 663,
+      "precioEntrada": 51762.46
+    },
+    {
+      "ticker": "BMA",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "Banco Macro",
+      "cantidad": 5241,
+      "precioEntrada": 11485.87
+    },
+    {
+      "ticker": "BBAR",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "Banco BBVA",
+      "cantidad": 3202,
+      "precioEntrada": 7319.67
+    },
+    {
+      "ticker": "PAMP",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "Pampa Energía",
+      "cantidad": 390,
+      "precioEntrada": 4795.13
+    },
+    {
+      "ticker": "LOMA",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "Loma Negra",
+      "cantidad": 12,
+      "precioEntrada": 3456.88
+    },
+    {
+      "ticker": "SUPV",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "Bnaco Supervielle",
+      "cantidad": 10,
+      "precioEntrada": 2857.5
+    },
+    {
+      "ticker": "TGNO4",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "Transp. gas del norte",
+      "cantidad": 4,
+      "precioEntrada": 4325
+    },
+    {
+      "ticker": "TGSU2",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "Transp. gas del sur",
+      "cantidad": 4,
+      "precioEntrada": 9140
+    },
+    {
+      "ticker": "TRAN",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "Transener",
+      "cantidad": 8,
+      "precioEntrada": 3840
+    },
+    {
+      "ticker": "VIST",
+      "tipo": "cedear",
+      "mercado": "BCBA",
+      "nombre": "Vista Energy",
+      "cantidad": 203,
+      "precioEntrada": 32571.35
+    },
+    {
+      "ticker": "$ARS",
+      "tipo": "efectivo",
+      "mercado": "Caja",
+      "nombre": "Pesos ARS",
+      "cantidad": 10117436.87,
+      "precioEntrada": 1
+    }
+  ],
+  "operaciones": [
+    {
+      "id": "1776270159288",
+      "ticker": "BMA.BA",
+      "tipo": "compra",
+      "cantidad": 1902,
+      "precio": 11874,
+      "fecha": "2026-04-13"
+    },
+    {
+      "id": "1776270197661",
+      "ticker": "YPFD.BA",
+      "tipo": "venta",
+      "cantidad": 357,
+      "precio": 64300,
+      "fecha": "2026-04-13"
+    },
+    {
+      "id": "1776270409689",
+      "ticker": "IBIT.BA",
+      "tipo": "compra",
+      "cantidad": 1071,
+      "precio": 5489.62,
+      "fecha": "2026-03-27"
+    },
+    {
+      "id": "1776364572958",
+      "ticker": "YPFD.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 273,
+      "precio": 60700,
+      "fecha": "2026-04-16"
+    },
+    {
+      "id": "1776364673999",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 1395,
+      "precio": 11780,
+      "fecha": "2026-04-16"
+    },
+    {
+      "id": "1776786698353",
+      "ticker": "PAMP.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 1520,
+      "precio": 4795,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1776786719842",
+      "ticker": "PBR.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 562,
+      "precio": 31074,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1776786736010",
+      "ticker": "VIST.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 1619,
+      "precio": 32571,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1776786751952",
+      "ticker": "YPFD.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 117,
+      "precio": 62850,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1776786777920",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 1580,
+      "precio": 11900,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1776786803300",
+      "ticker": "GGAL.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 8533,
+      "precio": 7062,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1776786821481",
+      "ticker": "IBIT.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 1071,
+      "precio": 6340,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1777047010125",
+      "ticker": "BBAR.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 3181,
+      "precio": 7317.54,
+      "fecha": "2026-04-24"
+    },
+    {
+      "id": "1777047039791",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 3381,
+      "precio": 11296.27,
+      "fecha": "2026-04-24"
+    },
+    {
+      "id": "1777047065810",
+      "ticker": "PAMP.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 750,
+      "precio": 4895,
+      "fecha": "2026-04-24"
+    },
+    {
+      "id": "1777047084993",
+      "ticker": "PBR.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 562,
+      "precio": 30480,
+      "fecha": "2026-04-24"
+    },
+    {
+      "id": "1777047103820",
+      "ticker": "VIST.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 1200,
+      "precio": 34520,
+      "fecha": "2026-04-24"
+    },
+    {
+      "id": "1779822094989",
+      "ticker": "PAMP.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 380,
+      "precio": 4775.54,
+      "fecha": "2026-05-26"
+    },
+    {
+      "id": "1779822126628",
+      "ticker": "VIST.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 216,
+      "precio": 36950.2,
+      "fecha": "2026-05-26"
+    }
+  ],
+  "watchlist": [
+    {
+      "ticker": "GGAL",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "Banco Galicia",
+      "categoria": "Banking",
+      "subcategoria": "Bancos",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "JPM",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "JPMorgan Chase & Co.",
+      "categoria": "Banking",
+      "subcategoria": "Bancos",
+      "pais": "USA"
+    },
+    {
+      "ticker": "BAC",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Bank of America Corp",
+      "categoria": "Banking",
+      "subcategoria": "Bancos",
+      "pais": "USA"
+    },
+    {
+      "ticker": "WFC",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Wells Fargo & Company",
+      "categoria": "Banking",
+      "subcategoria": "Bancos",
+      "pais": "USA"
+    },
+    {
+      "ticker": "MS",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Morgan Stanley",
+      "categoria": "Finanzas",
+      "subcategoria": "Banca de Inversión",
+      "pais": "USA"
+    },
+    {
+      "ticker": "GS",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Goldman Sachs Group Inc",
+      "categoria": "Finanzas",
+      "subcategoria": "Banca de Inversión",
+      "pais": "USA"
+    },
+    {
+      "ticker": "C",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Citigroup Inc",
+      "categoria": "Banking",
+      "subcategoria": "Bancos",
+      "pais": "USA"
+    },
+    {
+      "ticker": "GGAL",
+      "tipo": "stock",
+      "mercado": "NASDAQ",
+      "nombre": "Banco Galicia ADR",
+      "categoria": "Banking",
+      "subcategoria": "Bancos",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "BMA",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "Banco Macro",
+      "categoria": "Banking",
+      "subcategoria": "Bancos",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "SUPV",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "Banco Supervielle",
+      "categoria": "Banking",
+      "subcategoria": "Bancos",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "BBAR",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "Banco BBVA",
+      "categoria": "Banking",
+      "subcategoria": "Bancos",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "VIST",
+      "tipo": "cedear",
+      "mercado": "BCBA",
+      "nombre": "Vista Energy",
+      "categoria": "Energía",
+      "subcategoria": "Petróleo y Gas",
+      "pais": "Mexico"
+    },
+    {
+      "ticker": "AAPL",
+      "tipo": "stock",
+      "mercado": "NASDAQ",
+      "nombre": "Apple Inc.",
+      "categoria": "Tech",
+      "subcategoria": "Hardware",
+      "pais": "USA"
+    },
+    {
+      "ticker": "IBIT",
+      "tipo": "cedear",
+      "mercado": "BCBA",
+      "nombre": "iShares Bitcoin Trust ETF",
+      "categoria": "Crypto",
+      "subcategoria": "ETF",
+      "pais": "USA"
+    },
+    {
+      "ticker": "PAM",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Pampa Energía",
+      "categoria": "Energía",
+      "subcategoria": "Energía Integrada",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "BTC-USD",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "BTC-USD",
+      "categoria": "Crypto",
+      "subcategoria": "Criptomoneda",
+      "pais": "Global"
+    },
+    {
+      "ticker": "VIST",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Vista Energy ADR",
+      "categoria": "Energía",
+      "subcategoria": "Petróleo y Gas",
+      "pais": "Mexico"
+    },
+    {
+      "ticker": "IBIT",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "iShares Bitcoin Trust ETF",
+      "categoria": "Crypto",
+      "subcategoria": "ETF",
+      "pais": "USA"
+    },
+    {
+      "ticker": "BMA",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Banco Macro ADR",
+      "categoria": "Banking",
+      "subcategoria": "Bancos",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "YPFD",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "YPF",
+      "categoria": "Energía",
+      "subcategoria": "Petróleo y Gas",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "YPF",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "YPF ADR",
+      "categoria": "Energía",
+      "subcategoria": "Petróleo y Gas",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "BBAR",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Banco BBVA ADR",
+      "categoria": "Banking",
+      "subcategoria": "Bancos",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "SUPV",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Banco Supervielle ADR",
+      "categoria": "Banking",
+      "subcategoria": "Bancos",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "PBR",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Petrobras ADR",
+      "categoria": "Energía",
+      "subcategoria": "Petróleo y Gas",
+      "pais": "Brasil"
+    },
+    {
+      "ticker": "BBD",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Banco Bradesco ADR",
+      "categoria": "Banking",
+      "subcategoria": "Bancos",
+      "pais": "Brasil"
+    },
+    {
+      "ticker": "TSLA",
+      "tipo": "stock",
+      "mercado": "NASDAQ",
+      "nombre": "Tesla Inc",
+      "categoria": "Tech",
+      "subcategoria": "Automotriz",
+      "pais": "USA"
+    },
+    {
+      "ticker": "ITUB",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Banco Itau ADR",
+      "categoria": "Banking",
+      "subcategoria": "Bancos",
+      "pais": "Brasil"
+    },
+    {
+      "ticker": "NU",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Nubank",
+      "categoria": "Banking",
+      "subcategoria": "Fintech",
+      "pais": "Brasil"
+    },
+    {
+      "ticker": "ETH-USD",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "ETH-USD",
+      "categoria": "Crypto",
+      "subcategoria": "Criptomoneda",
+      "pais": "Global"
+    },
+    {
+      "ticker": "PAMP",
+      "tipo": "accion",
+      "mercado": "BCBA",
+      "nombre": "Pampa Energía",
+      "categoria": "Energía",
+      "subcategoria": "Energía Integrada",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "NVDA",
+      "tipo": "stock",
+      "mercado": "NASDAQ",
+      "nombre": "Nvidia Corporation",
+      "categoria": "Tech",
+      "subcategoria": "Semiconductores",
+      "pais": "USA"
+    },
+    {
+      "ticker": "GOOG",
+      "tipo": "stock",
+      "mercado": "NASDAQ",
+      "nombre": "Alphabet Inc Class C",
+      "categoria": "Tech",
+      "subcategoria": "Internet",
+      "pais": "USA"
+    },
+    {
+      "ticker": "PBR",
+      "tipo": "cedear",
+      "mercado": "BCBA",
+      "nombre": "Petróleo Brasileiro S.A.",
+      "categoria": "Energía",
+      "subcategoria": "Petróleo y Gas",
+      "pais": "Brasil"
+    },
+    {
+      "ticker": "INTC",
+      "tipo": "stock",
+      "mercado": "NASDAQ",
+      "nombre": "Intel Corporation",
+      "categoria": "Tech",
+      "subcategoria": "Semiconductores",
+      "pais": "USA"
+    },
+    {
+      "ticker": "PLTR",
+      "tipo": "stock",
+      "mercado": "NASDAQ",
+      "nombre": "Palantir Technologies Inc",
+      "categoria": "Tech",
+      "subcategoria": "Software",
+      "pais": "USA"
+    },
+    {
+      "ticker": "META",
+      "tipo": "stock",
+      "mercado": "NASDAQ",
+      "nombre": "Meta Platforms Inc",
+      "categoria": "Tech",
+      "subcategoria": "Internet",
+      "pais": "USA"
+    },
+    {
+      "ticker": "MSFT",
+      "tipo": "stock",
+      "mercado": "NASDAQ",
+      "nombre": "Microsoft Corp",
+      "categoria": "Tech",
+      "subcategoria": "Software",
+      "pais": "USA"
+    },
+    {
+      "ticker": "AMZN",
+      "tipo": "stock",
+      "mercado": "NASDAQ",
+      "nombre": "Amazon.com Inc",
+      "categoria": "Tech",
+      "subcategoria": "E-commerce",
+      "pais": "USA"
+    },
+    {
+      "ticker": "BRK-B",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Berkshire Hathaway Inc Class B",
+      "categoria": "Finanzas",
+      "subcategoria": "Holding",
+      "pais": "USA"
+    },
+    {
+      "ticker": "MELI",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "MercadoLibre ADR",
+      "categoria": "Servicios IT",
+      "subcategoria": "E-commerce",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "GLOB",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Globant SA ADR",
+      "categoria": "Servicios IT",
+      "subcategoria": "Software",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "TSM",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Taiwan Semicndctr Mnufctrng Co Ltd",
+      "categoria": "Tech",
+      "subcategoria": "Semiconductores",
+      "pais": "Taiwan"
+    },
+    {
+      "ticker": "GPRK",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "GeoPark Ltd",
+      "categoria": "Energía",
+      "subcategoria": "Petróleo y Gas",
+      "pais": "Colombia"
+    },
+    {
+      "ticker": "CVX",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Chevron Corp",
+      "categoria": "Energía",
+      "subcategoria": "Petróleo y Gas",
+      "pais": "USA"
+    },
+    {
+      "ticker": "ICLN",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "iShares Global Clean Energy ETF",
+      "categoria": "Energía",
+      "subcategoria": "ETF Renovables",
+      "pais": "USA"
+    },
+    {
+      "ticker": "XLE",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Energy Select Sector SPDR Fund",
+      "categoria": "Energía",
+      "subcategoria": "ETF Energía",
+      "pais": "USA"
+    },
+    {
+      "ticker": "URA",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Global X Uranium ETF",
+      "categoria": "Energía",
+      "subcategoria": "ETF Minería",
+      "pais": "USA"
+    },
+    {
+      "ticker": "SMH",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "VanEck Semiconductor ETF",
+      "categoria": "Tech",
+      "subcategoria": "ETF Semiconductores",
+      "pais": "USA"
+    },
+    {
+      "ticker": "ASML",
+      "tipo": "stock",
+      "mercado": "NASDAQ",
+      "nombre": "ASML Holding NV",
+      "categoria": "Tech",
+      "subcategoria": "Semiconductores",
+      "pais": "Paises Bajos"
+    },
+    {
+      "ticker": "COPX",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Global X Copper Miners ETF",
+      "categoria": "Minería",
+      "subcategoria": "ETF Minería",
+      "pais": "USA"
+    },
+    {
+      "ticker": "VALE",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Vale SA ADR",
+      "categoria": "Minería",
+      "subcategoria": "Metales",
+      "pais": "Brasil"
+    },
+    {
+      "ticker": "NEE",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "NextEra Energy Inc",
+      "categoria": "Energía",
+      "subcategoria": "Renovables",
+      "pais": "USA"
+    },
+    {
+      "ticker": "AMD",
+      "tipo": "stock",
+      "mercado": "NASDAQ",
+      "nombre": "Advanced Micro Devices Inc",
+      "categoria": "Tech",
+      "subcategoria": "Semiconductores",
+      "pais": "USA"
+    },
+    {
+      "ticker": "FCX",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Freeport-McMoRan Inc",
+      "categoria": "Minería",
+      "subcategoria": "Metales",
+      "pais": "USA"
+    },
+    {
+      "ticker": "LRCX",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Lam Research Corp",
+      "categoria": "Tech",
+      "subcategoria": "Semiconductores",
+      "pais": "USA"
+    },
+    {
+      "ticker": "CEG",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Constellation Energy Corporation",
+      "categoria": "Energía",
+      "subcategoria": "Eléctrica",
+      "pais": "USA"
+    },
+    {
+      "ticker": "MU",
+      "tipo": "stock",
+      "mercado": "NYSE",
+      "nombre": "Micron Technology, Inc.",
+      "categoria": "Tech",
+      "subcategoria": "Semiconductores",
+      "pais": "USA"
+    }
+  ],
+  "trades": [
+    {
+      "id": "1779915655295",
+      "compraOpId": "1776786698353",
+      "compraTicker": "PAMP.BA",
+      "compraCantidad": 1520,
+      "compraPrecio": 4795,
+      "compraFecha": "2026-04-21",
+      "ventaOpId": "1779822094989",
+      "ventaTicker": "PAMP.BA",
+      "ventaCantidad": 380,
+      "ventaPrecio": 4775.54,
+      "ventaFecha": "2026-05-26"
+    },
+    {
+      "id": "1779915648066",
+      "compraOpId": "1776786698353",
+      "compraTicker": "PAMP.BA",
+      "compraCantidad": 1520,
+      "compraPrecio": 4795,
+      "compraFecha": "2026-04-21",
+      "ventaOpId": "1777047065810",
+      "ventaTicker": "PAMP.BA",
+      "ventaCantidad": 750,
+      "ventaPrecio": 4895,
+      "ventaFecha": "2026-04-24"
+    },
+    {
+      "id": "1779915640630",
+      "compraOpId": "1776786719842",
+      "compraTicker": "PBR.BA",
+      "compraCantidad": 562,
+      "compraPrecio": 31074,
+      "compraFecha": "2026-04-21",
+      "ventaOpId": "1777047084993",
+      "ventaTicker": "PBR.BA",
+      "ventaCantidad": 562,
+      "ventaPrecio": 30480,
+      "ventaFecha": "2026-04-24"
+    },
+    {
+      "id": "1779915622696",
+      "compraOpId": "1776786736010",
+      "compraTicker": "VIST.BA",
+      "compraCantidad": 1619,
+      "compraPrecio": 32571,
+      "compraFecha": "2026-04-21",
+      "ventaOpId": "1779822126628",
+      "ventaTicker": "VIST.BA",
+      "ventaCantidad": 216,
+      "ventaPrecio": 36950.2,
+      "ventaFecha": "2026-05-26"
+    },
+    {
+      "id": "1779915607811",
+      "compraOpId": "1776786736010",
+      "compraTicker": "VIST.BA",
+      "compraCantidad": 1619,
+      "compraPrecio": 32571,
+      "compraFecha": "2026-04-21",
+      "ventaOpId": "1777047103820",
+      "ventaTicker": "VIST.BA",
+      "ventaCantidad": 1200,
+      "ventaPrecio": 34520,
+      "ventaFecha": "2026-04-24"
+    },
+    {
+      "id": "1779915563961",
+      "compraOpId": "1776270159288",
+      "compraTicker": "BMA.BA",
+      "compraCantidad": 1902,
+      "compraPrecio": 11874,
+      "compraFecha": "2026-04-13",
+      "ventaOpId": "1776786777920",
+      "ventaTicker": "BMA.BA",
+      "ventaCantidad": 1580,
+      "ventaPrecio": 11900,
+      "ventaFecha": "2026-04-21"
+    },
+    {
+      "id": "1779894298392",
+      "compraOpId": "1776270409689",
+      "compraTicker": "IBIT.BA",
+      "compraCantidad": 1071,
+      "compraPrecio": 5489.62,
+      "compraFecha": "2026-03-27",
+      "ventaOpId": "1776786821481",
+      "ventaTicker": "IBIT.BA",
+      "ventaCantidad": 1071,
+      "ventaPrecio": 6340,
+      "ventaFecha": "2026-04-21"
+    }
+  ],
+  "evals": [
+    {
+      "id": "1779892181322",
+      "opId": "1777047103820",
+      "ticker": "VIST.BA",
+      "cantidad": 1200,
+      "precio": 34520,
+      "fecha": "2026-04-24",
+      "tipo": "venta",
+      "excluded": false
+    },
+    {
+      "id": "1779892187468",
+      "opId": "1777047084993",
+      "ticker": "PBR.BA",
+      "cantidad": 562,
+      "precio": 30480,
+      "fecha": "2026-04-24",
+      "tipo": "venta",
+      "excluded": false
+    },
+    {
+      "id": "1779892193209",
+      "opId": "1777047065810",
+      "ticker": "PAMP.BA",
+      "cantidad": 750,
+      "precio": 4895,
+      "fecha": "2026-04-24",
+      "tipo": "venta",
+      "excluded": false
+    },
+    {
+      "id": "1779892205622",
+      "opId": "1777047039791",
+      "ticker": "BMA.BA",
+      "cantidad": 3381,
+      "precio": 11296.27,
+      "fecha": "2026-04-24",
+      "tipo": "compra",
+      "excluded": false
+    },
+    {
+      "id": "1779892211108",
+      "opId": "1777047010125",
+      "ticker": "BBAR.BA",
+      "cantidad": 3181,
+      "precio": 7317.54,
+      "fecha": "2026-04-24",
+      "tipo": "compra",
+      "excluded": false
+    },
+    {
+      "id": "1779915709091",
+      "opId": "1776786751952",
+      "ticker": "YPFD.BA",
+      "cantidad": 117,
+      "precio": 62850,
+      "fecha": "2026-04-21",
+      "tipo": "compra",
+      "excluded": false
+    }
+  ]
+}

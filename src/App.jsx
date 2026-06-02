@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './index.css';
+import MarketInsights from './components/MarketInsights';
+
 
 // ── Pure SVG Pie Chart ────────────────────────────────────────────────────────
 const CHART_COLORS = [
@@ -1128,6 +1130,7 @@ function App() {
           <button className={`tab-btn ${activeTab === 'operaciones' ? 'active' : ''}`} onClick={() => setActiveTab('operaciones')}>Histórico</button>
           <button className={`tab-btn ${activeTab === 'watchlist' ? 'active' : ''}`} onClick={() => setActiveTab('watchlist')}>Watchlist</button>
           <button className={`tab-btn ${activeTab === 'mercados' ? 'active' : ''}`} onClick={() => setActiveTab('mercados')}>Mercados</button>
+          <button className={`tab-btn ${activeTab === 'insights' ? 'active' : ''}`} onClick={() => setActiveTab('insights')}>Insights</button>
           <button className={`tab-btn ${activeTab === 'evaluacion' ? 'active' : ''}`} onClick={() => setActiveTab('evaluacion')}>Evaluación</button>
           <button className={`tab-btn ${activeTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveTab('trades')}>Trades</button>
         </div>
@@ -1873,6 +1876,11 @@ function App() {
         </div>
       )}
 
+
+      {/* --- TAB INSIGHTS --- */}
+      {activeTab === 'insights' && (
+         <MarketInsights />
+      )}
 
       {/* --- TAB 4: TRADES --- */}
       {activeTab === 'trades' && (
