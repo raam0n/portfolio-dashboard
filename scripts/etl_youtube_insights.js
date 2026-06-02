@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 import ytSearch from 'yt-search';
-import { YoutubeTranscript } from 'youtube-transcript';
+import { execSync } from 'child_process';
+import fs from 'fs';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Configurar Supabase
@@ -77,15 +78,30 @@ async function runETL() {
         continue;
       }
 
-      // 4. Obtener transcripción
-      console.log("Obteniendo transcripción...");
+      // 4. Obtener transcripción usando yt-dlp (evita bloqueos de IP de GitHub Actions)
+      console.log("Obteniendo transcripción con yt-dlp...");
       let transcriptText = "";
       try {
-        const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-        transcriptText = transcript.map(t => t.text).join(' ');
+        // Limpiamos subtítulos previos por las dudas
+        const oldFiles = fs.readdirSync('.').filter(f => f.startsWith('sub_') && f.endsWith('.vtt'));
+        for (const f of oldFiles) fs.unlinkSync(f);
+
+        // yt-dlp intentará descargar subtítulos manuales o automáticos en español o inglés
+        execSync(`yt-dlp --write-auto-sub --write-sub --sub-lang "es.*,en.*" --skip-download --sub-format vtt -o "sub_${videoId}" "https://www.youtube.com/watch?v=${videoId}"`, { stdio: 'pipe' });
+        
+        // yt-dlp crea archivos como sub_VIDEOID.es.vtt
+        const files = fs.readdirSync('.');
+        const subFile = files.find(f => f.startsWith(`sub_${videoId}`) && f.endsWith('.vtt'));
+        
+        if (subFile) {
+           transcriptText = fs.readFileSync(subFile, 'utf8');
+           fs.unlinkSync(subFile); // Limpieza
+        } else {
+           throw new Error("No se encontró el archivo de subtítulos generado por yt-dlp.");
+        }
       } catch (e) {
-        console.error("Error obteniendo la transcripción, es posible que el video no tenga subtítulos:", e.message);
-        continue; // Si no hay subs, saltamos
+        console.error("Error obteniendo la transcripción con yt-dlp:", e.message);
+        continue;
       }
 
       if (!transcriptText || transcriptText.trim().length === 0) {
