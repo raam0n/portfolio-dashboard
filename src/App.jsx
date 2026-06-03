@@ -1590,6 +1590,9 @@ function App() {
       {/* --- TAB 3: WATCHLIST --- */}
       {activeTab === 'watchlist' && (
         <>
+          {/* ── Market Status Bar ── */}
+          <MarketStatusBar dailyStats={dailyStats} watchlist={watchlist} />
+
           {/* ── Treemap ──────── */}
           {(() => {
             const treemapAssets = [
@@ -1605,7 +1608,12 @@ function App() {
                   sector: wlItem?.sector || 'Sin Sector',
                   pais: wlItem?.pais || 'Argentina',
                   value: pc !== null ? pc * h.cantidad : h.precioEntrada * h.cantidad,
-                  changePct: stats?.changePct || 0
+                  changePct: stats?.changePct || 0,
+                  hist5d: stats?.hist5d ?? null,
+                  hist1m: stats?.hist1m ?? null,
+                  hist6m: stats?.hist6m ?? null,
+                  hist1y: stats?.hist1y ?? null,
+                  hist5y: stats?.hist5y ?? null
                 };
               }),
               ...watchlist.filter(w => !holdings.some(h => h.ticker === w.ticker && h.tipo === w.tipo) && w.tipo !== 'efectivo' && w.tipo !== 'bono').map(w => {
@@ -1618,7 +1626,12 @@ function App() {
                   sector: w.sector || 'Sin Sector',
                   pais: w.pais || 'Desconocido',
                   value: 0,
-                  changePct: stats?.changePct || 0
+                  changePct: stats?.changePct || 0,
+                  hist5d: stats?.hist5d ?? null,
+                  hist1m: stats?.hist1m ?? null,
+                  hist6m: stats?.hist6m ?? null,
+                  hist1y: stats?.hist1y ?? null,
+                  hist5y: stats?.hist5y ?? null
                 };
               })
             ];
@@ -1732,9 +1745,6 @@ function App() {
               <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddWatchlist(false)}>Cancelar</button>
             </div>
           )}
-
-          {/* ── Market Status Bar ── */}
-          <MarketStatusBar dailyStats={dailyStats} watchlist={watchlist} />
 
           <div className="table-container">
             {watchlist.length === 0 ? (

@@ -113,7 +113,7 @@ const TYPE_OPTIONS = [
 ];
 
 // ── Tooltip component ─────────────────────────────────────────────────────────
-const Tooltip = ({ data, mousePos, containerRect }) => {
+const Tooltip = ({ data, mousePos, containerRect, period = '1d' }) => {
   if (!data || !containerRect) return null;
   const left = mousePos.x - containerRect.left + 12;
   const top = mousePos.y - containerRect.top - 10;
@@ -127,6 +127,15 @@ const Tooltip = ({ data, mousePos, containerRect }) => {
   };
 
   const tipoLabels = { accion: 'Acción AR', cedear: 'CEDEAR', stock: 'Stock US' };
+
+  const periodLabels = {
+    '1d': '1D',
+    '5d': '5D',
+    '1m': '1M',
+    '6m': '6M',
+    '1y': '1A',
+    '5y': '5A'
+  };
 
   return (
     <div style={{
@@ -142,7 +151,7 @@ const Tooltip = ({ data, mousePos, containerRect }) => {
       {data.sector && <div style={{ color: '#aaa', marginBottom: '2px' }}>Sector: {data.sector}</div>}
       {data.pais && <div style={{ color: '#aaa', marginBottom: '2px' }}>País: {data.pais}</div>}
       <div style={{ marginBottom: '2px' }}>
-        Cambio (1D): <strong style={{ color: data.changePct > 0 ? '#28a745' : data.changePct < 0 ? '#dc3545' : '#aaa' }}>
+        Cambio ({periodLabels[period] || '1D'}): <strong style={{ color: data.changePct > 0 ? '#28a745' : data.changePct < 0 ? '#dc3545' : '#aaa' }}>
           {data.changePct != null ? `${data.changePct > 0 ? '+' : ''}${data.changePct.toFixed(2)}%` : 'N/A'}
         </strong>
       </div>
@@ -183,6 +192,7 @@ const TypeToggle = ({ option, active, onClick }) => (
 const MarketTreemap = ({ assets = [], dolarCcl }) => {
   const [grouping, setGrouping] = useState('sector');
   const [sizing, setSizing] = useState('marketCap');
+  const [period, setPeriod] = useState('1d');
   const [activeTypes, setActiveTypes] = useState(['accion', 'cedear', 'stock']); // all active by default
   const [marketCaps, setMarketCaps] = useState({});
   const [loadingCaps, setLoadingCaps] = useState(false);
@@ -190,6 +200,15 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const containerRef = useRef(null);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
+
+  const periodLabels = {
+    '1d': '1D',
+    '5d': '5D',
+    '1m': '1M',
+    '6m': '6M',
+    '1y': '1A',
+    '5y': '5A'
+  };
 
   // Toggle a type filter
   const toggleType = useCallback((tipo) => {
@@ -310,6 +329,13 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
         calcSize = a.value > 0 ? a.value : 0;
       }
 
+      let activeChange = a.changePct;
+      if (period === '5d') activeChange = a.hist5d;
+      else if (period === '1m') activeChange = a.hist1m;
+      else if (period === '6m') activeChange = a.hist6m;
+      else if (period === '1y') activeChange = a.hist1y;
+      else if (period === '5y') activeChange = a.hist5y;
+
       const existing = groups[groupKey].find(item => item.name === a.ticker);
       if (existing) {
         existing.portfolioValue = (existing.portfolioValue || 0) + (a.value || 0);
@@ -319,7 +345,7 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
         groups[groupKey].push({
           name: a.ticker,
           size: Math.max(1, calcSize),
-          changePct: a.changePct,
+          changePct: activeChange,
           sector: a.sector,
           pais: a.pais,
           tipo: a.tipo,
@@ -338,7 +364,7 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
         const sb = b.children.reduce((s, c) => s + c.size, 0);
         return sb - sa;
       });
-  }, [filteredAssets, grouping, sizing, marketCaps, dolarCcl]);
+  }, [filteredAssets, grouping, sizing, period, marketCaps, dolarCcl]);
 
   // Compute layout
   const layout = useMemo(() => {
@@ -404,10 +430,30 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
             🗺️ Mapa de Mercado
           </div>
           <p className="hint" style={{ margin: 0, fontSize: '12px' }}>
-            Tamaño proporcional al {sizing === 'marketCap' ? 'market cap' : 'valor en portafolio'}. Color = cambio diario.
+            Tamaño proporcional al {sizing === 'marketCap' ? 'market cap' : 'valor en portafolio'}. Color = cambio ({periodLabels[period] || '1D'}).
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div>
+            <label style={{ fontSize: '11px', marginRight: '5px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Periodo:</label>
+            <select
+              value={period}
+              onChange={e => setPeriod(e.target.value)}
+              style={{
+                padding: '6px 10px', borderRadius: '6px',
+                backgroundColor: '#1a1a2e', color: '#fff',
+                border: '1px solid rgba(255,255,255,0.15)', fontSize: '13px',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="1d" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>1 Día</option>
+              <option value="5d" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>5 Días</option>
+              <option value="1m" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>1 Mes</option>
+              <option value="6m" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>6 Meses</option>
+              <option value="1y" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>1 Año</option>
+              <option value="5y" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>5 Años</option>
+            </select>
+          </div>
           <div>
             <label style={{ fontSize: '11px', marginRight: '5px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Agrupar:</label>
             <select
@@ -549,7 +595,7 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
         )}
 
         {/* Hover Tooltip */}
-        <Tooltip data={hoveredItem} mousePos={mousePos} containerRect={containerRect} />
+        <Tooltip data={hoveredItem} mousePos={mousePos} containerRect={containerRect} period={period} />
       </div>
     </div>
   );
