@@ -118,12 +118,12 @@ const Tooltip = ({ data, mousePos, containerRect }) => {
   const left = mousePos.x - containerRect.left + 12;
   const top = mousePos.y - containerRect.top - 10;
 
-  const fmtMcap = (v) => {
+  const fmtMcap = (v, curr = 'USD') => {
     if (!v) return 'N/A';
-    if (v >= 1e12) return `$${(v / 1e12).toFixed(2)}T`;
-    if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
-    if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
-    return `$${v.toLocaleString()}`;
+    if (v >= 1e12) return `$${(v / 1e12).toFixed(2)}T (${curr})`;
+    if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B (${curr})`;
+    if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M (${curr})`;
+    return `$${v.toLocaleString()} (${curr})`;
   };
 
   const tipoLabels = { accion: 'Acción AR', cedear: 'CEDEAR', stock: 'Stock US' };
@@ -146,7 +146,7 @@ const Tooltip = ({ data, mousePos, containerRect }) => {
           {data.changePct != null ? `${data.changePct > 0 ? '+' : ''}${data.changePct.toFixed(2)}%` : 'N/A'}
         </strong>
       </div>
-      {data.marketCap > 0 && <div>Market Cap: {fmtMcap(data.marketCap)}</div>}
+      {data.marketCap > 0 && <div>Market Cap: {fmtMcap(data.marketCap, data.marketCapCurrency)}</div>}
       {data.portfolioValue > 0 && <div style={{ marginTop: '4px' }}>Valor Portafolio: ${data.portfolioValue.toLocaleString()}</div>}
     </div>
   );
@@ -180,7 +180,7 @@ const TypeToggle = ({ option, active, onClick }) => (
 );
 
 // ── Main Component ────────────────────────────────────────────────────────────
-const MarketTreemap = ({ assets = [] }) => {
+const MarketTreemap = ({ assets = [], dolarCcl }) => {
   const [grouping, setGrouping] = useState('sector');
   const [sizing, setSizing] = useState('marketCap');
   const [activeTypes, setActiveTypes] = useState(['accion', 'cedear', 'stock']); // all active by default
@@ -244,7 +244,10 @@ const MarketTreemap = ({ assets = [] }) => {
             const results = data?.quoteResponse?.result || [];
             for (const item of results) {
               if (item.symbol && item.marketCap) {
-                newCaps[item.symbol] = item.marketCap;
+                newCaps[item.symbol] = {
+                  marketCap: item.marketCap,
+                  currency: item.currency || 'USD'
+                };
               }
             }
           } catch (e) {
@@ -265,29 +268,44 @@ const MarketTreemap = ({ assets = [] }) => {
 
   // Build grouped data
   const groupedData = useMemo(() => {
-    const getCapTier = (cap) => {
+    const getCapTier = (cap, currency) => {
       if (!cap) return 'Desconocido';
-      if (cap > 200e9) return 'Mega Cap (>200B)';
-      if (cap > 10e9) return 'Large Cap (10B-200B)';
-      if (cap > 2e9) return 'Mid Cap (2B-10B)';
+      let checkCap = cap;
+      if (currency === 'ARS') {
+        checkCap = cap / (dolarCcl || 1200);
+      }
+      if (checkCap > 200e9) return 'Mega Cap (>200B)';
+      if (checkCap > 10e9) return 'Large Cap (10B-200B)';
+      if (checkCap > 2e9) return 'Mid Cap (2B-10B)';
       return 'Small/Micro Cap (<2B)';
     };
 
     const groups = {};
     for (const a of filteredAssets) {
       // Look up market cap by yahooTicker (the key Yahoo returns)
-      const mcap = marketCaps[a.yahooTicker] || 0;
+      const capInfo = marketCaps[a.yahooTicker];
+      const mcapRaw = capInfo ? capInfo.marketCap : 0;
+      const currency = capInfo ? capInfo.currency : 'USD';
+
+      // Normalize to USD for size comparison if currency is ARS
+      let mcap = mcapRaw;
+      if (currency === 'ARS') {
+        mcap = mcapRaw / (dolarCcl || 1200);
+      }
 
       let groupKey = 'Otros';
       if (grouping === 'sector') groupKey = a.sector || 'Sin Sector';
       else if (grouping === 'pais') groupKey = a.pais || 'Desconocido';
-      else if (grouping === 'marketCapTier') groupKey = getCapTier(mcap);
+      else if (grouping === 'marketCapTier') groupKey = getCapTier(mcapRaw, currency);
 
       if (!groups[groupKey]) groups[groupKey] = [];
 
       let calcSize = 1;
       if (sizing === 'marketCap') {
-        calcSize = mcap > 0 ? mcap : 1e6;
+        // Enforce square root scaling so that wide-range caps are visible without shrinking smaller caps to 0 width/height.
+        // Fallback to 500M USD if market cap is missing, so it doesn't get squished to invisibility.
+        const sizeVal = mcap > 0 ? mcap : 500e6;
+        calcSize = Math.sqrt(sizeVal);
       } else if (sizing === 'portfolioValue') {
         calcSize = a.value > 0 ? a.value : 0;
       }
@@ -305,7 +323,8 @@ const MarketTreemap = ({ assets = [] }) => {
           sector: a.sector,
           pais: a.pais,
           tipo: a.tipo,
-          marketCap: mcap,
+          marketCap: mcapRaw,
+          marketCapCurrency: currency,
           portfolioValue: a.value || 0,
         });
       }
@@ -319,7 +338,7 @@ const MarketTreemap = ({ assets = [] }) => {
         const sb = b.children.reduce((s, c) => s + c.size, 0);
         return sb - sa;
       });
-  }, [filteredAssets, grouping, sizing, marketCaps]);
+  }, [filteredAssets, grouping, sizing, marketCaps, dolarCcl]);
 
   // Compute layout
   const layout = useMemo(() => {

@@ -1622,7 +1622,7 @@ function App() {
                 };
               })
             ];
-            return <MarketTreemap assets={treemapAssets} />;
+            return <MarketTreemap assets={treemapAssets} dolarCcl={dolarCcl} />;
           })()}
 
         <div className="glass-panel">
