@@ -692,7 +692,7 @@ textarea:focus {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0;
 }
 
 .mkt-pill {
