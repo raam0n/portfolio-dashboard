@@ -1597,7 +1597,7 @@ function App() {
                 const yt = getYahooTicker(h) || h.ticker;
                 const pc = prices[yt] ?? null;
                 const stats = dailyStats[yt];
-                const wlItem = watchlist.find(w => w.ticker === h.ticker);
+                const wlItem = watchlist.find(w => w.ticker === h.ticker && w.tipo === h.tipo);
                 return {
                   ticker: h.ticker,
                   yahooTicker: yt,
@@ -1608,7 +1608,7 @@ function App() {
                   changePct: stats?.changePct || 0
                 };
               }),
-              ...watchlist.filter(w => !holdings.some(h => h.ticker === w.ticker) && w.tipo !== 'efectivo' && w.tipo !== 'bono').map(w => {
+              ...watchlist.filter(w => !holdings.some(h => h.ticker === w.ticker && h.tipo === w.tipo) && w.tipo !== 'efectivo' && w.tipo !== 'bono').map(w => {
                 const yt = getYahooTicker(w) || w.ticker;
                 const stats = dailyStats[yt];
                 return {
