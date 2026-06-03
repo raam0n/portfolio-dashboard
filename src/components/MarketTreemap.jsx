@@ -422,7 +422,7 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
   }, [assets]);
 
   return (
-    <div className="glass-panel" style={{ marginTop: '1.5rem', marginBottom: '1.5rem', padding: '1.5rem' }}>
+    <div className="glass-panel" style={{ padding: '1.5rem' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>

@@ -1003,7 +1003,7 @@ textarea:focus {
   border-radius: 12px;
   padding: 10px 0;
   overflow: hidden;
-  margin-bottom: 1rem;
+  margin-bottom: 0;
   backdrop-filter: blur(10px);
   position: relative;
 }
