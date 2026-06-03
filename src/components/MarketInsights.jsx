@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function MarketInsights() {
   const [logs, setLogs] = useState([]);
@@ -10,13 +15,17 @@ export default function MarketInsights() {
     const fetchLogs = async () => {
       try {
         setLoading(true);
-        // Hacemos fetch al endpoint de nuestra API serverless
-        const response = await fetch('/api/insights');
-        if (!response.ok) {
-          throw new Error('Error al obtener los insights');
+        // Consultar directamente a Supabase en lugar del endpoint de Vercel
+        const { data, error } = await supabase
+          .from('youtube_video_logs')
+          .select('*')
+          .order('published_at', { ascending: false })
+          .limit(50);
+
+        if (error) {
+          throw new Error('Error al obtener los insights: ' + error.message);
         }
-        const data = await response.json();
-        setLogs(data);
+        setLogs(data || []);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -94,6 +103,48 @@ export default function MarketInsights() {
               <div style={{ fontSize: '14px', lineHeight: '1.5', color: '#d1d5db', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                 {log.thesis_summary}
               </div>
+              {log.ticker_insights && log.ticker_insights.length > 0 && (
+                <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {log.ticker_insights.map((insight, idx) => (
+                    <div key={idx} style={{ 
+                      background: 'rgba(255,255,255,0.03)', 
+                      borderRadius: '6px', 
+                      padding: '10px 12px',
+                      borderLeft: `4px solid ${
+                        insight.action?.toLowerCase().includes('comprar') ? '#10b981' : 
+                        insight.action?.toLowerCase().includes('vender') ? '#ef4444' : 
+                        '#6366f1'
+                      }`
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#fff' }}>{insight.ticker}</span>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <span style={{ 
+                            fontSize: '11px', 
+                            padding: '2px 8px', 
+                            borderRadius: '12px', 
+                            background: insight.action?.toLowerCase().includes('comprar') ? 'rgba(16, 185, 129, 0.15)' : 
+                                        insight.action?.toLowerCase().includes('vender') ? 'rgba(239, 68, 68, 0.15)' : 
+                                        'rgba(99, 102, 241, 0.15)',
+                            color: insight.action?.toLowerCase().includes('comprar') ? '#34d399' : 
+                                   insight.action?.toLowerCase().includes('vender') ? '#f87171' : 
+                                   '#818cf8',
+                            fontWeight: '600'
+                          }}>{insight.action}</span>
+                          {insight.target_price && insight.target_price !== 'N/A' && (
+                            <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: 'rgba(255,255,255,0.1)', color: '#d1d5db' }}>
+                              Obj: {insight.target_price}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#9ca3af', lineHeight: '1.4' }}>
+                        {insight.insight_summary}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -273,8 +273,8 @@
       "tipo": "accion",
       "mercado": "BCBA",
       "nombre": "Banco Galicia",
-      "categoria": "Banking",
-      "subcategoria": "Bancos",
+      "sector": "Banking",
+      "subsector": "Bancos",
       "pais": "Argentina"
     },
     {
@@ -282,8 +282,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "JPMorgan Chase & Co.",
-      "categoria": "Banking",
-      "subcategoria": "Bancos",
+      "sector": "Banking",
+      "subsector": "Bancos",
       "pais": "USA"
     },
     {
@@ -291,8 +291,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Bank of America Corp",
-      "categoria": "Banking",
-      "subcategoria": "Bancos",
+      "sector": "Banking",
+      "subsector": "Bancos",
       "pais": "USA"
     },
     {
@@ -300,8 +300,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Wells Fargo & Company",
-      "categoria": "Banking",
-      "subcategoria": "Bancos",
+      "sector": "Banking",
+      "subsector": "Bancos",
       "pais": "USA"
     },
     {
@@ -309,8 +309,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Morgan Stanley",
-      "categoria": "Finanzas",
-      "subcategoria": "Banca de Inversión",
+      "sector": "Finanzas",
+      "subsector": "Banca de Inversión",
       "pais": "USA"
     },
     {
@@ -318,8 +318,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Goldman Sachs Group Inc",
-      "categoria": "Finanzas",
-      "subcategoria": "Banca de Inversión",
+      "sector": "Finanzas",
+      "subsector": "Banca de Inversión",
       "pais": "USA"
     },
     {
@@ -327,8 +327,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Citigroup Inc",
-      "categoria": "Banking",
-      "subcategoria": "Bancos",
+      "sector": "Banking",
+      "subsector": "Bancos",
       "pais": "USA"
     },
     {
@@ -336,8 +336,8 @@
       "tipo": "stock",
       "mercado": "NASDAQ",
       "nombre": "Banco Galicia ADR",
-      "categoria": "Banking",
-      "subcategoria": "Bancos",
+      "sector": "Banking",
+      "subsector": "Bancos",
       "pais": "Argentina"
     },
     {
@@ -345,8 +345,8 @@
       "tipo": "accion",
       "mercado": "BCBA",
       "nombre": "Banco Macro",
-      "categoria": "Banking",
-      "subcategoria": "Bancos",
+      "sector": "Banking",
+      "subsector": "Bancos",
       "pais": "Argentina"
     },
     {
@@ -354,8 +354,8 @@
       "tipo": "accion",
       "mercado": "BCBA",
       "nombre": "Banco Supervielle",
-      "categoria": "Banking",
-      "subcategoria": "Bancos",
+      "sector": "Banking",
+      "subsector": "Bancos",
       "pais": "Argentina"
     },
     {
@@ -363,8 +363,8 @@
       "tipo": "accion",
       "mercado": "BCBA",
       "nombre": "Banco BBVA",
-      "categoria": "Banking",
-      "subcategoria": "Bancos",
+      "sector": "Banking",
+      "subsector": "Bancos",
       "pais": "Argentina"
     },
     {
@@ -372,8 +372,8 @@
       "tipo": "cedear",
       "mercado": "BCBA",
       "nombre": "Vista Energy",
-      "categoria": "Energía",
-      "subcategoria": "Petróleo y Gas",
+      "sector": "Energía",
+      "subsector": "Petróleo y Gas",
       "pais": "Mexico"
     },
     {
@@ -381,8 +381,8 @@
       "tipo": "stock",
       "mercado": "NASDAQ",
       "nombre": "Apple Inc.",
-      "categoria": "Tech",
-      "subcategoria": "Hardware",
+      "sector": "Tech",
+      "subsector": "Hardware",
       "pais": "USA"
     },
     {
@@ -390,8 +390,8 @@
       "tipo": "cedear",
       "mercado": "BCBA",
       "nombre": "iShares Bitcoin Trust ETF",
-      "categoria": "Crypto",
-      "subcategoria": "ETF",
+      "sector": "Crypto",
+      "subsector": "ETF",
       "pais": "USA"
     },
     {
@@ -399,8 +399,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Pampa Energía",
-      "categoria": "Energía",
-      "subcategoria": "Energía Integrada",
+      "sector": "Energía",
+      "subsector": "Energía Integrada",
       "pais": "Argentina"
     },
     {
@@ -408,8 +408,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "BTC-USD",
-      "categoria": "Crypto",
-      "subcategoria": "Criptomoneda",
+      "sector": "Crypto",
+      "subsector": "Criptomoneda",
       "pais": "Global"
     },
     {
@@ -417,8 +417,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Vista Energy ADR",
-      "categoria": "Energía",
-      "subcategoria": "Petróleo y Gas",
+      "sector": "Energía",
+      "subsector": "Petróleo y Gas",
       "pais": "Mexico"
     },
     {
@@ -426,8 +426,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "iShares Bitcoin Trust ETF",
-      "categoria": "Crypto",
-      "subcategoria": "ETF",
+      "sector": "Crypto",
+      "subsector": "ETF",
       "pais": "USA"
     },
     {
@@ -435,8 +435,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Banco Macro ADR",
-      "categoria": "Banking",
-      "subcategoria": "Bancos",
+      "sector": "Banking",
+      "subsector": "Bancos",
       "pais": "Argentina"
     },
     {
@@ -444,8 +444,8 @@
       "tipo": "accion",
       "mercado": "BCBA",
       "nombre": "YPF",
-      "categoria": "Energía",
-      "subcategoria": "Petróleo y Gas",
+      "sector": "Energía",
+      "subsector": "Petróleo y Gas",
       "pais": "Argentina"
     },
     {
@@ -453,8 +453,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "YPF ADR",
-      "categoria": "Energía",
-      "subcategoria": "Petróleo y Gas",
+      "sector": "Energía",
+      "subsector": "Petróleo y Gas",
       "pais": "Argentina"
     },
     {
@@ -462,8 +462,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Banco BBVA ADR",
-      "categoria": "Banking",
-      "subcategoria": "Bancos",
+      "sector": "Banking",
+      "subsector": "Bancos",
       "pais": "Argentina"
     },
     {
@@ -471,8 +471,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Banco Supervielle ADR",
-      "categoria": "Banking",
-      "subcategoria": "Bancos",
+      "sector": "Banking",
+      "subsector": "Bancos",
       "pais": "Argentina"
     },
     {
@@ -480,8 +480,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Petrobras ADR",
-      "categoria": "Energía",
-      "subcategoria": "Petróleo y Gas",
+      "sector": "Energía",
+      "subsector": "Petróleo y Gas",
       "pais": "Brasil"
     },
     {
@@ -489,8 +489,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Banco Bradesco ADR",
-      "categoria": "Banking",
-      "subcategoria": "Bancos",
+      "sector": "Banking",
+      "subsector": "Bancos",
       "pais": "Brasil"
     },
     {
@@ -498,8 +498,8 @@
       "tipo": "stock",
       "mercado": "NASDAQ",
       "nombre": "Tesla Inc",
-      "categoria": "Tech",
-      "subcategoria": "Automotriz",
+      "sector": "Tech",
+      "subsector": "Automotriz",
       "pais": "USA"
     },
     {
@@ -507,8 +507,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Banco Itau ADR",
-      "categoria": "Banking",
-      "subcategoria": "Bancos",
+      "sector": "Banking",
+      "subsector": "Bancos",
       "pais": "Brasil"
     },
     {
@@ -516,8 +516,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Nubank",
-      "categoria": "Banking",
-      "subcategoria": "Fintech",
+      "sector": "Banking",
+      "subsector": "Fintech",
       "pais": "Brasil"
     },
     {
@@ -525,8 +525,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "ETH-USD",
-      "categoria": "Crypto",
-      "subcategoria": "Criptomoneda",
+      "sector": "Crypto",
+      "subsector": "Criptomoneda",
       "pais": "Global"
     },
     {
@@ -534,8 +534,8 @@
       "tipo": "accion",
       "mercado": "BCBA",
       "nombre": "Pampa Energía",
-      "categoria": "Energía",
-      "subcategoria": "Energía Integrada",
+      "sector": "Energía",
+      "subsector": "Energía Integrada",
       "pais": "Argentina"
     },
     {
@@ -543,8 +543,8 @@
       "tipo": "stock",
       "mercado": "NASDAQ",
       "nombre": "Nvidia Corporation",
-      "categoria": "Tech",
-      "subcategoria": "Semiconductores",
+      "sector": "Tech",
+      "subsector": "Semiconductores",
       "pais": "USA"
     },
     {
@@ -552,8 +552,8 @@
       "tipo": "stock",
       "mercado": "NASDAQ",
       "nombre": "Alphabet Inc Class C",
-      "categoria": "Tech",
-      "subcategoria": "Internet",
+      "sector": "Tech",
+      "subsector": "Internet",
       "pais": "USA"
     },
     {
@@ -561,8 +561,8 @@
       "tipo": "cedear",
       "mercado": "BCBA",
       "nombre": "Petróleo Brasileiro S.A.",
-      "categoria": "Energía",
-      "subcategoria": "Petróleo y Gas",
+      "sector": "Energía",
+      "subsector": "Petróleo y Gas",
       "pais": "Brasil"
     },
     {
@@ -570,8 +570,8 @@
       "tipo": "stock",
       "mercado": "NASDAQ",
       "nombre": "Intel Corporation",
-      "categoria": "Tech",
-      "subcategoria": "Semiconductores",
+      "sector": "Tech",
+      "subsector": "Semiconductores",
       "pais": "USA"
     },
     {
@@ -579,8 +579,8 @@
       "tipo": "stock",
       "mercado": "NASDAQ",
       "nombre": "Palantir Technologies Inc",
-      "categoria": "Tech",
-      "subcategoria": "Software",
+      "sector": "Tech",
+      "subsector": "Software",
       "pais": "USA"
     },
     {
@@ -588,8 +588,8 @@
       "tipo": "stock",
       "mercado": "NASDAQ",
       "nombre": "Meta Platforms Inc",
-      "categoria": "Tech",
-      "subcategoria": "Internet",
+      "sector": "Tech",
+      "subsector": "Internet",
       "pais": "USA"
     },
     {
@@ -597,8 +597,8 @@
       "tipo": "stock",
       "mercado": "NASDAQ",
       "nombre": "Microsoft Corp",
-      "categoria": "Tech",
-      "subcategoria": "Software",
+      "sector": "Tech",
+      "subsector": "Software",
       "pais": "USA"
     },
     {
@@ -606,8 +606,8 @@
       "tipo": "stock",
       "mercado": "NASDAQ",
       "nombre": "Amazon.com Inc",
-      "categoria": "Tech",
-      "subcategoria": "E-commerce",
+      "sector": "Tech",
+      "subsector": "E-commerce",
       "pais": "USA"
     },
     {
@@ -615,8 +615,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Berkshire Hathaway Inc Class B",
-      "categoria": "Finanzas",
-      "subcategoria": "Holding",
+      "sector": "Finanzas",
+      "subsector": "Holding",
       "pais": "USA"
     },
     {
@@ -624,8 +624,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "MercadoLibre ADR",
-      "categoria": "Servicios IT",
-      "subcategoria": "E-commerce",
+      "sector": "Servicios IT",
+      "subsector": "E-commerce",
       "pais": "Argentina"
     },
     {
@@ -633,8 +633,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Globant SA ADR",
-      "categoria": "Servicios IT",
-      "subcategoria": "Software",
+      "sector": "Servicios IT",
+      "subsector": "Software",
       "pais": "Argentina"
     },
     {
@@ -642,8 +642,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Taiwan Semicndctr Mnufctrng Co Ltd",
-      "categoria": "Tech",
-      "subcategoria": "Semiconductores",
+      "sector": "Tech",
+      "subsector": "Semiconductores",
       "pais": "Taiwan"
     },
     {
@@ -651,8 +651,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "GeoPark Ltd",
-      "categoria": "Energía",
-      "subcategoria": "Petróleo y Gas",
+      "sector": "Energía",
+      "subsector": "Petróleo y Gas",
       "pais": "Colombia"
     },
     {
@@ -660,8 +660,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Chevron Corp",
-      "categoria": "Energía",
-      "subcategoria": "Petróleo y Gas",
+      "sector": "Energía",
+      "subsector": "Petróleo y Gas",
       "pais": "USA"
     },
     {
@@ -669,8 +669,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "iShares Global Clean Energy ETF",
-      "categoria": "Energía",
-      "subcategoria": "ETF Renovables",
+      "sector": "Energía",
+      "subsector": "ETF Renovables",
       "pais": "USA"
     },
     {
@@ -678,8 +678,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Energy Select Sector SPDR Fund",
-      "categoria": "Energía",
-      "subcategoria": "ETF Energía",
+      "sector": "Energía",
+      "subsector": "ETF Energía",
       "pais": "USA"
     },
     {
@@ -687,8 +687,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Global X Uranium ETF",
-      "categoria": "Energía",
-      "subcategoria": "ETF Minería",
+      "sector": "Energía",
+      "subsector": "ETF Minería",
       "pais": "USA"
     },
     {
@@ -696,8 +696,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "VanEck Semiconductor ETF",
-      "categoria": "Tech",
-      "subcategoria": "ETF Semiconductores",
+      "sector": "Tech",
+      "subsector": "ETF Semiconductores",
       "pais": "USA"
     },
     {
@@ -705,8 +705,8 @@
       "tipo": "stock",
       "mercado": "NASDAQ",
       "nombre": "ASML Holding NV",
-      "categoria": "Tech",
-      "subcategoria": "Semiconductores",
+      "sector": "Tech",
+      "subsector": "Semiconductores",
       "pais": "Paises Bajos"
     },
     {
@@ -714,8 +714,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Global X Copper Miners ETF",
-      "categoria": "Minería",
-      "subcategoria": "ETF Minería",
+      "sector": "Minería",
+      "subsector": "ETF Minería",
       "pais": "USA"
     },
     {
@@ -723,8 +723,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Vale SA ADR",
-      "categoria": "Minería",
-      "subcategoria": "Metales",
+      "sector": "Minería",
+      "subsector": "Metales",
       "pais": "Brasil"
     },
     {
@@ -732,8 +732,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "NextEra Energy Inc",
-      "categoria": "Energía",
-      "subcategoria": "Renovables",
+      "sector": "Energía",
+      "subsector": "Renovables",
       "pais": "USA"
     },
     {
@@ -741,8 +741,8 @@
       "tipo": "stock",
       "mercado": "NASDAQ",
       "nombre": "Advanced Micro Devices Inc",
-      "categoria": "Tech",
-      "subcategoria": "Semiconductores",
+      "sector": "Tech",
+      "subsector": "Semiconductores",
       "pais": "USA"
     },
     {
@@ -750,8 +750,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Freeport-McMoRan Inc",
-      "categoria": "Minería",
-      "subcategoria": "Metales",
+      "sector": "Minería",
+      "subsector": "Metales",
       "pais": "USA"
     },
     {
@@ -759,8 +759,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Lam Research Corp",
-      "categoria": "Tech",
-      "subcategoria": "Semiconductores",
+      "sector": "Tech",
+      "subsector": "Semiconductores",
       "pais": "USA"
     },
     {
@@ -768,8 +768,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Constellation Energy Corporation",
-      "categoria": "Energía",
-      "subcategoria": "Eléctrica",
+      "sector": "Energía",
+      "subsector": "Eléctrica",
       "pais": "USA"
     },
     {
@@ -777,8 +777,8 @@
       "tipo": "stock",
       "mercado": "NYSE",
       "nombre": "Micron Technology, Inc.",
-      "categoria": "Tech",
-      "subcategoria": "Semiconductores",
+      "sector": "Tech",
+      "subsector": "Semiconductores",
       "pais": "USA"
     }
   ],

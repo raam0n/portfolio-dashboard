@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './index.css';
 import MarketInsights from './components/MarketInsights';
+import MarketTreemap from './components/MarketTreemap';
 
 
 // ── Pure SVG Pie Chart ────────────────────────────────────────────────────────
@@ -518,12 +519,12 @@ function App() {
   const [wlTipo, setWlTipo] = useState('accion');
   const [wlMercado, setWlMercado] = useState('BCBA');
   const [wlNombre, setWlNombre] = useState('');
-  const [wlCategoria, setWlCategoria] = useState('');
-  const [wlSubcategoria, setWlSubcategoria] = useState('');
+  const [wlSector, setWlSector] = useState('');
+  const [wlSubsector, setWlSubsector] = useState('');
   const [wlPais, setWlPais] = useState('');
   const [wlTypeFilters, setWlTypeFilters] = useState([]);
-  const [wlCatFilters, setWlCatFilters] = useState([]);
-  const [wlSubcatFilters, setWlSubcatFilters] = useState([]);
+  const [wlSectorFilters, setWlSectorFilters] = useState([]);
+  const [wlSubsectorFilters, setWlSubsectorFilters] = useState([]);
   const [wlPaisFilters, setWlPaisFilters] = useState([]);
   const [wlExcludedTickers, setWlExcludedTickers] = useState([]);
 
@@ -847,10 +848,10 @@ function App() {
     if (!ticker) return alert('Completá el ticker.');
     if (watchlist.find(w => w.ticker === ticker && w.mercado === wlMercado)) return alert('Ya está en la watchlist con ese mercado.');
 
-    const w = { ticker, tipo: wlTipo, mercado: wlMercado, nombre: wlNombre.trim(), categoria: wlCategoria.trim(), subcategoria: wlSubcategoria.trim(), pais: wlPais.trim() };
+    const w = { ticker, tipo: wlTipo, mercado: wlMercado, nombre: wlNombre.trim(), sector: wlSector.trim(), subsector: wlSubsector.trim(), pais: wlPais.trim() };
 
     setWatchlist([...watchlist, w]);
-    setWlTicker(''); setWlNombre(''); setWlCategoria(''); setWlSubcategoria(''); setWlPais('');
+    setWlTicker(''); setWlNombre(''); setWlSector(''); setWlSubsector(''); setWlPais('');
     setShowAddWatchlist(false);
   };
 
@@ -1096,8 +1097,8 @@ function App() {
   // Watchlist: items visible after type + category filters (before per-ticker exclusion)
   const wlVisibleBeforeExclude = watchlist
     .filter(w => wlTypeFilters.length === 0 || wlTypeFilters.includes(w.tipo))
-    .filter(w => wlCatFilters.length === 0 || wlCatFilters.includes(w.categoria || ''))
-    .filter(w => wlSubcatFilters.length === 0 || wlSubcatFilters.includes(w.subcategoria || ''))
+    .filter(w => wlSectorFilters.length === 0 || wlSectorFilters.includes(w.sector || ''))
+    .filter(w => wlSubsectorFilters.length === 0 || wlSubsectorFilters.includes(w.subsector || ''))
     .filter(w => wlPaisFilters.length === 0 || wlPaisFilters.includes(w.pais || ''));
 
   // Sort utility for unified grouping: type then alphabetical
@@ -1421,7 +1422,7 @@ function App() {
             const bySector = {};
 
             // Map ticker to category from watchlist for sector chart
-            const catMap = Object.fromEntries(watchlist.map(w => [w.ticker, w.categoria]));
+            const sectorMap = Object.fromEntries(watchlist.map(w => [w.ticker, w.sector]));
 
             holdings.forEach(h => {
               const yt = getYahooTicker(h) || h.ticker;
@@ -1436,7 +1437,7 @@ function App() {
               byTipo[tipoLabel] = (byTipo[tipoLabel] || 0) + valor;
 
               // 3. By Sector (from Watchlist Category)
-              const sectorLabel = catMap[h.ticker] || 'Otros';
+              const sectorLabel = sectorMap[h.ticker] || 'Otros';
               bySector[sectorLabel] = (bySector[sectorLabel] || 0) + valor;
             });
 
@@ -1465,6 +1466,7 @@ function App() {
               </div>
             );
           })()}
+
         </>
       )}
 
@@ -1587,6 +1589,42 @@ function App() {
 
       {/* --- TAB 3: WATCHLIST --- */}
       {activeTab === 'watchlist' && (
+        <>
+          {/* ── Treemap ──────── */}
+          {(() => {
+            const treemapAssets = [
+              ...holdings.filter(h => h.tipo !== 'efectivo' && h.tipo !== 'bono').map(h => {
+                const yt = getYahooTicker(h) || h.ticker;
+                const pc = prices[yt] ?? null;
+                const stats = dailyStats[yt];
+                const wlItem = watchlist.find(w => w.ticker === h.ticker);
+                return {
+                  ticker: h.ticker,
+                  yahooTicker: yt,
+                  tipo: wlItem?.tipo || h.tipo || 'stock',
+                  sector: wlItem?.sector || 'Sin Sector',
+                  pais: wlItem?.pais || 'Argentina',
+                  value: pc !== null ? pc * h.cantidad : h.precioEntrada * h.cantidad,
+                  changePct: stats?.changePct || 0
+                };
+              }),
+              ...watchlist.filter(w => !holdings.some(h => h.ticker === w.ticker) && w.tipo !== 'efectivo' && w.tipo !== 'bono').map(w => {
+                const yt = getYahooTicker(w) || w.ticker;
+                const stats = dailyStats[yt];
+                return {
+                  ticker: w.ticker,
+                  yahooTicker: yt,
+                  tipo: w.tipo || 'stock',
+                  sector: w.sector || 'Sin Sector',
+                  pais: w.pais || 'Desconocido',
+                  value: 0,
+                  changePct: stats?.changePct || 0
+                };
+              })
+            ];
+            return <MarketTreemap assets={treemapAssets} />;
+          })()}
+
         <div className="glass-panel">
           <div className="panel-header" style={{ alignItems: 'center' }}>
             <div className="panel-title">Lista de Seguimiento ({watchlist.length})</div>
@@ -1606,16 +1644,16 @@ function App() {
 
               <MultiCheckDropdown
                 placeholder="Todas las categorías"
-                options={[...new Set(watchlist.map(w => w.categoria).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
-                selected={wlCatFilters}
-                onChange={setWlCatFilters}
+                options={[...new Set(watchlist.map(w => w.sector).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
+                selected={wlSectorFilters}
+                onChange={setWlSectorFilters}
               />
 
               <MultiCheckDropdown
                 placeholder="Todas las subcategorías"
-                options={[...new Set(watchlist.map(w => w.subcategoria).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
-                selected={wlSubcatFilters}
-                onChange={setWlSubcatFilters}
+                options={[...new Set(watchlist.map(w => w.subsector).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
+                selected={wlSubsectorFilters}
+                onChange={setWlSubsectorFilters}
               />
 
               <MultiCheckDropdown
@@ -1678,12 +1716,12 @@ function App() {
                   <input value={wlNombre} onChange={e => setWlNombre(e.target.value)} placeholder="ej: Apple Inc" />
                 </div>
                 <div>
-                  <label>Categoría (ej: Tech, Banking)</label>
-                  <input value={wlCategoria} onChange={e => setWlCategoria(e.target.value)} placeholder="ej: Tech" />
+                  <label>Sector (ej: Tech, Banking)</label>
+                  <input value={wlSector} onChange={e => setWlSector(e.target.value)} placeholder="ej: Tech" />
                 </div>
                 <div>
-                  <label>Subcategoría</label>
-                  <input value={wlSubcategoria} onChange={e => setWlSubcategoria(e.target.value)} placeholder="ej: Hardware" />
+                  <label>Subsector</label>
+                  <input value={wlSubsector} onChange={e => setWlSubsector(e.target.value)} placeholder="ej: Hardware" />
                 </div>
                 <div>
                   <label>País</label>
@@ -1708,8 +1746,8 @@ function App() {
                     <th>Activo</th>
                     <th>Tipo</th>
                     <th>Mercado</th>
-                    <th>Categoría</th>
-                    <th>Subcategoría</th>
+                    <th>Sector</th>
+                    <th>Subsector</th>
                     <th>País</th>
                     <th>P. Mercado</th>
                     <th>1 Día</th>
@@ -1760,8 +1798,8 @@ function App() {
                             </td>
                             <td><span className={`badge badge-${w.tipo}`}>{w.tipo}</span></td>
                             <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.mercado || (w.tipo === 'stock' ? 'NYSE/NASDAQ' : 'BCBA')}</span></td>
-                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.categoria || '—'}</span></td>
-                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.subcategoria || '—'}</span></td>
+                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.sector || '—'}</span></td>
+                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.subsector || '—'}</span></td>
                             <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.pais || '—'}</span></td>
                             <td>
                               <strong className={pc !== null && stats && !stats.isOpen ? 'price-stale' : ''}>
@@ -1799,6 +1837,7 @@ function App() {
             )}
           </div>
         </div>
+        </>
       )}
       {/* --- TAB: MERCADOS --- */}
       {activeTab === 'mercados' && (

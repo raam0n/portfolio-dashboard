@@ -1,8 +1,7 @@
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 import ytSearch from 'yt-search';
-import { execSync } from 'child_process';
-import fs from 'fs';
+import { YoutubeTranscript } from 'youtube-transcript';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Configurar Supabase
@@ -23,7 +22,39 @@ if (!geminiApiKey) {
   process.exit(1);
 }
 const genAI = new GoogleGenerativeAI(geminiApiKey);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+// Función auxiliar para reintentar llamadas a Gemini en caso de error 503 o 429
+async function generateContentWithRetry(prompt, retries = 10, delay = 5000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return response.text();
+    } catch (err) {
+      const errMsg = err.message || '';
+      const isDailyLimit = errMsg.includes('GenerateRequestsPerDay') || errMsg.includes('RequestsPerDay') || errMsg.includes('limit: 20');
+      
+      if (isDailyLimit) {
+        // Si es límite diario, no tiene sentido reintentar. Lanzamos el error inmediatamente.
+        console.error("\n[Gemini API] Límite diario de peticiones alcanzado (20/día).");
+        throw err;
+      }
+
+      const isTemporary = err.status === 503 || err.status === 429 || 
+                          err.message?.includes('503') || err.message?.includes('429') ||
+                          err.message?.includes('Service Unavailable') || err.message?.includes('Too Many Requests');
+      
+      if (isTemporary && i < retries - 1) {
+        console.warn(`[Gemini API] Ocupado o límite de cuota (Intento ${i + 1}/${retries}). Reintentando en ${delay / 1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 1.5; // Backoff exponencial
+        continue;
+      }
+      throw err;
+    }
+  }
+}
 
 
 async function runETL() {
@@ -44,8 +75,18 @@ async function runETL() {
     return;
   }
 
-  for (const channel of channels) {
-    console.log(`\nProcesando canal: ${channel.channel_name} (${channel.channel_id})`);
+  const unanalyzedChannels = [];
+  let quotaExceededAborted = false;
+
+  for (let i = 0; i < channels.length; i++) {
+    const channel = channels[i];
+    
+    if (quotaExceededAborted) {
+      unanalyzedChannels.push(channel.channel_name);
+      continue;
+    }
+
+    console.log(`\nProcesando canal (${i + 1}/${channels.length}): ${channel.channel_name} (${channel.channel_id})`);
     try {
       // 2. Obtener videos buscando el nombre del canal
       const searchResult = await ytSearch(channel.channel_name);
@@ -78,30 +119,15 @@ async function runETL() {
         continue;
       }
 
-      // 4. Obtener transcripción usando yt-dlp (evita bloqueos de IP de GitHub Actions)
-      console.log("Obteniendo transcripción con yt-dlp...");
+      // 4. Obtener transcripción
+      console.log("Obteniendo transcripción...");
       let transcriptText = "";
       try {
-        // Limpiamos subtítulos previos por las dudas
-        const oldFiles = fs.readdirSync('.').filter(f => f.startsWith('sub_') && f.endsWith('.vtt'));
-        for (const f of oldFiles) fs.unlinkSync(f);
-
-        // yt-dlp intentará descargar subtítulos manuales o automáticos en español o inglés
-        execSync(`yt-dlp --write-auto-sub --write-sub --sub-lang "es.*,en.*" --skip-download --sub-format vtt -o "sub_${videoId}" "https://www.youtube.com/watch?v=${videoId}"`, { stdio: 'pipe' });
-        
-        // yt-dlp crea archivos como sub_VIDEOID.es.vtt
-        const files = fs.readdirSync('.');
-        const subFile = files.find(f => f.startsWith(`sub_${videoId}`) && f.endsWith('.vtt'));
-        
-        if (subFile) {
-           transcriptText = fs.readFileSync(subFile, 'utf8');
-           fs.unlinkSync(subFile); // Limpieza
-        } else {
-           throw new Error("No se encontró el archivo de subtítulos generado por yt-dlp.");
-        }
+        const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+        transcriptText = transcript.map(t => t.text).join(' ');
       } catch (e) {
-        console.error("Error obteniendo la transcripción con yt-dlp:", e.message);
-        continue;
+        console.error("Error obteniendo la transcripción, es posible que el video no tenga subtítulos:", e.message);
+        continue; // Si no hay subs, saltamos
       }
 
       if (!transcriptText || transcriptText.trim().length === 0) {
@@ -111,32 +137,68 @@ async function runETL() {
 
       // 5. Enviar al LLM
       console.log("Llamando a Gemini para resumir...");
-      const prompt = `Lee la transcripción de este video financiero. Extrae los tickers mencionados, el sector principal del que hablan, y escribe un resumen cualitativo de 2 a 3 líneas con la tesis u opinión principal del autor. No uses formato JSON estricto para el resumen, redactalo de forma natural, pero por favor entrega los datos estructurados en tu respuesta separando: Tickers, Sector, Resumen. 
-      Transcripción: ${transcriptText.substring(0, 30000)}`; // limitando el texto a un tamaño razonable
+      const prompt = `Lee la transcripción de este video financiero. 
+Extrae el sector principal del que hablan y escribe un resumen cualitativo general de 2 a 3 líneas con la tesis u opinión principal del autor sobre el mercado o el tema central.
+Luego, para cada ticker (acción o empresa) mencionado en el video, extrae:
+1. El símbolo del ticker (ej. NVDA).
+2. La acción recomendada o el tono (Comprar, Vender, Mantener, u Observar).
+3. El precio objetivo (target_price) o precio de entrada/salida sugerido (ej. $150). Si no se menciona, pon "N/A".
+4. Un resumen corto de 1 a 2 líneas de lo que se dice ESPECÍFICAMENTE sobre ese ticker (cuándo comprar, por qué, riesgos, etc.).
 
-      const result = await model.generateContent(prompt);
-      const llmResponse = await result.response;
-      const textResponse = llmResponse.text();
+Devuelve tu respuesta ÚNICAMENTE como un texto JSON válido con esta estructura exacta, sin comentarios, sin formato markdown:
+{
+  "sector": "Tecnología",
+  "resumen": "Aquí va el resumen cualitativo general del video.",
+  "ticker_insights": [
+    {
+      "ticker": "NVDA",
+      "action": "Comprar",
+      "target_price": "$150",
+      "insight_summary": "El autor sugiere comprar NVIDIA en caídas debido al crecimiento de IA."
+    }
+  ]
+}
+Si no se mencionan tickers, devuelve un arreglo vacío [].
+Transcripción: ${transcriptText}`;
+
+      let textResponse = "";
+      try {
+         const rawResponse = await generateContentWithRetry(prompt);
+         textResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+      } catch (geminiErr) {
+         console.error(`Error definitivo de Gemini al procesar el canal ${channel.channel_name}:`, geminiErr.message);
+         
+         // Si el error es específicamente por cuota excedida (429), abortamos la cola
+         if (geminiErr.status === 429 || geminiErr.message?.includes('429') || geminiErr.message?.includes('Quota exceeded')) {
+            console.error("\n[CRÍTICO] Se ha excedido la cuota diaria o de minutos de la API de Gemini.");
+            console.error("Deteniendo el proceso ETL para evitar bloqueos adicionales...");
+            quotaExceededAborted = true;
+            unanalyzedChannels.push(channel.channel_name);
+            continue;
+         }
+         
+         continue; // Si es otro error, saltamos al siguiente
+      }
       
       console.log("Respuesta de Gemini recibida.");
 
-      // Parseamos la respuesta del LLM (heurística básica, ya que pedimos formato)
-      // Extraemos Tickers, Sector y Resumen si vienen separados. Para simplificar, lo guardaremos así.
-      let tickers = "No especificado";
-      let sector = "No especificado";
-      let summary = textResponse;
+      let sector = "N/A";
+      let summary = "No se pudo extraer el resumen.";
+      let tickerInsights = [];
+      let tickersMentioned = "N/A";
 
-      const lines = textResponse.split('\n');
-      for (const line of lines) {
-         if (line.toLowerCase().startsWith('tickers:') || line.toLowerCase().startsWith('**tickers:**')) {
-             tickers = line.replace(/(\*\*?)?[tT]ickers:(\*\*?)?/i, '').trim();
+      try {
+         const parsed = JSON.parse(textResponse);
+         sector = parsed.sector || "N/A";
+         summary = parsed.resumen || "N/A";
+         tickerInsights = Array.isArray(parsed.ticker_insights) ? parsed.ticker_insights : [];
+         
+         if (tickerInsights.length > 0) {
+            tickersMentioned = tickerInsights.map(t => t.ticker).join(", ");
          }
-         else if (line.toLowerCase().startsWith('sector:') || line.toLowerCase().startsWith('**sector:**')) {
-             sector = line.replace(/(\*\*?)?[sS]ector:(\*\*?)?/i, '').trim();
-         }
-         else if (line.toLowerCase().startsWith('resumen:') || line.toLowerCase().startsWith('**resumen:**')) {
-             summary = line.replace(/(\*\*?)?[rR]esumen:(\*\*?)?/i, '').trim();
-         }
+      } catch (err) {
+         console.error("Error parseando el JSON de Gemini:", err);
+         summary = textResponse; // Fallback
       }
 
       // 6. Insertar en la BD
@@ -148,10 +210,11 @@ async function runETL() {
           channel_id: channel.channel_id,
           channel_name: channel.channel_name,
           video_title: latestVideo.title,
-          tickers_mentioned: tickers,
+          tickers_mentioned: tickersMentioned,
           sector: sector,
           thesis_summary: summary,
-          published_at: latestVideo.timestamp || new Date().toISOString()
+          ticker_insights: tickerInsights,
+          published_at: new Date().toISOString() // yt-search no provee fecha exacta ISO, usamos la actual
         }]);
 
       if (insertError) {
@@ -160,9 +223,22 @@ async function runETL() {
          console.log("Procesamiento completado con éxito para el video.");
       }
 
+      // Agregamos un delay de 6 segundos entre canales para no superar el límite de 15 Requests Per Minute (RPM) de la API gratuita
+      if (i < channels.length - 1) {
+         console.log("Esperando 6 segundos antes del siguiente canal para respetar la cuota RPM...");
+         await new Promise(resolve => setTimeout(resolve, 6000));
+      }
+
     } catch (err) {
        console.error(`Error procesando el canal ${channel.channel_name}:`, err);
     }
+  }
+
+  if (quotaExceededAborted) {
+     console.log("\n=======================================================");
+     console.log("[ETL ABORTADO POR CUOTA] Canales que NO se analizaron:");
+     unanalyzedChannels.forEach(c => console.log(`- ${c}`));
+     console.log("=======================================================");
   }
 
   console.log("\nProceso ETL finalizado.");
