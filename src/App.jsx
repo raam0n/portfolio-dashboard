@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './index.css';
 import MarketInsights from './components/MarketInsights';
 import MarketTreemap from './components/MarketTreemap';
+import { analyzeMovement } from './services/aiAnalyzer';
 
 
 // ── Pure SVG Pie Chart ────────────────────────────────────────────────────────
@@ -125,6 +126,23 @@ function PieChart({ data, title }) {
 function HistoricalChart({ data, ticker, name }) {
   const [range, setRange] = React.useState('1Y');
   const [hoverIdx, setHoverIdx] = React.useState(null);
+  const [isAnalyzing, setIsAnalyzing] = React.useState(false);
+  const [analyzeError, setAnalyzeError] = React.useState(null);
+  const [analyzeResult, setAnalyzeResult] = React.useState(null);
+
+  const handleAnalyze = async () => {
+    setIsAnalyzing(true);
+    setAnalyzeError(null);
+    try {
+      const dailyChange = data.changePct !== undefined ? data.changePct : 0;
+      const res = await analyzeMovement(ticker, dailyChange);
+      setAnalyzeResult(res);
+    } catch (err) {
+      setAnalyzeError(err.message);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   if (!data || !data.history || data.history.length === 0) {
     return <div className="empty-state">No hay datos históricos suficientes para graficar.</div>;
@@ -282,6 +300,61 @@ function HistoricalChart({ data, ticker, name }) {
           <span className="chart-stat-label">Máx. Periodo</span>
           <span className="chart-stat-value">${fmt(max)}</span>
         </div>
+      </div>
+
+      {/* AI Analysis Section */}
+      <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h4 style={{ margin: 0, fontSize: '14px', color: 'var(--text-main)' }}>Análisis de Mercado con IA</h4>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Explica los drivers detrás de los movimientos recientes.</div>
+          </div>
+          <button 
+            className="btn btn-primary" 
+            style={{ background: 'linear-gradient(90deg, #6366f1, #a855f7)', border: 'none', color: '#fff', padding: '8px 16px', fontWeight: '600' }}
+            onClick={handleAnalyze} 
+            disabled={isAnalyzing}
+          >
+            {isAnalyzing ? '⏳ Analizando...' : '✨ Analizar Movimiento'}
+          </button>
+        </div>
+
+        {analyzeError && (
+          <div className="empty-state" style={{ color: 'var(--negative)', padding: '1rem', marginTop: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px' }}>
+            {analyzeError}
+          </div>
+        )}
+
+        {analyzeResult && (
+          <div className="glass-panel" style={{ marginTop: '1.5rem', borderColor: 'var(--accent)', background: 'rgba(99, 102, 241, 0.05)', padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
+              <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '18px' }}>🧠</span> Resumen Ejecutivo
+              </h4>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span className={`badge ${analyzeResult.nivel_certeza === 'Alta' ? 'badge-compra' : analyzeResult.nivel_certeza === 'Media' ? 'badge-bono' : 'badge-venta'}`}>
+                  Certeza: {analyzeResult.nivel_certeza}
+                </span>
+                <span className="badge badge-accion">Driver: {analyzeResult.tipo_driver}</span>
+              </div>
+            </div>
+            
+            <p style={{ fontSize: '14px', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+              {analyzeResult.resumen_ejecutivo}
+            </p>
+
+            <div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px', fontWeight: '600' }}>
+                Factores Clave Identificados
+              </div>
+              <ul style={{ paddingLeft: '20px', fontSize: '13px', color: 'var(--text-main)', lineHeight: '1.6', margin: 0 }}>
+                {analyzeResult.factores_clave?.map((factor, i) => (
+                  <li key={i} style={{ marginBottom: '6px' }}>{factor}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

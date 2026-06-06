@@ -24,3 +24,18 @@ ALTER TABLE public.youtube_video_logs ENABLE ROW LEVEL SECURITY;
 -- Políticas de lectura (permitimos lectura anónima para que la API las lea)
 CREATE POLICY "Allow public read access on tracked_channels" ON public.tracked_channels FOR SELECT USING (true);
 CREATE POLICY "Allow public read access on youtube_video_logs" ON public.youtube_video_logs FOR SELECT USING (true);
+
+-- Tabla de caché para análisis de movimientos con IA
+CREATE TABLE public.ai_movement_analysis (
+    id SERIAL PRIMARY KEY,
+    ticker VARCHAR(50) NOT NULL,
+    news_context TEXT NOT NULL,
+    analysis_json JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE public.ai_movement_analysis ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read access on ai_movement_analysis" ON public.ai_movement_analysis FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access on ai_movement_analysis" ON public.ai_movement_analysis FOR INSERT WITH CHECK (true);
+
