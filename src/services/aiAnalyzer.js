@@ -27,7 +27,29 @@ export async function analyzeMovement(ticker, priceChange) {
     console.warn("Error fetching news from Yahoo Finance:", err);
   }
 
-  // 2. Query cache from Supabase (valid for 1 week and matching news)
+  // 1.5 Fetch macro events from JBlanked API
+  let macroContext = "Sin eventos macro importantes hoy.";
+  const JKEY = import.meta.env.VITE_JBLANKED_API_KEY;
+  if (JKEY) {
+    try {
+      const jRes = await fetch(`https://www.jblanked.com/news/api/forex-factory/calendar/today/`, {
+        headers: { 'Authorization': `Api-Key ${JKEY}` }
+      });
+      if (jRes.ok) {
+        const jData = await jRes.json();
+        // Assuming jData is an array of events
+        if (Array.isArray(jData) && jData.length > 0) {
+          macroContext = jData.map(e => `- ${e.title || e.name} (${e.currency || e.country}): Actual ${e.actual || 'N/A'}, Previo ${e.previous || 'N/A'}`).join('\n');
+        }
+      }
+    } catch (e) {
+      console.warn("Error fetching JBlanked events:", e);
+    }
+  }
+
+  const combinedContext = `[MICRO] ${newsContext}\n[MACRO] ${macroContext}`;
+
+  // 2. Query cache from Supabase (valid for 1 week and matching combined news/macro)
   try {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -42,7 +64,7 @@ export async function analyzeMovement(ticker, priceChange) {
 
     if (!cacheError && cached && cached.length > 0) {
       const lastCached = cached[0];
-      if (lastCached.news_context === newsContext) {
+      if (lastCached.news_context === combinedContext) {
         console.log(`[Cache Hit] Reutilizando análisis previo para: ${ticker}`);
         return lastCached.analysis_json;
       }
@@ -62,6 +84,10 @@ export async function analyzeMovement(ticker, priceChange) {
           ticker: { type: SchemaType.STRING },
           variacion_analizada: { type: SchemaType.STRING },
           resumen_ejecutivo: { type: SchemaType.STRING },
+          catalizador_principal: { 
+            type: SchemaType.STRING, 
+            enum: ["Corporativo", "Macroeconómico", "Técnico/Ruido", "Cripto/Liquidez", "Local/Regulatorio"] 
+          },
           factores_clave: { 
             type: SchemaType.ARRAY, 
             items: { type: SchemaType.STRING } 
@@ -69,33 +95,33 @@ export async function analyzeMovement(ticker, priceChange) {
           nivel_certeza: { 
             type: SchemaType.STRING, 
             enum: ["Alta", "Media", "Baja"] 
-          },
-          tipo_driver: { 
-            type: SchemaType.STRING, 
-            enum: ["Fundamental Directo", "Sectorial", "Macro/Geopolítico", "Técnico/Ruido"] 
           }
         },
-        required: ["ticker", "variacion_analizada", "resumen_ejecutivo", "factores_clave", "nivel_certeza", "tipo_driver"]
+        required: ["ticker", "variacion_analizada", "resumen_ejecutivo", "catalizador_principal", "factores_clave", "nivel_certeza"]
       }
     }
   });
 
   const prompt = `[ROL Y OBJETIVO]
-Eres un Analista Financiero Cuantitativo y Macro-Estratega Senior. Tu objetivo es explicar de forma concisa y profesional los movimientos bruscos de precio de distintos activos financieros, basándote en la correlación entre la variación del precio, el flujo de noticias recientes, el contexto macroeconómico y las dinámicas sectoriales.
+Eres un Analista Financiero Cuantitativo y Macro-Estratega Senior. Tu objetivo es explicar de forma concisa los movimientos de precio de distintos activos financieros, integrando el flujo de noticias corporativas (micro) con el contexto de eventos económicos (macro), evaluando críticamente las señales de sentimiento algorítmico provistas.
 
-[ENTRADAS QUE RECIBIRÁS]
+[VARIABLES DE ENTRADA]
 - Ticker del Activo: ${ticker}
 - Variación de Precio: ${priceChange}%
-- Fecha Actual: ${new Date().toLocaleDateString('es-AR')}
-- Noticias y Contexto Scrapeado: 
+- Noticias Corporativas/Contexto (Yahoo Finance): 
 ${newsContext}
+- Eventos Macro del Día y Sentimiento (JBlanked API): 
+${macroContext}
 
-[REGLAS DE RAZONAMIENTO]
-1. Prioridad de Causalidad: Busca primero eventos corporativos directos (balances trimestrales, M&A, cambios de management). Si no los hay, escala a dinámicas sectoriales (movimientos de la competencia directa, nuevas regulaciones) y finalmente a factores macro (tasas de interés, geopolítica, índices bursátiles).
-2. Diferenciación de Mercados: Para activos argentinos (ADRs, acciones locales, bonos), el peso de la política local, los cambios regulatorios o las variaciones en los tipos de cambio financieros suele ser el driver principal. Para activos de EE.UU. (S&P 500, Nasdaq), enfócate en la política monetaria global y el rendimiento sectorial.
-3. Escepticismo: Si las noticias provistas no tienen una relación causal lógica con la variación de precio, decláralo explícitamente. Es preferible indicar que el movimiento responde a dinámicas técnicas o a simple ruido de mercado antes que inventar una correlación inexistente.
-4. Precisión de Entidades: Respeta estrictamente los tickers enviados. Si recibes BRK.B, analiza el holding Berkshire Hathaway Clase B.
-5. Idioma: Toda la respuesta y redacción debe ser en Español.`;
+[REGLAS DE RAZONAMIENTO Y PONDERACIÓN]
+1. Jerarquía de Catalizadores: Analiza primero si existe un evento corporativo directo en Yahoo Finance (ej. presentación de balances). Si las noticias corporativas son nulas o débiles, busca la explicación en el impacto de los eventos macroeconómicos de JBlanked.
+2. Evaluación Crítica del "Smart Analysis": Recibirás un sentimiento pre-calculado (Bullish/Bearish) y métricas (Outcome, Strength, Quality) de JBlanked. Sé crítico con este sentimiento algorítmico. Un dato macroeconómico "Fuerte y Positivo" para EE.UU. (ej. inflación por encima de lo esperado) suele ser alcista para el dólar, pero bajista para la renta variable por el encarecimiento del crédito.
+3. Diferenciación Estricta de Mercados:
+   - Acciones Internacionales (EE.UU.): Para activos como BRK.B o índices del S&P/Nasdaq, evalúa cómo el dato macro afecta la política monetaria de la FED, el costo de capital y la rotación sectorial.
+   - Acciones y ADRs Argentinos: Para activos como GGAL o YPF, el peso del riesgo país, la política regulatoria local o el tipo de cambio financiero (MEP/CCL) suele opacar a la macro estadounidense. Pondera esto si los feeds lo mencionan.
+   - Renta Fija / Bonos: Para instrumentos como BOPREAL o soberanos, prioriza la acumulación de reservas, superávit fiscal o noticias de reestructuración.
+   - Criptoactivos: Para Bitcoin y ecosistema cripto, enfócate estrictamente en eventos de liquidez sistémica, flujos de ETFs o regulaciones institucionales.
+4. Escepticismo y Ruido: Si el movimiento del precio no se alinea ni con las noticias micro ni con la macro, declara de forma contundente que el movimiento responde a factores técnicos, flujo de fondos o ruido de mercado. No inventes correlaciones.`;
 
   try {
     const result = await model.generateContent(prompt);
@@ -107,7 +133,7 @@ ${newsContext}
       .from('ai_movement_analysis')
       .insert([{
         ticker: ticker,
-        news_context: newsContext,
+        news_context: combinedContext,
         analysis_json: parsedResult
       }])
       .then(({ error }) => {

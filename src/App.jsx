@@ -335,7 +335,7 @@ function HistoricalChart({ data, ticker, name }) {
                 <span className={`badge ${analyzeResult.nivel_certeza === 'Alta' ? 'badge-compra' : analyzeResult.nivel_certeza === 'Media' ? 'badge-bono' : 'badge-venta'}`}>
                   Certeza: {analyzeResult.nivel_certeza}
                 </span>
-                <span className="badge badge-accion">Driver: {analyzeResult.tipo_driver}</span>
+                <span className="badge badge-accion">Catalizador: {analyzeResult.catalizador_principal}</span>
               </div>
             </div>
             
