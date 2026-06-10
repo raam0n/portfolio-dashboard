@@ -628,8 +628,9 @@ function App() {
 
   const getYahooTicker = (h) => {
     if (h.tipo === 'efectivo') return null;
-    if (h.tipo === 'accion' || h.tipo === 'cedear') return h.ticker + '.BA';
-    if (h.tipo === 'stock') return h.ticker;
+    let t = h.ticker.trim().toUpperCase();
+    if (h.tipo === 'accion' || h.tipo === 'cedear') return t.endsWith('.BA') ? t : t + '.BA';
+    if (h.tipo === 'stock') return t;
     return null;
   };
 
@@ -711,13 +712,9 @@ function App() {
     let newPrices = { ...prices };
     let newStats = { ...dailyStats };
 
-    const clean = (t) => t.replace(/\.BA$/i, '');
-
-    const applyData = (ticker, base, data) => {
+    const applyData = (ticker, data) => {
       newPrices[ticker] = data.price;
-      newPrices[base] = data.price;
       newStats[ticker] = data;
-      newStats[base] = data;
     };
 
     // Fetch Data912 arg bonds live data
@@ -746,9 +743,9 @@ function App() {
           const changePct = bondApiData.pct_change || 0;
           const prevClose = price / (1 + (changePct / 100));
           const change = price - prevClose;
-          applyData(h.ticker, h.ticker, { price, change, changePct, isOpen: true });
+          applyData(h.ticker, { price, change, changePct, isOpen: true });
         } else if (h.precioActual !== undefined) {
-          applyData(h.ticker, h.ticker, { price: h.precioActual, change: 0, changePct: 0 });
+          applyData(h.ticker, { price: h.precioActual, change: 0, changePct: 0 });
         }
         continue;
       }
@@ -774,8 +771,8 @@ function App() {
       await Promise.all(chunk.map(async (yt) => {
         const data = await fetchPrice(yt);
         if (data !== null) {
-          // Use the Yahoo Ticker (yt) as the primary key to allow duplicate base tickers
-          applyData(yt, yt, data);
+          // Use the Yahoo Ticker (yt) as the primary key
+          applyData(yt, data);
         } else {
           hasError = true;
         }
@@ -791,35 +788,26 @@ function App() {
     
     await Promise.all(indicesToFetch.map(async (ticker) => {
       const data = await fetchPrice(ticker);
-      if (data) applyData(ticker, ticker, data);
+      if (data) applyData(ticker, data);
     }));
 
     // 2. Fetch older operations not currently tracked manually
     const opsToFetch = new Set();
     for (const op of operaciones) {
-      const base = clean(op.ticker);
-      if (newPrices[base] === undefined) {
-        opsToFetch.add(base);
+      const yt = getYahooTicker({ ticker: op.ticker, tipo: op.assetTipo || 'accion' });
+      if (yt && newPrices[yt] === undefined) {
+        opsToFetch.add(yt);
       }
     }
 
     const opsChunks = chunkArray(Array.from(opsToFetch), 10);
     for (const chunk of opsChunks) {
-      await Promise.all(chunk.map(async (base) => {
-        // Encontramos la operación original para referenciar el ticker correcto
-        const opAsociada = operaciones.find(o => clean(o.ticker) === base);
-        const originalTicker = opAsociada ? opAsociada.ticker : base;
-
-        const d1 = await fetchPrice(base + '.BA');
+      await Promise.all(chunk.map(async (yt) => {
+        const d1 = await fetchPrice(yt);
         if (d1 !== null) {
-          applyData(originalTicker, base, d1);
+          applyData(yt, d1);
         } else {
-          const d2 = await fetchPrice(base);
-          if (d2 !== null) {
-            applyData(originalTicker, base, d2);
-          } else {
-            hasError = true;
-          }
+          hasError = true;
         }
       }));
     }
@@ -839,7 +827,7 @@ function App() {
         setDolarCcl(cclD.venta);
         const mArs = newStats['IMV.BA'] || newStats['^MERV'];
         if (mArs) {
-          applyData('MERVAL_USD', 'MERVAL_USD', {
+          applyData('MERVAL_USD', {
             ...mArs,
             price: mArs.price / cclD.venta,
             change: mArs.change / cclD.venta,
@@ -1649,8 +1637,8 @@ function App() {
                     if (a.fecha !== b.fecha) return b.fecha.localeCompare(a.fecha);
                     return a.ticker.localeCompare(b.ticker);
                   }).map(op => {
-                    const cleanOpTicker = op.ticker.replace(/\.BA$/i, '');
-                    const currentPrice = prices[op.ticker] ?? prices[cleanOpTicker] ?? null;
+                    const yt = getYahooTicker({ ticker: op.ticker, tipo: op.assetTipo || 'accion' });
+                    const currentPrice = yt ? prices[yt] : (prices[op.ticker] ?? null);
                     let evalCss = 'neutral';
                     let evalText = '—';
 
@@ -2217,8 +2205,8 @@ function App() {
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
                 {evals.map(ev => {
-                  const base = ev.ticker.replace(/\.BA$/i, '');
-                  const curPrice = prices[ev.ticker] ?? prices[base] ?? null;
+                  const yt = getYahooTicker({ ticker: ev.ticker, tipo: ev.tipo || 'accion' });
+                  const curPrice = yt ? prices[yt] : (prices[ev.ticker] ?? null);
                   const opTotal = ev.precio * ev.cantidad;
 
                   let perfHtml = null;
@@ -2302,8 +2290,8 @@ function App() {
                 let totalSaleResult = 0;
 
                 evals.filter(e => !e.excluded).forEach(ev => {
-                  const base = ev.ticker.replace(/\.BA$/i, '');
-                  const curPrice = prices[ev.ticker] ?? prices[base] ?? null;
+                  const yt = getYahooTicker({ ticker: ev.ticker, tipo: ev.tipo || 'accion' });
+                  const curPrice = yt ? prices[yt] : (prices[ev.ticker] ?? null);
                   const opTotal = ev.precio * ev.cantidad;
 
                   if (curPrice !== null) {
