@@ -736,6 +736,8 @@ function App() {
 
     // 1. Fetch current holdings AND watchlist items
     const trackedItems = [...holdings, ...watchlist];
+    const itemsToFetchYahoo = new Set();
+
     for (const h of trackedItems) {
       if (h.tipo === 'bono') {
         const bondApiData = argBondsData[h.ticker];
@@ -752,6 +754,24 @@ function App() {
       }
       const yt = getYahooTicker(h);
       if (yt) {
+        itemsToFetchYahoo.add(yt);
+      }
+    }
+
+    // Función auxiliar para procesar en lotes (chunks) paralelos
+    const chunkArray = (array, size) => {
+      const result = [];
+      for (let i = 0; i < array.length; i += size) {
+        result.push(array.slice(i, i + size));
+      }
+      return result;
+    };
+
+    const uniqueYahooTickers = Array.from(itemsToFetchYahoo);
+    const tickerChunks = chunkArray(uniqueYahooTickers, 10);
+
+    for (const chunk of tickerChunks) {
+      await Promise.all(chunk.map(async (yt) => {
         const data = await fetchPrice(yt);
         if (data !== null) {
           // Use the Yahoo Ticker (yt) as the primary key to allow duplicate base tickers
@@ -759,7 +779,7 @@ function App() {
         } else {
           hasError = true;
         }
-      }
+      }));
     }
 
     // 1.5 Global Indices
@@ -768,27 +788,40 @@ function App() {
       if (!indicesToFetch.includes('IMV.BA')) indicesToFetch.push('IMV.BA');
       if (!indicesToFetch.includes('^MERV')) indicesToFetch.push('^MERV');
     }
-    for (const ticker of indicesToFetch) {
+    
+    await Promise.all(indicesToFetch.map(async (ticker) => {
       const data = await fetchPrice(ticker);
       if (data) applyData(ticker, ticker, data);
-    }
+    }));
 
     // 2. Fetch older operations not currently tracked manually
+    const opsToFetch = new Set();
     for (const op of operaciones) {
       const base = clean(op.ticker);
       if (newPrices[base] === undefined) {
+        opsToFetch.add(base);
+      }
+    }
+
+    const opsChunks = chunkArray(Array.from(opsToFetch), 10);
+    for (const chunk of opsChunks) {
+      await Promise.all(chunk.map(async (base) => {
+        // Encontramos la operación original para referenciar el ticker correcto
+        const opAsociada = operaciones.find(o => clean(o.ticker) === base);
+        const originalTicker = opAsociada ? opAsociada.ticker : base;
+
         const d1 = await fetchPrice(base + '.BA');
         if (d1 !== null) {
-          applyData(op.ticker, base, d1);
+          applyData(originalTicker, base, d1);
         } else {
           const d2 = await fetchPrice(base);
           if (d2 !== null) {
-            applyData(op.ticker, base, d2);
+            applyData(originalTicker, base, d2);
           } else {
             hasError = true;
           }
         }
-      }
+      }));
     }
 
     let fetchedDolarMep = null;
@@ -1750,6 +1783,8 @@ function App() {
                 const wlItem = watchlist.find(w => w.ticker === h.ticker && w.tipo === h.tipo);
                 return {
                   ticker: h.ticker,
+                  nombre: h.nombre || wlItem?.nombre || '',
+                  subsector: wlItem?.subsector || '',
                   yahooTicker: yt,
                   tipo: wlItem?.tipo || h.tipo || 'stock',
                   sector: wlItem?.sector || 'Sin Sector',
@@ -1768,6 +1803,8 @@ function App() {
                 const stats = dailyStats[yt];
                 return {
                   ticker: w.ticker,
+                  nombre: w.nombre || '',
+                  subsector: w.subsector || '',
                   yahooTicker: yt,
                   tipo: w.tipo || 'stock',
                   sector: w.sector || 'Sin Sector',

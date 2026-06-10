@@ -115,8 +115,19 @@ const TYPE_OPTIONS = [
 // ── Tooltip component ─────────────────────────────────────────────────────────
 const Tooltip = ({ data, mousePos, containerRect, period = '1d' }) => {
   if (!data || !containerRect) return null;
-  const left = mousePos.x - containerRect.left + 12;
-  const top = mousePos.y - containerRect.top - 10;
+  
+  const estimatedWidth = 240;
+  const estimatedHeight = 220;
+  let left = mousePos.x - containerRect.left + 12;
+  let top = mousePos.y - containerRect.top - 10;
+  
+  if (left + estimatedWidth > containerRect.width) {
+    left = mousePos.x - containerRect.left - estimatedWidth - 12;
+  }
+  
+  if (top + estimatedHeight > containerRect.height) {
+    top = mousePos.y - containerRect.top - estimatedHeight + 10;
+  }
 
   const fmtMcap = (v, curr = 'USD') => {
     if (!v) return 'N/A';
@@ -142,14 +153,16 @@ const Tooltip = ({ data, mousePos, containerRect, period = '1d' }) => {
       position: 'absolute', left, top, zIndex: 100, pointerEvents: 'none',
       background: 'rgba(20,20,30,0.95)', border: '1px solid rgba(255,255,255,0.15)',
       borderRadius: '8px', padding: '12px 16px', color: '#fff',
-      fontSize: '13px', minWidth: '180px',
+      fontSize: '13px', minWidth: '180px', maxWidth: '280px',
       backdropFilter: 'blur(12px)',
       boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
     }}>
-      <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '6px' }}>{data.name}</div>
-      {data.tipo && <div style={{ color: '#aaa', marginBottom: '2px' }}>Tipo: {tipoLabels[data.tipo] || data.tipo}</div>}
-      {data.sector && <div style={{ color: '#aaa', marginBottom: '2px' }}>Sector: {data.sector}</div>}
-      {data.pais && <div style={{ color: '#aaa', marginBottom: '2px' }}>País: {data.pais}</div>}
+      <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '2px', lineHeight: '1.2' }}>{data.nombre || data.name}</div>
+      <div style={{ color: '#aaa', fontSize: '11px', marginBottom: '8px', letterSpacing: '0.5px' }}>{data.name}</div>
+      {data.tipo && <div style={{ color: '#ccc', marginBottom: '2px' }}>Tipo: <span style={{color: '#fff'}}>{tipoLabels[data.tipo] || data.tipo}</span></div>}
+      {data.sector && <div style={{ color: '#ccc', marginBottom: '2px' }}>Sector: <span style={{color: '#fff'}}>{data.sector}</span></div>}
+      {data.subsector && <div style={{ color: '#ccc', marginBottom: '2px' }}>Subsector: <span style={{color: '#fff'}}>{data.subsector}</span></div>}
+      {data.pais && <div style={{ color: '#ccc', marginBottom: '2px' }}>País: <span style={{color: '#fff'}}>{data.pais}</span></div>}
       <div style={{ marginBottom: '2px' }}>
         Cambio ({periodLabels[period] || '1D'}): <strong style={{ color: data.changePct > 0 ? '#28a745' : data.changePct < 0 ? '#dc3545' : '#aaa' }}>
           {data.changePct != null ? `${data.changePct > 0 ? '+' : ''}${data.changePct.toFixed(2)}%` : 'N/A'}
@@ -344,6 +357,8 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
         if (sizing === 'portfolioValue' && calcSize <= 0) continue;
         groups[groupKey].push({
           name: a.ticker,
+          nombre: a.nombre,
+          subsector: a.subsector,
           size: Math.max(1, calcSize),
           changePct: activeChange,
           sector: a.sector,
