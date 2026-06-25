@@ -734,6 +734,7 @@ function App() {
 
       return { price, change, changePct, hist5d, hist1m, hist6m, hist1y, hist5y, isOpen, regularMarketTime, history: closes, timestamps, prevClose };
     } catch (e) {
+      console.warn("fetchPrice failed for", yahooTicker, e);
       return null;
     }
   };
@@ -804,8 +805,10 @@ function App() {
       await Promise.all(chunk.map(async (yt) => {
         const data = await fetchPrice(yt);
         if (data !== null) {
-          // Use the Yahoo Ticker (yt) as the primary key
           applyData(yt, data);
+        } else if (prices[yt]) {
+          // If we have cached price, use it as fallback quietly
+          newPrices[yt] = prices[yt];
         } else {
           hasError = true;
         }
@@ -839,6 +842,8 @@ function App() {
         const d1 = await fetchPrice(yt);
         if (d1 !== null) {
           applyData(yt, d1);
+        } else if (prices[yt]) {
+          newPrices[yt] = prices[yt];
         } else {
           hasError = true;
         }
