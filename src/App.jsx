@@ -542,11 +542,42 @@ function IndexTickerBar({ dailyStats }) {
 function App() {
   const [activeTab, setActiveTab] = useState('portfolio'); // 'portfolio', 'operaciones', 'watchlist', 'trades'
 
-  const [holdings, setHoldings] = useState(() => JSON.parse(localStorage.getItem('portfolio_holdings') || '[]'));
-  const [operaciones, setOperaciones] = useState(() => JSON.parse(localStorage.getItem('portfolio_operaciones') || '[]'));
+  const [portfolios, setPortfolios] = useState(() => JSON.parse(localStorage.getItem('portfolios_list') || '[{"id":"default","name":"Mi Portfolio Principal"}]'));
+  const [currentPortfolioId, setCurrentPortfolioId] = useState(() => localStorage.getItem('current_portfolio_id') || 'default');
+
+  const [allHoldings, setAllHoldings] = useState(() => {
+    const existing = localStorage.getItem('all_holdings');
+    if (existing) return JSON.parse(existing);
+    return { default: JSON.parse(localStorage.getItem('portfolio_holdings') || '[]') };
+  });
+  const holdings = allHoldings[currentPortfolioId] || [];
+  const setHoldings = (val) => setAllHoldings(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
+
+  const [allOperaciones, setAllOperaciones] = useState(() => {
+    const existing = localStorage.getItem('all_operaciones');
+    if (existing) return JSON.parse(existing);
+    return { default: JSON.parse(localStorage.getItem('portfolio_operaciones') || '[]') };
+  });
+  const operaciones = allOperaciones[currentPortfolioId] || [];
+  const setOperaciones = (val) => setAllOperaciones(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
+
+  const [allTrades, setAllTrades] = useState(() => {
+    const existing = localStorage.getItem('all_trades');
+    if (existing) return JSON.parse(existing);
+    return { default: JSON.parse(localStorage.getItem('portfolio_trades') || '[]') };
+  });
+  const trades = allTrades[currentPortfolioId] || [];
+  const setTrades = (val) => setAllTrades(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
+
+  const [allEvals, setAllEvals] = useState(() => {
+    const existing = localStorage.getItem('all_evals');
+    if (existing) return JSON.parse(existing);
+    return { default: JSON.parse(localStorage.getItem('portfolio_evals') || '[]') };
+  });
+  const evals = allEvals[currentPortfolioId] || [];
+  const setEvals = (val) => setAllEvals(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
+
   const [watchlist, setWatchlist] = useState(() => JSON.parse(localStorage.getItem('portfolio_watchlist') || '[]'));
-  const [trades, setTrades] = useState(() => JSON.parse(localStorage.getItem('portfolio_trades') || '[]'));
-  const [evals, setEvals] = useState(() => JSON.parse(localStorage.getItem('portfolio_evals') || '[]'));
 
   const [prices, setPrices] = useState(() => JSON.parse(localStorage.getItem('cached_prices') || '{}'));
   const [dailyStats, setDailyStats] = useState(() => JSON.parse(localStorage.getItem('cached_stats') || '{}'));
@@ -605,12 +636,14 @@ function App() {
   const [currencyMode, setCurrencyMode] = useState('ARS');
   // Persist storage whenever collections change
   useEffect(() => {
-    localStorage.setItem('portfolio_holdings', JSON.stringify(holdings));
-    localStorage.setItem('portfolio_operaciones', JSON.stringify(operaciones));
+    localStorage.setItem('all_holdings', JSON.stringify(allHoldings));
+    localStorage.setItem('all_operaciones', JSON.stringify(allOperaciones));
+    localStorage.setItem('all_trades', JSON.stringify(allTrades));
+    localStorage.setItem('all_evals', JSON.stringify(allEvals));
     localStorage.setItem('portfolio_watchlist', JSON.stringify(watchlist));
-    localStorage.setItem('portfolio_trades', JSON.stringify(trades));
-    localStorage.setItem('portfolio_evals', JSON.stringify(evals));
-  }, [holdings, operaciones, watchlist, trades, evals]);
+    localStorage.setItem('portfolios_list', JSON.stringify(portfolios));
+    localStorage.setItem('current_portfolio_id', currentPortfolioId);
+  }, [allHoldings, allOperaciones, allTrades, allEvals, watchlist, portfolios, currentPortfolioId]);
 
   // Persist prices separately whenever they are successfully updated
   useEffect(() => {
@@ -1049,7 +1082,7 @@ function App() {
 
   // --- IMP/EXP LOGIC ---
   const exportar = () => {
-    const json = JSON.stringify({ holdings, operaciones, watchlist, trades, evals }, null, 2);
+    const json = JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, portfolios, currentPortfolioId, watchlist }, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1058,21 +1091,36 @@ function App() {
   };
 
   const copiarJSON = () => {
-    const json = JSON.stringify({ holdings, operaciones, watchlist, trades, evals }, null, 2);
+    const json = JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, portfolios, currentPortfolioId, watchlist }, null, 2);
     navigator.clipboard.writeText(json).then(() => alert('JSON Copiado'));
   };
 
   const importar = () => {
     try {
       const data = JSON.parse(importJson.trim());
-      if (!Array.isArray(data.holdings) || !Array.isArray(data.operaciones)) throw new Error('Estructura incorrecta');
       if (!window.confirm('Esto sobreescribirá todo tu portfolio actual. ¿Proceder?')) return;
 
-      setHoldings(data.holdings);
-      setOperaciones(data.operaciones);
+      if (data.allHoldings) {
+        // New format
+        setAllHoldings(data.allHoldings);
+        setAllOperaciones(data.allOperaciones || {});
+        setAllTrades(data.allTrades || {});
+        setAllEvals(data.allEvals || {});
+        setPortfolios(data.portfolios || [{id:'default', name:'Mi Portfolio Principal'}]);
+        setCurrentPortfolioId(data.currentPortfolioId || 'default');
+      } else if (Array.isArray(data.holdings)) {
+        // Legacy format
+        setAllHoldings({ default: data.holdings });
+        setAllOperaciones({ default: data.operaciones || [] });
+        setAllTrades({ default: data.trades || [] });
+        setAllEvals({ default: data.evals || [] });
+        setPortfolios([{id:'default', name:'Mi Portfolio Principal'}]);
+        setCurrentPortfolioId('default');
+      } else {
+        throw new Error('Estructura incorrecta');
+      }
+
       setWatchlist(Array.isArray(data.watchlist) ? data.watchlist : []);
-      setTrades(Array.isArray(data.trades) ? data.trades : []);
-      setEvals(Array.isArray(data.evals) ? data.evals : []);
       setPrices({});
       setImportJson('');
       setShowSettings(false);
@@ -1084,7 +1132,10 @@ function App() {
   const borrarTodo = () => {
     const typed = window.prompt('Escribí "BORRAR" para formatear todo.');
     if (typed === 'BORRAR') {
-      setHoldings([]); setOperaciones([]); setWatchlist([]); setTrades([]); setEvals([]); setPrices({});
+      setAllHoldings({}); setAllOperaciones({}); setAllTrades({}); setAllEvals({});
+      setPortfolios([{id:'default', name:'Mi Portfolio Principal'}]);
+      setCurrentPortfolioId('default');
+      setWatchlist([]); setPrices({});
       setShowSettings(false);
     }
   };
@@ -1209,7 +1260,29 @@ function App() {
     <div className="app-container">
       {/* Header */}
       <header className="header" style={{ marginBottom: '0' }}>
-        <h1>Portfolio Dashboard</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <h1>Portfolio Dashboard</h1>
+          <select 
+            value={currentPortfolioId} 
+            onChange={(e) => {
+              if (e.target.value === 'NEW') {
+                const name = window.prompt("Nombre del nuevo portfolio:");
+                if (name && name.trim()) {
+                  const newId = 'port_' + Date.now();
+                  setPortfolios([...portfolios, {id: newId, name: name.trim()}]);
+                  setCurrentPortfolioId(newId);
+                }
+              } else {
+                setCurrentPortfolioId(e.target.value);
+              }
+            }}
+            className="form-control" 
+            style={{ width: 'auto', display: 'inline-block', padding: '4px 8px', fontSize: '13px', backgroundColor: '#1a1b35', color: '#ffffff', border: '1px solid var(--glass-border)', borderRadius: '6px' }}
+          >
+            {portfolios.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            <option value="NEW" style={{ fontWeight: 'bold' }}>+ Nuevo Portfolio</option>
+          </select>
+        </div>
         <div className="refresh-bar">
           <div className={`dot ${status}`}></div>
           <span id="status-text">{statusText}</span>
@@ -1248,9 +1321,31 @@ function App() {
           </div>
           <div className="dashboard-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '1rem' }}>
             <div>
+              <label>Gestión de Portfolio</label>
+              <p className="hint" style={{ marginBottom: '8px' }}>Opciones para el portfolio actual ({portfolios.find(p => p.id === currentPortfolioId)?.name}).</p>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem' }}>
+                <button className="btn" onClick={() => {
+                  const p = portfolios.find(p => p.id === currentPortfolioId);
+                  const newName = window.prompt("Nuevo nombre:", p.name);
+                  if (newName && newName.trim()) {
+                    setPortfolios(portfolios.map(p => p.id === currentPortfolioId ? { ...p, name: newName.trim() } : p));
+                  }
+                }}>Renombrar</button>
+                <button className="btn btn-danger" disabled={portfolios.length <= 1} onClick={() => {
+                  if (portfolios.length <= 1) return;
+                  if (window.confirm("¿Seguro que querés eliminar el portfolio actual y todos sus datos?")) {
+                    setPortfolios(portfolios.filter(p => p.id !== currentPortfolioId));
+                    const newAllHoldings = { ...allHoldings }; delete newAllHoldings[currentPortfolioId]; setAllHoldings(newAllHoldings);
+                    const newAllOps = { ...allOperaciones }; delete newAllOps[currentPortfolioId]; setAllOperaciones(newAllOps);
+                    const newAllTrades = { ...allTrades }; delete newAllTrades[currentPortfolioId]; setAllTrades(newAllTrades);
+                    const newAllEvals = { ...allEvals }; delete newAllEvals[currentPortfolioId]; setAllEvals(newAllEvals);
+                    setCurrentPortfolioId(portfolios.filter(p => p.id !== currentPortfolioId)[0].id);
+                  }
+                }}>Eliminar Portfolio</button>
+              </div>
               <label>Exportar Datos (JSON)</label>
-              <p className="hint" style={{ marginBottom: '8px' }}>Guardá este JSON de forma segura como backup.</p>
-              <textarea readOnly rows="4" style={{ fontFamily: 'monospace', fontSize: '11px' }} value={JSON.stringify({ holdings, operaciones, watchlist, trades, evals }, null, 2)}></textarea>
+              <p className="hint" style={{ marginBottom: '8px' }}>Guardá este JSON de forma segura como backup (incluye todos los portfolios).</p>
+              <textarea readOnly rows="4" style={{ fontFamily: 'monospace', fontSize: '11px' }} value={JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, portfolios, currentPortfolioId, watchlist }, null, 2)}></textarea>
               <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
                 <button className="btn" onClick={exportar}>Descargar Archivo</button>
                 <button className="btn" onClick={copiarJSON}>Copiar</button>
