@@ -651,25 +651,7 @@ function App() {
     if (Object.keys(dailyStats).length > 0) localStorage.setItem('cached_stats', JSON.stringify(dailyStats));
   }, [prices, dailyStats]);
 
-  // Store the latest refreshAll to avoid stale closures in the interval
-  const refreshAllRef = React.useRef(refreshAll);
-  useEffect(() => {
-    refreshAllRef.current = refreshAll;
-  });
 
-  // Fetch prices effect (1 vez por hora entre 11 y 19)
-  useEffect(() => {
-    const checkAndFetch = () => {
-      const currentHour = new Date().getHours();
-      if (currentHour >= 11 && currentHour <= 19) {
-        refreshAllRef.current();
-      }
-    };
-
-    checkAndFetch();
-    const interval = setInterval(checkAndFetch, 60 * 60 * 1000); // 60 mins
-    return () => clearInterval(interval);
-  }, []);
 
   const getYahooTicker = (h) => {
     if (h.tipo === 'efectivo') return null;
@@ -938,6 +920,25 @@ function App() {
     setStatusText(`Actualizado ${ts}`);
   };
 
+  // Store the latest refreshAll to avoid stale closures in the interval
+  const refreshAllRef = React.useRef(refreshAll);
+  useEffect(() => {
+    refreshAllRef.current = refreshAll;
+  });
+
+  // Fetch prices effect (1 vez por hora entre 11 y 19)
+  useEffect(() => {
+    const checkAndFetch = () => {
+      const currentHour = new Date().getHours();
+      if (currentHour >= 11 && currentHour <= 19) {
+        refreshAllRef.current();
+      }
+    };
+
+    checkAndFetch();
+    const interval = setInterval(checkAndFetch, 60 * 60 * 1000); // 60 mins
+    return () => clearInterval(interval);
+  }, []);
 
   // --- HOLDINGS BUSINESS LOGIC ---
   const agregarHolding = () => {
