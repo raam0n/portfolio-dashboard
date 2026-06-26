@@ -327,6 +327,7 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
 
       let groupKey = 'Otros';
       if (grouping === 'sector') groupKey = a.sector || 'Sin Sector';
+      else if (grouping === 'subsector') groupKey = a.subsector || 'Sin Subsector';
       else if (grouping === 'pais') groupKey = a.pais || 'Desconocido';
       else if (grouping === 'marketCapTier') groupKey = getCapTier(mcapRaw, currency);
 
@@ -482,6 +483,7 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
               }}
             >
               <option value="sector" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>Sector</option>
+              <option value="subsector" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>Subsector</option>
               <option value="pais" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>País</option>
               <option value="marketCapTier" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>Market Cap (Tiers)</option>
             </select>
@@ -527,7 +529,7 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
       {/* Treemap Canvas */}
       <div
         ref={containerRef}
-        style={{ width: '100%', height: '500px', position: 'relative', borderRadius: '8px', overflow: 'hidden', background: 'rgba(0,0,0,0.2)' }}
+        style={{ width: '100%', height: '800px', position: 'relative', borderRadius: '8px', overflow: 'hidden', background: 'rgba(0,0,0,0.2)' }}
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoveredItem(null)}
       >

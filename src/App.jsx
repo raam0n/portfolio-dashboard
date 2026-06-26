@@ -651,13 +651,25 @@ function App() {
     if (Object.keys(dailyStats).length > 0) localStorage.setItem('cached_stats', JSON.stringify(dailyStats));
   }, [prices, dailyStats]);
 
-  // Fetch prices effect
+  // Store the latest refreshAll to avoid stale closures in the interval
+  const refreshAllRef = React.useRef(refreshAll);
   useEffect(() => {
-    refreshAll();
-    const interval = setInterval(refreshAll, 60 * 60 * 1000); // 60 mins
+    refreshAllRef.current = refreshAll;
+  });
+
+  // Fetch prices effect (1 vez por hora entre 11 y 19)
+  useEffect(() => {
+    const checkAndFetch = () => {
+      const currentHour = new Date().getHours();
+      if (currentHour >= 11 && currentHour <= 19) {
+        refreshAllRef.current();
+      }
+    };
+
+    checkAndFetch();
+    const interval = setInterval(checkAndFetch, 60 * 60 * 1000); // 60 mins
     return () => clearInterval(interval);
-    // eslint-disable-next-line
-  }, [holdings, watchlist]);
+  }, []);
 
   const getYahooTicker = (h) => {
     if (h.tipo === 'efectivo') return null;
