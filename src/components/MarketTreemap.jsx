@@ -203,7 +203,7 @@ const TypeToggle = ({ option, active, onClick }) => (
 
 // ── Main Component ────────────────────────────────────────────────────────────
 const MarketTreemap = ({ assets = [], dolarCcl }) => {
-  const [grouping, setGrouping] = useState('sector');
+  const [grouping, setGrouping] = useState('sector_subsector');
   const [sizing, setSizing] = useState('marketCap');
   const [period, setPeriod] = useState('1d');
   const [activeTypes, setActiveTypes] = useState(['accion', 'cedear', 'stock']); // all active by default
@@ -312,6 +312,82 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
       return 'Small/Micro Cap (<2B)';
     };
 
+    if (grouping === 'sector_subsector') {
+      const sectorGroups = {}; // { sectorName: { subsectorName: [assets] } }
+      for (const a of filteredAssets) {
+        const capInfo = marketCaps[a.yahooTicker];
+        const mcapRaw = capInfo ? capInfo.marketCap : 0;
+        const currency = capInfo ? capInfo.currency : 'USD';
+
+        let mcap = mcapRaw;
+        if (currency === 'ARS') {
+          mcap = mcapRaw / (dolarCcl || 1200);
+        }
+
+        const sectorKey = a.sector || 'Sin Sector';
+        const subsectorKey = a.subsector || 'Sin Subsector';
+
+        if (!sectorGroups[sectorKey]) sectorGroups[sectorKey] = {};
+        if (!sectorGroups[sectorKey][subsectorKey]) sectorGroups[sectorKey][subsectorKey] = [];
+
+        let calcSize = 1;
+        if (sizing === 'marketCap') {
+          const sizeVal = mcap > 0 ? mcap : 500e6;
+          calcSize = Math.sqrt(sizeVal);
+        } else if (sizing === 'portfolioValue') {
+          calcSize = a.value > 0 ? a.value : 0;
+        }
+
+        let activeChange = a.changePct;
+        if (period === '5d') activeChange = a.hist5d;
+        else if (period === '1m') activeChange = a.hist1m;
+        else if (period === '6m') activeChange = a.hist6m;
+        else if (period === '1y') activeChange = a.hist1y;
+        else if (period === '5y') activeChange = a.hist5y;
+
+        const existing = sectorGroups[sectorKey][subsectorKey].find(item => item.name === a.ticker);
+        if (existing) {
+          existing.portfolioValue = (existing.portfolioValue || 0) + (a.value || 0);
+          if (sizing === 'portfolioValue') existing.size = Math.max(1, existing.portfolioValue);
+        } else {
+          if (sizing === 'portfolioValue' && calcSize <= 0) continue;
+          sectorGroups[sectorKey][subsectorKey].push({
+            name: a.ticker,
+            nombre: a.nombre,
+            subsector: a.subsector,
+            size: Math.max(1, calcSize),
+            changePct: activeChange,
+            sector: a.sector,
+            pais: a.pais,
+            tipo: a.tipo,
+            marketCap: mcapRaw,
+            marketCapCurrency: currency,
+            portfolioValue: a.value || 0,
+          });
+        }
+      }
+
+      return Object.entries(sectorGroups)
+        .map(([sectorName, subsectorsObj]) => {
+          const subsectors = Object.entries(subsectorsObj)
+            .map(([subName, assets]) => ({
+              name: subName,
+              children: assets.sort((a, b) => b.size - a.size),
+              size: assets.reduce((s, c) => s + c.size, 0),
+            }))
+            .filter(sub => sub.children.length > 0)
+            .sort((a, b) => b.size - a.size);
+
+          return {
+            name: sectorName,
+            children: subsectors,
+            size: subsectors.reduce((s, sub) => s + sub.size, 0),
+          };
+        })
+        .filter(g => g.children.length > 0)
+        .sort((a, b) => b.size - a.size);
+    }
+
     const groups = {};
     for (const a of filteredAssets) {
       // Look up market cap by yahooTicker (the key Yahoo returns)
@@ -388,39 +464,94 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
     if (w <= 0 || h <= 0 || groupedData.length === 0) return [];
 
     const HEADER_H = 22;
-    // First, layout groups as top-level blocks
-    const groupItems = groupedData.map(g => ({
-      ...g,
-      size: g.children.reduce((s, c) => s + c.size, 0),
-    }));
+    const SUBSECTOR_HEADER_H = 18;
 
-    const groupRects = squarify(groupItems, 0, 0, w, h);
+    if (grouping === 'sector_subsector') {
+      // First, layout sector groups as top-level blocks
+      const sectorItems = groupedData.map(g => ({
+        ...g,
+        size: g.children.reduce((s, c) => s + c.size, 0),
+      }));
+      const sectorRects = squarify(sectorItems, 0, 0, w, h);
 
-    // Then, layout children inside each group rect
-    const result = [];
-    groupRects.forEach((gr, gi) => {
-      const innerY = gr.y + HEADER_H;
-      const innerH = gr.h - HEADER_H;
-      const childRects = innerH > 5
-        ? squarify(gr.children, gr.x + 1, innerY, gr.w - 2, innerH - 1)
-        : [];
-
-      result.push({
-        type: 'group',
-        name: gr.name,
-        x: gr.x, y: gr.y, w: gr.w, h: gr.h,
-        colorIdx: gi,
-      });
-      childRects.forEach(cr => {
+      const result = [];
+      sectorRects.forEach((sr, si) => {
         result.push({
-          type: 'leaf',
-          ...cr,
+          type: 'group',
+          name: sr.name,
+          x: sr.x, y: sr.y, w: sr.w, h: sr.h,
+          colorIdx: si,
+        });
+
+        const innerY = sr.y + HEADER_H;
+        const innerH = sr.h - HEADER_H;
+        if (innerH > 10 && sr.w > 10) {
+          const subsectorItems = sr.children.map(sub => ({
+            ...sub,
+            size: sub.size,
+          }));
+          const subsectorRects = squarify(subsectorItems, sr.x + 2, innerY, sr.w - 4, innerH - 2);
+
+          subsectorRects.forEach((subr, subi) => {
+            result.push({
+              type: 'subgroup',
+              name: subr.name,
+              x: subr.x, y: subr.y, w: subr.w, h: subr.h,
+              parentColorIdx: si,
+              subColorIdx: subi,
+            });
+
+            const leafY = subr.y + SUBSECTOR_HEADER_H;
+            const leafH = subr.h - SUBSECTOR_HEADER_H - 2;
+            const leafW = subr.w - 4;
+            if (leafH > 2 && leafW > 2) {
+              const leafRects = squarify(subr.children, subr.x + 2, leafY, leafW, leafH);
+              leafRects.forEach(lr => {
+                result.push({
+                  type: 'leaf',
+                  ...lr,
+                });
+              });
+            }
+          });
+        }
+      });
+      return result;
+    } else {
+      // First, layout groups as top-level blocks
+      const groupItems = groupedData.map(g => ({
+        ...g,
+        size: g.children.reduce((s, c) => s + c.size, 0),
+      }));
+
+      const groupRects = squarify(groupItems, 0, 0, w, h);
+
+      // Then, layout children inside each group rect
+      const result = [];
+      groupRects.forEach((gr, gi) => {
+        const innerY = gr.y + HEADER_H;
+        const innerH = gr.h - HEADER_H;
+        const childRects = innerH > 5
+          ? squarify(gr.children, gr.x + 1, innerY, gr.w - 2, innerH - 1)
+          : [];
+
+        result.push({
+          type: 'group',
+          name: gr.name,
+          x: gr.x, y: gr.y, w: gr.w, h: gr.h,
+          colorIdx: gi,
+        });
+        childRects.forEach(cr => {
+          result.push({
+            type: 'leaf',
+            ...cr,
+          });
         });
       });
-    });
 
-    return result;
-  }, [containerSize, groupedData]);
+      return result;
+    }
+  }, [containerSize, groupedData, grouping]);
 
   const handleMouseMove = useCallback((e) => {
     setMousePos({ x: e.clientX, y: e.clientY });
@@ -482,6 +613,7 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
                 cursor: 'pointer',
               }}
             >
+              <option value="sector_subsector" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>Sector &gt; Subsector</option>
               <option value="sector" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>Sector</option>
               <option value="subsector" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>Subsector</option>
               <option value="pais" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>País</option>
@@ -554,6 +686,31 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
                         style={{ pointerEvents: 'none', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}
                       >
                         {item.name.length > item.w / 7 ? item.name.slice(0, Math.floor(item.w / 7)) + '…' : item.name}
+                      </text>
+                    )}
+                  </g>
+                );
+              }
+
+              if (item.type === 'subgroup') {
+                return (
+                  <g key={`sg-${i}`}>
+                    {/* Subgroup background & border */}
+                    <rect
+                      x={item.x} y={item.y}
+                      width={Math.max(0, item.w)} height={Math.max(0, item.h)}
+                      fill="rgba(0,0,0,0.18)"
+                      stroke="rgba(255,255,255,0.14)" strokeWidth="1"
+                      rx="4" ry="4"
+                    />
+                    {/* Subgroup label */}
+                    {item.w > 30 && item.h > 15 && (
+                      <text
+                        x={item.x + 6} y={item.y + 13}
+                        fill="rgba(255,255,255,0.55)" fontSize="10" fontWeight="500"
+                        style={{ pointerEvents: 'none', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
+                      >
+                        {item.name.length > item.w / 6.5 ? item.name.slice(0, Math.floor(item.w / 6.5)) + '…' : item.name}
                       </text>
                     )}
                   </g>
