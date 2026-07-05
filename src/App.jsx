@@ -947,24 +947,47 @@ function App() {
     const prec = parseFloat(newPrecio);
 
     if (!ticker || isNaN(cant) || isNaN(prec)) return alert('Completá ticker, cantidad y precio.');
-    if (holdings.find(h => h.ticker === ticker && h.mercado === newMercado)) return alert('Este activo ya está en el portfolio con ese mercado.');
 
-    const h = { ticker, tipo: newTipo, mercado: newMercado, nombre: newNombre.trim(), cantidad: cant, precioEntrada: prec };
     let nPrices = { ...prices };
-
-    if (newTipo === 'bono') {
-      const pa = parseFloat(newPrecioActual);
-      if (!isNaN(pa)) {
-        h.precioActual = pa;
-        nPrices[ticker] = pa;
+    const existingIndex = holdings.findIndex(h => h.ticker === ticker && h.mercado === newMercado);
+    
+    if (existingIndex !== -1) {
+      const newHoldings = [...holdings];
+      newHoldings[existingIndex] = { ...newHoldings[existingIndex], cantidad: cant, precioEntrada: prec, nombre: newNombre.trim(), tipo: newTipo };
+      if (newTipo === 'bono') {
+        const pa = parseFloat(newPrecioActual);
+        if (!isNaN(pa)) {
+          newHoldings[existingIndex].precioActual = pa;
+          nPrices[ticker] = pa;
+        }
       }
+      setHoldings(newHoldings);
+    } else {
+      const h = { ticker, tipo: newTipo, mercado: newMercado, nombre: newNombre.trim(), cantidad: cant, precioEntrada: prec };
+      if (newTipo === 'bono') {
+        const pa = parseFloat(newPrecioActual);
+        if (!isNaN(pa)) {
+          h.precioActual = pa;
+          nPrices[ticker] = pa;
+        }
+      }
+      setHoldings([...holdings, h]);
     }
 
-    setHoldings([...holdings, h]);
     setPrices(nPrices);
-
     setNewTicker(''); setNewNombre(''); setNewCantidad(''); setNewPrecio(''); setNewPrecioActual('');
     setShowAddHolding(false);
+  };
+
+  const cargarEdicionHolding = (h) => {
+    setNewTicker(h.ticker);
+    setNewTipo(h.tipo);
+    setNewMercado(h.mercado);
+    setNewNombre(h.nombre || '');
+    setNewCantidad(h.cantidad);
+    setNewPrecio(h.precioEntrada);
+    if (h.tipo === 'bono' && h.precioActual !== undefined) setNewPrecioActual(h.precioActual);
+    setShowAddHolding(true);
   };
 
   const eliminarHolding = (ticker) => {
@@ -1603,7 +1626,12 @@ function App() {
                               <td>{valor !== null ? '$' + fmt(valor) : '—'}</td>
                               <td className={cssPnl}>{pnlA !== null ? sign + '$' + fmt(pnlA) : '—'}</td>
                               <td className={cssPnl}><strong>{fmtPct(pnlP)}</strong></td>
-                              <td><button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); eliminarHolding(h.ticker); }}>✕</button></td>
+                              <td>
+                                <div style={{ display: 'flex', gap: '4px' }}>
+                                  <button className="btn btn-sm" title="Editar" onClick={(e) => { e.stopPropagation(); cargarEdicionHolding(h); }}>✎</button>
+                                  <button className="btn btn-sm btn-danger" title="Eliminar" onClick={(e) => { e.stopPropagation(); eliminarHolding(h.ticker); }}>✕</button>
+                                </div>
+                              </td>
                             </tr>
                             {expandedTicker === h.ticker && (
                               <tr className="expanded-panel-row">
