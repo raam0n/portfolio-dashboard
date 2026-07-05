@@ -577,6 +577,14 @@ function App() {
   const evals = allEvals[currentPortfolioId] || [];
   const setEvals = (val) => setAllEvals(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
 
+  const [allFlujos, setAllFlujos] = useState(() => {
+    const existing = localStorage.getItem('all_flujos');
+    if (existing) return JSON.parse(existing);
+    return { default: JSON.parse(localStorage.getItem('portfolio_flujos') || '[]') };
+  });
+  const flujos = allFlujos[currentPortfolioId] || [];
+  const setFlujos = (val) => setAllFlujos(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
+
   const [watchlist, setWatchlist] = useState(() => JSON.parse(localStorage.getItem('portfolio_watchlist') || '[]'));
 
   const [prices, setPrices] = useState(() => JSON.parse(localStorage.getItem('cached_prices') || '{}'));
@@ -619,6 +627,13 @@ function App() {
   const [opCantidad, setOpCantidad] = useState('');
   const [opPrecio, setOpPrecio] = useState('');
 
+  const [editingHoldingOriginal, setEditingHoldingOriginal] = useState(null);
+  const [registerPartialSale, setRegisterPartialSale] = useState(false);
+  const [partialSalePrice, setPartialSalePrice] = useState('');
+  
+  const [holdingToDelete, setHoldingToDelete] = useState(null);
+  const [sellPriceForDelete, setSellPriceForDelete] = useState('');
+
   const [wlTicker, setWlTicker] = useState('');
   const [wlTipo, setWlTipo] = useState('accion');
   const [wlMercado, setWlMercado] = useState('BCBA');
@@ -634,16 +649,26 @@ function App() {
 
   const [importJson, setImportJson] = useState('');
   const [currencyMode, setCurrencyMode] = useState('ARS');
+
+  const [showAddFlujo, setShowAddFlujo] = useState(false);
+  const [flujoFecha, setFlujoFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [flujoTipo, setFlujoTipo] = useState('ingreso');
+  const [flujoMoneda, setFlujoMoneda] = useState('ARS');
+  const [flujoMonto, setFlujoMonto] = useState('');
+  const [flujoCotizacion, setFlujoCotizacion] = useState('');
+  const [flujoNota, setFlujoNota] = useState('');
+
   // Persist storage whenever collections change
   useEffect(() => {
     localStorage.setItem('all_holdings', JSON.stringify(allHoldings));
     localStorage.setItem('all_operaciones', JSON.stringify(allOperaciones));
     localStorage.setItem('all_trades', JSON.stringify(allTrades));
     localStorage.setItem('all_evals', JSON.stringify(allEvals));
+    localStorage.setItem('all_flujos', JSON.stringify(allFlujos));
     localStorage.setItem('portfolio_watchlist', JSON.stringify(watchlist));
     localStorage.setItem('portfolios_list', JSON.stringify(portfolios));
     localStorage.setItem('current_portfolio_id', currentPortfolioId);
-  }, [allHoldings, allOperaciones, allTrades, allEvals, watchlist, portfolios, currentPortfolioId]);
+  }, [allHoldings, allOperaciones, allTrades, allEvals, allFlujos, watchlist, portfolios, currentPortfolioId]);
 
   // Persist prices separately whenever they are successfully updated
   useEffect(() => {
@@ -952,6 +977,14 @@ function App() {
     const existingIndex = holdings.findIndex(h => h.ticker === ticker && h.mercado === newMercado);
     
     if (existingIndex !== -1) {
+      if (editingHoldingOriginal && cant < editingHoldingOriginal.cantidad && registerPartialSale) {
+        const diff = editingHoldingOriginal.cantidad - cant;
+        const sp = parseFloat(partialSalePrice);
+        if (!isNaN(sp)) {
+          const op = { id: Date.now().toString(), ticker: ticker, assetTipo: newTipo, tipo: 'venta', cantidad: diff, precio: sp, fecha: new Date().toISOString().split('T')[0] };
+          setOperaciones(prev => [...prev, op]);
+        }
+      }
       const newHoldings = [...holdings];
       newHoldings[existingIndex] = { ...newHoldings[existingIndex], cantidad: cant, precioEntrada: prec, nombre: newNombre.trim(), tipo: newTipo };
       if (newTipo === 'bono') {
@@ -976,10 +1009,14 @@ function App() {
 
     setPrices(nPrices);
     setNewTicker(''); setNewNombre(''); setNewCantidad(''); setNewPrecio(''); setNewPrecioActual('');
+    setEditingHoldingOriginal(null); setRegisterPartialSale(false); setPartialSalePrice('');
     setShowAddHolding(false);
   };
 
   const cargarEdicionHolding = (h) => {
+    setEditingHoldingOriginal(h);
+    setRegisterPartialSale(false);
+    setPartialSalePrice('');
     setNewTicker(h.ticker);
     setNewTipo(h.tipo);
     setNewMercado(h.mercado);
@@ -990,9 +1027,25 @@ function App() {
     setShowAddHolding(true);
   };
 
-  const eliminarHolding = (ticker) => {
-    if (!window.confirm(`¿Remover ${ticker} del portfolio?`)) return;
-    setHoldings(holdings.filter(h => h.ticker !== ticker));
+  const requestEliminarHolding = (h) => {
+    setHoldingToDelete(h);
+    setSellPriceForDelete('');
+  };
+
+  const confirmEliminarHolding = (isVenta) => {
+    if (!holdingToDelete) return;
+    if (isVenta) {
+      const sp = parseFloat(sellPriceForDelete);
+      if (!isNaN(sp)) {
+        const op = { id: Date.now().toString(), ticker: holdingToDelete.ticker, assetTipo: holdingToDelete.tipo, tipo: 'venta', cantidad: holdingToDelete.cantidad, precio: sp, fecha: new Date().toISOString().split('T')[0] };
+        setOperaciones(prev => [...prev, op]);
+      } else {
+        alert('Ingresá un precio de venta válido.');
+        return;
+      }
+    }
+    setHoldings(holdings.filter(h => h.ticker !== holdingToDelete.ticker));
+    setHoldingToDelete(null);
   };
 
   const editBonoPrecio = (ticker) => {
@@ -1029,7 +1082,40 @@ function App() {
   };
 
 
-  // --- OPERATIONS BUSINESS LOGIC ---
+  // --- FLUJOS BUSINESS LOGIC ---
+  const agregarFlujo = () => {
+    const fMonto = parseFloat(flujoMonto);
+    if (isNaN(fMonto) || fMonto <= 0) return alert('Ingresá un monto válido.');
+    
+    let cotiz = null;
+    if (flujoMoneda === 'ARS') {
+      cotiz = parseFloat(flujoCotizacion);
+      if (isNaN(cotiz) || cotiz <= 0) return alert('Para ARS necesitás indicar el tipo de cambio histórico o usar el actual.');
+    }
+
+    const f = { 
+      id: Date.now().toString(), 
+      fecha: flujoFecha, 
+      tipo: flujoTipo, 
+      monto: fMonto, 
+      moneda: flujoMoneda, 
+      cotizacion: cotiz, 
+      nota: flujoNota.trim() 
+    };
+
+    setFlujos([...flujos, f]);
+    setFlujoMonto('');
+    setFlujoCotizacion('');
+    setFlujoNota('');
+    setShowAddFlujo(false);
+  };
+
+  const eliminarFlujo = (id) => {
+    if (!window.confirm('¿Remover este registro de flujo?')) return;
+    setFlujos(flujos.filter(f => f.id !== id));
+  };
+
+  // --- OPERACIONES BUSINESS LOGIC ---
   const agregarOperacion = () => {
     let ticker = opTicker.trim().toUpperCase();
     const cant = parseFloat(opCantidad);
@@ -1123,7 +1209,7 @@ function App() {
 
   // --- IMP/EXP LOGIC ---
   const exportar = () => {
-    const json = JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, portfolios, currentPortfolioId, watchlist }, null, 2);
+    const json = JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, allFlujos, portfolios, currentPortfolioId, watchlist }, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1132,7 +1218,7 @@ function App() {
   };
 
   const copiarJSON = () => {
-    const json = JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, portfolios, currentPortfolioId, watchlist }, null, 2);
+    const json = JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, allFlujos, portfolios, currentPortfolioId, watchlist }, null, 2);
     navigator.clipboard.writeText(json).then(() => alert('JSON Copiado'));
   };
 
@@ -1147,6 +1233,7 @@ function App() {
         setAllOperaciones(data.allOperaciones || {});
         setAllTrades(data.allTrades || {});
         setAllEvals(data.allEvals || {});
+        setAllFlujos(data.allFlujos || {});
         setPortfolios(data.portfolios || [{id:'default', name:'Mi Portfolio Principal'}]);
         setCurrentPortfolioId(data.currentPortfolioId || 'default');
       } else if (Array.isArray(data.holdings)) {
@@ -1155,6 +1242,7 @@ function App() {
         setAllOperaciones({ default: data.operaciones || [] });
         setAllTrades({ default: data.trades || [] });
         setAllEvals({ default: data.evals || [] });
+        setAllFlujos({ default: data.flujos || [] });
         setPortfolios([{id:'default', name:'Mi Portfolio Principal'}]);
         setCurrentPortfolioId('default');
       } else {
@@ -1173,7 +1261,7 @@ function App() {
   const borrarTodo = () => {
     const typed = window.prompt('Escribí "BORRAR" para formatear todo.');
     if (typed === 'BORRAR') {
-      setAllHoldings({}); setAllOperaciones({}); setAllTrades({}); setAllEvals({});
+      setAllHoldings({}); setAllOperaciones({}); setAllTrades({}); setAllEvals({}); setAllFlujos({});
       setPortfolios([{id:'default', name:'Mi Portfolio Principal'}]);
       setCurrentPortfolioId('default');
       setWatchlist([]); setPrices({});
@@ -1336,6 +1424,7 @@ function App() {
       <nav className="tabs-nav">
         <div style={{ display: 'flex', gap: '1rem' }}>
           <button className={`tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`} onClick={() => setActiveTab('portfolio')}>Mi Portfolio</button>
+          <button className={`tab-btn ${activeTab === 'flujos' ? 'active' : ''}`} onClick={() => setActiveTab('flujos')}>Flujos de Caja</button>
           <button className={`tab-btn ${activeTab === 'operaciones' ? 'active' : ''}`} onClick={() => setActiveTab('operaciones')}>Histórico</button>
           <button className={`tab-btn ${activeTab === 'watchlist' ? 'active' : ''}`} onClick={() => setActiveTab('watchlist')}>Watchlist</button>
           <button className={`tab-btn ${activeTab === 'mercados' ? 'active' : ''}`} onClick={() => setActiveTab('mercados')}>Mercados</button>
@@ -1386,7 +1475,7 @@ function App() {
               </div>
               <label>Exportar Datos (JSON)</label>
               <p className="hint" style={{ marginBottom: '8px' }}>Guardá este JSON de forma segura como backup (incluye todos los portfolios).</p>
-              <textarea readOnly rows="4" style={{ fontFamily: 'monospace', fontSize: '11px' }} value={JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, portfolios, currentPortfolioId, watchlist }, null, 2)}></textarea>
+              <textarea readOnly rows="4" style={{ fontFamily: 'monospace', fontSize: '11px' }} value={JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, allFlujos, portfolios, currentPortfolioId, watchlist }, null, 2)}></textarea>
               <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
                 <button className="btn" onClick={exportar}>Descargar Archivo</button>
                 <button className="btn" onClick={copiarJSON}>Copiar</button>
@@ -1529,6 +1618,23 @@ function App() {
                     <input type="number" value={newPrecio} onChange={e => setNewPrecio(e.target.value)} placeholder="0.00" step="0.01" />
                   </div>
                 </div>
+                {editingHoldingOriginal && parseFloat(newCantidad) < editingHoldingOriginal.cantidad && (
+                  <div style={{ marginBottom: '12px', padding: '10px', backgroundColor: 'rgba(99, 102, 241, 0.1)', borderRadius: '8px', border: '1px dashed var(--accent)' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '8px', fontSize: '13px' }}>
+                      <input type="checkbox" checked={registerPartialSale} onChange={e => setRegisterPartialSale(e.target.checked)} />
+                      Registrar la diferencia ({editingHoldingOriginal.cantidad - parseFloat(newCantidad)} nominales) como Venta en Operaciones
+                    </label>
+                    {registerPartialSale && (
+                      <div className="form-row">
+                        <div>
+                          <label>Precio de Venta Unitario ($)</label>
+                          <input type="number" placeholder="0.00" step="0.01" value={partialSalePrice} onChange={e => setPartialSalePrice(e.target.value)} />
+                        </div>
+                        <div></div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {newTipo === 'bono' && (
                   <div style={{ marginBottom: '12px' }}>
                     <div className="form-row">
@@ -1629,7 +1735,7 @@ function App() {
                               <td>
                                 <div style={{ display: 'flex', gap: '4px' }}>
                                   <button className="btn btn-sm" title="Editar" onClick={(e) => { e.stopPropagation(); cargarEdicionHolding(h); }}>✎</button>
-                                  <button className="btn btn-sm btn-danger" title="Eliminar" onClick={(e) => { e.stopPropagation(); eliminarHolding(h.ticker); }}>✕</button>
+                                  <button className="btn btn-sm btn-danger" title="Eliminar" onClick={(e) => { e.stopPropagation(); requestEliminarHolding(h); }}>✕</button>
                                 </div>
                               </td>
                             </tr>
@@ -2102,6 +2208,139 @@ function App() {
         </>
       )}
       {/* --- TAB: MERCADOS --- */}
+      {activeTab === 'flujos' && (
+        <div className="tab-pane active">
+          <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 className="section-title">Flujos de Caja</h2>
+            <button className="btn btn-primary" onClick={() => setShowAddFlujo(!showAddFlujo)}>+ Registrar Movimiento</button>
+          </div>
+
+          {(() => {
+            let totalIngresosUSD = 0;
+            let totalExtraccionesUSD = 0;
+            
+            flujos.forEach(f => {
+              let usdVal = f.monto;
+              if (f.moneda === 'ARS') {
+                const tipoCambio = f.cotizacion || dolarMep || 1;
+                usdVal = f.monto / tipoCambio;
+              }
+              if (f.tipo === 'ingreso') totalIngresosUSD += usdVal;
+              else totalExtraccionesUSD += usdVal;
+            });
+            const netoUSD = totalIngresosUSD - totalExtraccionesUSD;
+
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+                <div className="metric-card">
+                  <div className="metric-title">Ingresos Totales (Capital)</div>
+                  <div className="metric-value positive">US${fmt(totalIngresosUSD)}</div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-title">Extracciones Totales</div>
+                  <div className="metric-value negative">US${fmt(totalExtraccionesUSD)}</div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-title">Flujo Neto (Capital Activo)</div>
+                  <div className="metric-value">US${fmt(netoUSD)}</div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {showAddFlujo && (
+            <div className="glass-panel" style={{ marginBottom: '20px', padding: '20px' }}>
+              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Nuevo Movimiento de Caja</div>
+              <div className="form-row">
+                <div>
+                  <label>Fecha</label>
+                  <input type="date" value={flujoFecha} onChange={e => setFlujoFecha(e.target.value)} />
+                </div>
+                <div>
+                  <label>Tipo</label>
+                  <select value={flujoTipo} onChange={e => setFlujoTipo(e.target.value)}>
+                    <option value="ingreso">Ingreso (Fondeo)</option>
+                    <option value="extraccion">Extracción (Retiro)</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Moneda</label>
+                  <select value={flujoMoneda} onChange={e => setFlujoMoneda(e.target.value)}>
+                    <option value="ARS">Pesos (ARS)</option>
+                    <option value="USD">Dólares (USD)</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div>
+                  <label>Monto</label>
+                  <input type="number" step="0.01" value={flujoMonto} onChange={e => setFlujoMonto(e.target.value)} placeholder="0.00" />
+                </div>
+                {flujoMoneda === 'ARS' && (
+                  <div>
+                    <label>Dólar Histórico ($) {dolarMep ? `(Actual: $${fmt(dolarMep)})` : ''}</label>
+                    <input type="number" step="0.01" value={flujoCotizacion} onChange={e => setFlujoCotizacion(e.target.value)} placeholder="ej: 1100.50" />
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>Si lo dejás vacío, usaremos el MEP en vivo actual.</div>
+                  </div>
+                )}
+                <div style={{ flex: flujoMoneda === 'ARS' ? 1 : 2 }}>
+                  <label>Nota (opcional)</label>
+                  <input type="text" value={flujoNota} onChange={e => setFlujoNota(e.target.value)} placeholder="Broker local, sueldo, etc." />
+                </div>
+              </div>
+              <div style={{ marginTop: '15px' }}>
+                <button className="btn btn-primary" onClick={agregarFlujo}>Guardar Movimiento</button>
+                <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddFlujo(false)}>Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          <div className="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Tipo</th>
+                  <th>Moneda</th>
+                  <th>Monto Original</th>
+                  <th>Cotización Aplicada</th>
+                  <th>Equivalente USD</th>
+                  <th>Nota</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {flujos.length === 0 ? (
+                  <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>No hay flujos registrados</td></tr>
+                ) : (
+                  [...flujos].sort((a,b) => new Date(b.fecha) - new Date(a.fecha)).map(f => {
+                    let usdVal = f.monto;
+                    let cotiz = '—';
+                    if (f.moneda === 'ARS') {
+                      const tipoCambio = f.cotizacion || dolarMep || 1;
+                      usdVal = f.monto / tipoCambio;
+                      cotiz = `$${fmt(tipoCambio)}`;
+                    }
+                    return (
+                      <tr key={f.id}>
+                        <td>{new Date(f.fecha + 'T12:00:00Z').toLocaleDateString('es-AR')}</td>
+                        <td><span className={`badge ${f.tipo === 'ingreso' ? 'badge-compra' : 'badge-venta'}`}>{f.tipo.toUpperCase()}</span></td>
+                        <td>{f.moneda}</td>
+                        <td><strong>${fmt(f.monto)}</strong></td>
+                        <td style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{cotiz}</td>
+                        <td className={f.tipo === 'ingreso' ? 'positive' : 'negative'}>US${fmt(usdVal)}</td>
+                        <td style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{f.nota}</td>
+                        <td><button className="btn btn-sm btn-danger" onClick={() => eliminarFlujo(f.id)}>✕</button></td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'mercados' && (
         <div className="glass-panel">
           <div className="panel-header">
@@ -2523,6 +2762,29 @@ function App() {
               })()}
             </>
           )}
+        </div>
+      )}
+
+      {holdingToDelete && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(3px)' }}>
+          <div className="glass-panel" style={{ width: '420px', padding: '24px', backgroundColor: 'var(--bg-main)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '8px' }}>Eliminar {holdingToDelete.ticker}</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '20px' }}>¿Por qué querés eliminar este activo de tu portfolio?</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ padding: '16px', border: '1px solid var(--accent)', borderRadius: '8px', backgroundColor: 'rgba(99, 102, 241, 0.05)' }}>
+                <p style={{ margin: '0 0 12px 0', fontSize: '13px' }}><strong>Vendí toda la posición</strong> <br/><span style={{opacity: 0.8}}>(Se registrará una venta por {holdingToDelete.cantidad} nominales en Operaciones)</span></p>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <input type="number" placeholder="Precio Venta ($)" step="0.01" value={sellPriceForDelete} onChange={e => setSellPriceForDelete(e.target.value)} style={{ flex: 1 }} />
+                  <button className="btn btn-primary" onClick={() => confirmEliminarHolding(true)}>Registrar Venta</button>
+                </div>
+              </div>
+
+              <button className="btn" onClick={() => confirmEliminarHolding(false)}>Fue un error de carga (Solo borrar)</button>
+            </div>
+            
+            <button className="btn" style={{ marginTop: '16px', width: '100%', border: 'none', background: 'transparent' }} onClick={() => setHoldingToDelete(null)}>Cancelar</button>
+          </div>
         </div>
       )}
 
