@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
+import { logApiUsage } from './apiLogger.js';
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
@@ -22,9 +23,11 @@ export async function analyzeMovement(ticker, priceChange) {
       if (data.news && data.news.length > 0) {
         newsContext = data.news.map(n => `- ${n.title} (${n.publisher})`).join('\n');
       }
+      logApiUsage({ service_name: 'Yahoo Finance', feature: 'ai_movement_analysis', endpoint_model: '/v1/finance/search' });
     }
   } catch (err) {
     console.warn("Error fetching news from Yahoo Finance:", err);
+    logApiUsage({ service_name: 'Yahoo Finance', feature: 'ai_movement_analysis', endpoint_model: '/v1/finance/search', status: 'error', error_message: err.message });
   }
 
   // 1.5 Fetch macro events from JBlanked API
@@ -41,9 +44,11 @@ export async function analyzeMovement(ticker, priceChange) {
         if (Array.isArray(jData) && jData.length > 0) {
           macroContext = jData.map(e => `- ${e.title || e.name} (${e.currency || e.country}): Actual ${e.actual || 'N/A'}, Previo ${e.previous || 'N/A'}`).join('\n');
         }
+        logApiUsage({ service_name: 'JBlanked', feature: 'ai_movement_analysis', endpoint_model: '/calendar/today/' });
       }
     } catch (e) {
       console.warn("Error fetching JBlanked events:", e);
+      logApiUsage({ service_name: 'JBlanked', feature: 'ai_movement_analysis', endpoint_model: '/calendar/today/', status: 'error', error_message: e.message });
     }
   }
 
@@ -125,6 +130,17 @@ ${macroContext}
 
   try {
     const result = await model.generateContent(prompt);
+    
+    // Loguear uso de Gemini
+    const usage = result.response.usageMetadata || {};
+    logApiUsage({ 
+        service_name: 'Gemini', 
+        feature: 'ai_movement_analysis', 
+        endpoint_model: 'gemini-3.5-flash',
+        tokens_prompt: usage.promptTokenCount || 0,
+        tokens_completion: usage.candidatesTokenCount || 0
+    });
+
     const text = result.response.text();
     const parsedResult = JSON.parse(text);
 
@@ -145,6 +161,13 @@ ${macroContext}
   } catch (error) {
     console.error("Gemini API Error:", error);
     const detail = error?.message || error?.statusText || String(error);
+    logApiUsage({ 
+        service_name: 'Gemini', 
+        feature: 'ai_movement_analysis', 
+        endpoint_model: 'gemini-3.5-flash',
+        status: 'error',
+        error_message: detail
+    });
     throw new Error(`Error de IA: ${detail}`);
   }
 }
