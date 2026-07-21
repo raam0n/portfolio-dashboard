@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import './index.css';
 import MarketInsights from './components/MarketInsights';
 import MarketTreemap from './components/MarketTreemap';
+import ApiUsageDashboard from './components/ApiUsageDashboard';
 import { analyzeMovement } from './services/aiAnalyzer';
+import { extractPortfolioDataFromImage } from './services/visionService';
 
 
 // ── Pure SVG Pie Chart ────────────────────────────────────────────────────────
@@ -538,17 +540,80 @@ function IndexTickerBar({ dailyStats }) {
   );
 }
 
+// --- MIGRATION TO PORTFOLIO NAMES AS IDS ---
+function migratePortfoliosToNames() {
+  try {
+    const portfoliosStr = localStorage.getItem('portfolios_list');
+    if (!portfoliosStr) return; // Nothing to migrate or default will be set
+    const portfolios = JSON.parse(portfoliosStr);
+    
+    // Check if there is any portfolio with id !== name
+    const needsMigration = portfolios.some(p => p.id !== p.name);
+    if (!needsMigration) return;
+    
+    // Build ID to Name map
+    const idToNameMap = {};
+    const migratedPortfolios = portfolios.map(p => {
+      const name = p.name ? p.name.trim() : 'Mi Portfolio Principal';
+      idToNameMap[p.id] = name;
+      return { id: name, name: name };
+    });
+    
+    // Migrate current portfolio ID
+    const currentId = localStorage.getItem('current_portfolio_id') || 'default';
+    const newCurrentId = idToNameMap[currentId] || currentId;
+    localStorage.setItem('current_portfolio_id', newCurrentId);
+    
+    // Helper to migrate keys in object
+    const migrateObjectKeys = (localStorageKey) => {
+      const dataStr = localStorage.getItem(localStorageKey);
+      if (!dataStr) return;
+      try {
+        const data = JSON.parse(dataStr);
+        const newData = {};
+        for (const [oldId, val] of Object.entries(data)) {
+          const newId = idToNameMap[oldId] || oldId;
+          // Merge if newId already exists (unlikely, but safe)
+          if (newData[newId]) {
+            newData[newId] = [...newData[newId], ...val];
+          } else {
+            newData[newId] = val;
+          }
+        }
+        localStorage.setItem(localStorageKey, JSON.stringify(newData));
+      } catch (err) {
+        console.error(`Error migrating ${localStorageKey}:`, err);
+      }
+    };
+    
+    migrateObjectKeys('all_holdings');
+    migrateObjectKeys('all_operaciones');
+    migrateObjectKeys('all_trades');
+    migrateObjectKeys('all_evals');
+    migrateObjectKeys('all_flujos');
+    
+    // Save updated portfolios list
+    localStorage.setItem('portfolios_list', JSON.stringify(migratedPortfolios));
+    console.log("Migration to portfolio names completed successfully!");
+  } catch (e) {
+    console.error("Error during portfolio migration:", e);
+  }
+}
+// Execute migration immediately on script load
+if (typeof window !== 'undefined' && window.localStorage) {
+  migratePortfoliosToNames();
+}
 
 function App() {
   const [activeTab, setActiveTab] = useState('portfolio'); // 'portfolio', 'operaciones', 'watchlist', 'trades'
 
-  const [portfolios, setPortfolios] = useState(() => JSON.parse(localStorage.getItem('portfolios_list') || '[{"id":"default","name":"Mi Portfolio Principal"}]'));
-  const [currentPortfolioId, setCurrentPortfolioId] = useState(() => localStorage.getItem('current_portfolio_id') || 'default');
+  const [portfolios, setPortfolios] = useState(() => JSON.parse(localStorage.getItem('portfolios_list') || '[{"id":"Mi Portfolio Principal","name":"Mi Portfolio Principal"}]'));
+  const [currentPortfolioId, setCurrentPortfolioId] = useState(() => localStorage.getItem('current_portfolio_id') || 'Mi Portfolio Principal');
 
   const [allHoldings, setAllHoldings] = useState(() => {
     const existing = localStorage.getItem('all_holdings');
     if (existing) return JSON.parse(existing);
-    return { default: JSON.parse(localStorage.getItem('portfolio_holdings') || '[]') };
+    return { "Mi Portfolio Principal": JSON.parse(localStorage.getItem('portfolio_holdings') || '[]') };
   });
   const holdings = allHoldings[currentPortfolioId] || [];
   const setHoldings = (val) => setAllHoldings(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
@@ -556,7 +621,7 @@ function App() {
   const [allOperaciones, setAllOperaciones] = useState(() => {
     const existing = localStorage.getItem('all_operaciones');
     if (existing) return JSON.parse(existing);
-    return { default: JSON.parse(localStorage.getItem('portfolio_operaciones') || '[]') };
+    return { "Mi Portfolio Principal": JSON.parse(localStorage.getItem('portfolio_operaciones') || '[]') };
   });
   const operaciones = allOperaciones[currentPortfolioId] || [];
   const setOperaciones = (val) => setAllOperaciones(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
@@ -564,7 +629,7 @@ function App() {
   const [allTrades, setAllTrades] = useState(() => {
     const existing = localStorage.getItem('all_trades');
     if (existing) return JSON.parse(existing);
-    return { default: JSON.parse(localStorage.getItem('portfolio_trades') || '[]') };
+    return { "Mi Portfolio Principal": JSON.parse(localStorage.getItem('portfolio_trades') || '[]') };
   });
   const trades = allTrades[currentPortfolioId] || [];
   const setTrades = (val) => setAllTrades(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
@@ -572,7 +637,7 @@ function App() {
   const [allEvals, setAllEvals] = useState(() => {
     const existing = localStorage.getItem('all_evals');
     if (existing) return JSON.parse(existing);
-    return { default: JSON.parse(localStorage.getItem('portfolio_evals') || '[]') };
+    return { "Mi Portfolio Principal": JSON.parse(localStorage.getItem('portfolio_evals') || '[]') };
   });
   const evals = allEvals[currentPortfolioId] || [];
   const setEvals = (val) => setAllEvals(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
@@ -580,7 +645,7 @@ function App() {
   const [allFlujos, setAllFlujos] = useState(() => {
     const existing = localStorage.getItem('all_flujos');
     if (existing) return JSON.parse(existing);
-    return { default: JSON.parse(localStorage.getItem('portfolio_flujos') || '[]') };
+    return { "Mi Portfolio Principal": JSON.parse(localStorage.getItem('portfolio_flujos') || '[]') };
   });
   const flujos = allFlujos[currentPortfolioId] || [];
   const setFlujos = (val) => setAllFlujos(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
@@ -643,6 +708,96 @@ function App() {
   const [wlPais, setWlPais] = useState('');
   const [wlTypeFilters, setWlTypeFilters] = useState([]);
   const [wlSectorFilters, setWlSectorFilters] = useState([]);
+
+  const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
+  const [analyzeImageError, setAnalyzeImageError] = useState(null);
+
+  const processImageFile = async (file) => {
+    if (!file || !file.type.startsWith('image/')) {
+      setAnalyzeImageError('Por favor selecciona una imagen válida.');
+      return;
+    }
+    setIsAnalyzingImage(true);
+    setAnalyzeImageError(null);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64String = reader.result.split(',')[1];
+          const data = await extractPortfolioDataFromImage(base64String, file.type);
+          if (Array.isArray(data) && data.length > 0) {
+            if (data.length === 1) {
+              const item = data[0];
+              if (item.ticker) setNewTicker(item.ticker);
+              if (item.cantidad !== null && item.cantidad !== undefined) setNewCantidad(item.cantidad.toString());
+              if (item.precio_promedio !== null && item.precio_promedio !== undefined) setNewPrecio(item.precio_promedio.toString());
+              if (item.tipo) {
+                let t = item.tipo.toLowerCase();
+                if (t === 'acciones') t = 'accion';
+                if (t === 'cedears') t = 'cedear';
+                if (t === 'bonos') t = 'bono';
+                if (['accion', 'cedear', 'bono'].includes(t)) setNewTipo(t);
+              }
+            } else {
+              setHoldings(prev => {
+                let newHoldings = [...prev];
+                data.forEach(item => {
+                  if (!item.ticker) return;
+                  const ticker = item.ticker.trim().toUpperCase();
+                  const cant = parseFloat(item.cantidad);
+                  const prec = parseFloat(item.precio_promedio);
+                  if (isNaN(cant) || isNaN(prec)) return;
+
+                  const existingIndex = newHoldings.findIndex(h => h.ticker === ticker);
+                  if (existingIndex !== -1) {
+                    newHoldings[existingIndex] = { ...newHoldings[existingIndex], cantidad: cant, precioEntrada: prec };
+                  } else {
+                    let tipo = item.tipo ? item.tipo.toLowerCase() : 'accion';
+                    if (tipo === 'acciones') tipo = 'accion';
+                    if (tipo === 'cedears') tipo = 'cedear';
+                    if (tipo === 'bonos') tipo = 'bono';
+                    if (!['accion', 'cedear', 'bono', 'stock', 'efectivo'].includes(tipo)) tipo = 'accion';
+                    
+                    newHoldings.push({ ticker, tipo, mercado: 'BCBA', nombre: '', cantidad: cant, precioEntrada: prec });
+                  }
+                });
+                return newHoldings;
+              });
+              alert(`¡Se detectaron e importaron/actualizaron ${data.length} activos correctamente!`);
+              setShowAddHolding(false);
+            }
+          } else {
+            throw new Error("No se detectó ningún activo en la imagen.");
+          }
+          setIsAnalyzingImage(false);
+        } catch (err) {
+          setAnalyzeImageError(err.message);
+          setIsAnalyzingImage(false);
+        }
+      };
+      reader.onerror = () => {
+        setAnalyzeImageError('Error al leer la imagen.');
+        setIsAnalyzingImage(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setAnalyzeImageError(err.message);
+      setIsAnalyzingImage(false);
+    }
+  };
+
+  const handlePasteCapture = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        processImageFile(file);
+        e.preventDefault();
+        break;
+      }
+    }
+  };
   const [wlSubsectorFilters, setWlSubsectorFilters] = useState([]);
   const [wlPaisFilters, setWlPaisFilters] = useState([]);
   const [wlExcludedTickers, setWlExcludedTickers] = useState([]);
@@ -1222,29 +1377,73 @@ function App() {
     navigator.clipboard.writeText(json).then(() => alert('JSON Copiado'));
   };
 
+  const migrateImportedData = (data) => {
+    if (!data || !data.portfolios) return data;
+    
+    const needsMigration = data.portfolios.some(p => p.id !== p.name);
+    if (!needsMigration) return data;
+    
+    const idToNameMap = {};
+    const migratedPortfolios = data.portfolios.map(p => {
+      const name = p.name ? p.name.trim() : 'Mi Portfolio Principal';
+      idToNameMap[p.id] = name;
+      return { id: name, name: name };
+    });
+    
+    const migrateDict = (dict) => {
+      if (!dict) return {};
+      const newDict = {};
+      for (const [oldId, val] of Object.entries(dict)) {
+        const newId = idToNameMap[oldId] || oldId;
+        if (newDict[newId]) {
+          newDict[newId] = [...newDict[newId], ...val];
+        } else {
+          newDict[newId] = val;
+        }
+      }
+      return newDict;
+    };
+    
+    const currentId = data.currentPortfolioId || 'default';
+    const newCurrentId = idToNameMap[currentId] || currentId;
+    
+    return {
+      ...data,
+      portfolios: migratedPortfolios,
+      currentPortfolioId: newCurrentId,
+      allHoldings: migrateDict(data.allHoldings),
+      allOperaciones: migrateDict(data.allOperaciones),
+      allTrades: migrateDict(data.allTrades),
+      allEvals: migrateDict(data.allEvals),
+      allFlujos: migrateDict(data.allFlujos)
+    };
+  };
+
   const importar = () => {
     try {
-      const data = JSON.parse(importJson.trim());
+      let data = JSON.parse(importJson.trim());
       if (!window.confirm('Esto sobreescribirá todo tu portfolio actual. ¿Proceder?')) return;
 
       if (data.allHoldings) {
-        // New format
+        // Run migration if needed
+        data = migrateImportedData(data);
+        
         setAllHoldings(data.allHoldings);
         setAllOperaciones(data.allOperaciones || {});
         setAllTrades(data.allTrades || {});
         setAllEvals(data.allEvals || {});
         setAllFlujos(data.allFlujos || {});
-        setPortfolios(data.portfolios || [{id:'default', name:'Mi Portfolio Principal'}]);
-        setCurrentPortfolioId(data.currentPortfolioId || 'default');
+        setPortfolios(data.portfolios || [{id:'Mi Portfolio Principal', name:'Mi Portfolio Principal'}]);
+        setCurrentPortfolioId(data.currentPortfolioId || 'Mi Portfolio Principal');
       } else if (Array.isArray(data.holdings)) {
         // Legacy format
-        setAllHoldings({ default: data.holdings });
-        setAllOperaciones({ default: data.operaciones || [] });
-        setAllTrades({ default: data.trades || [] });
-        setAllEvals({ default: data.evals || [] });
-        setAllFlujos({ default: data.flujos || [] });
-        setPortfolios([{id:'default', name:'Mi Portfolio Principal'}]);
-        setCurrentPortfolioId('default');
+        setAllHoldings({ "Mi Portfolio Principal": data.holdings });
+        setAllOperaciones({ "Mi Portfolio Principal": data.operaciones || [] });
+        setAllTrades({ "Mi Portfolio Principal": data.trades || [] });
+        setAllEvals({ "Mi Portfolio Principal": data.evals || [] });
+        setAllFlujos({ "Mi Portfolio Principal": data.flujos || [] });
+        setPortfolios([{id:'Mi Portfolio Principal', name:'Mi Portfolio Principal'}]);
+        setCurrentPortfolioId('Mi Portfolio Principal');
       } else {
         throw new Error('Estructura incorrecta');
       }
@@ -1397,9 +1596,17 @@ function App() {
               if (e.target.value === 'NEW') {
                 const name = window.prompt("Nombre del nuevo portfolio:");
                 if (name && name.trim()) {
-                  const newId = 'port_' + Date.now();
-                  setPortfolios([...portfolios, {id: newId, name: name.trim()}]);
-                  setCurrentPortfolioId(newId);
+                  const trimmedName = name.trim();
+                  if (trimmedName.toUpperCase() === 'NEW') {
+                    alert("El nombre 'NEW' es reservado. Elegí otro nombre.");
+                    return;
+                  }
+                  if (portfolios.some(p => p.name.toLowerCase() === trimmedName.toLowerCase())) {
+                    alert("Ya existe un portfolio con ese nombre.");
+                    return;
+                  }
+                  setPortfolios([...portfolios, {id: trimmedName, name: trimmedName}]);
+                  setCurrentPortfolioId(trimmedName);
                 }
               } else {
                 setCurrentPortfolioId(e.target.value);
@@ -1431,6 +1638,7 @@ function App() {
           <button className={`tab-btn ${activeTab === 'insights' ? 'active' : ''}`} onClick={() => setActiveTab('insights')}>Insights</button>
           <button className={`tab-btn ${activeTab === 'evaluacion' ? 'active' : ''}`} onClick={() => setActiveTab('evaluacion')}>Evaluación</button>
           <button className={`tab-btn ${activeTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveTab('trades')}>Trades</button>
+          <button className={`tab-btn ${activeTab === 'api-dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('api-dashboard')}>API Dashboard</button>
         </div>
         {dolarMep && (
           <div style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>
@@ -1458,18 +1666,60 @@ function App() {
                   const p = portfolios.find(p => p.id === currentPortfolioId);
                   const newName = window.prompt("Nuevo nombre:", p.name);
                   if (newName && newName.trim()) {
-                    setPortfolios(portfolios.map(p => p.id === currentPortfolioId ? { ...p, name: newName.trim() } : p));
+                    const cleanNewName = newName.trim();
+                    if (cleanNewName.toUpperCase() === 'NEW') {
+                      alert("El nombre 'NEW' es reservado. Elegí otro nombre.");
+                      return;
+                    }
+                    if (cleanNewName !== p.name && portfolios.some(x => x.name.toLowerCase() === cleanNewName.toLowerCase())) {
+                      alert("Ya existe un portfolio con ese nombre.");
+                      return;
+                    }
+                    
+                    const oldId = currentPortfolioId;
+                    const newId = cleanNewName;
+                    
+                    setPortfolios(portfolios.map(item => item.id === oldId ? { id: newId, name: newId } : item));
+                    
+                    const renameKey = (obj) => {
+                      const newObj = { ...obj };
+                      if (oldId in newObj) {
+                        newObj[newId] = newObj[oldId];
+                        delete newObj[oldId];
+                      }
+                      return newObj;
+                    };
+                    
+                    setAllHoldings(renameKey);
+                    setAllOperaciones(renameKey);
+                    setAllTrades(renameKey);
+                    setAllEvals(renameKey);
+                    setAllFlujos(renameKey);
+                    
+                    setCurrentPortfolioId(newId);
                   }
                 }}>Renombrar</button>
                 <button className="btn btn-danger" disabled={portfolios.length <= 1} onClick={() => {
                   if (portfolios.length <= 1) return;
                   if (window.confirm("¿Seguro que querés eliminar el portfolio actual y todos sus datos?")) {
-                    setPortfolios(portfolios.filter(p => p.id !== currentPortfolioId));
-                    const newAllHoldings = { ...allHoldings }; delete newAllHoldings[currentPortfolioId]; setAllHoldings(newAllHoldings);
-                    const newAllOps = { ...allOperaciones }; delete newAllOps[currentPortfolioId]; setAllOperaciones(newAllOps);
-                    const newAllTrades = { ...allTrades }; delete newAllTrades[currentPortfolioId]; setAllTrades(newAllTrades);
-                    const newAllEvals = { ...allEvals }; delete newAllEvals[currentPortfolioId]; setAllEvals(newAllEvals);
-                    setCurrentPortfolioId(portfolios.filter(p => p.id !== currentPortfolioId)[0].id);
+                    const oldId = currentPortfolioId;
+                    const nextPortfolio = portfolios.filter(p => p.id !== oldId)[0];
+                    
+                    setPortfolios(portfolios.filter(p => p.id !== oldId));
+                    
+                    const deleteKey = (obj) => {
+                      const newObj = { ...obj };
+                      delete newObj[oldId];
+                      return newObj;
+                    };
+                    
+                    setAllHoldings(deleteKey);
+                    setAllOperaciones(deleteKey);
+                    setAllTrades(deleteKey);
+                    setAllEvals(deleteKey);
+                    setAllFlujos(deleteKey);
+                    
+                    setCurrentPortfolioId(nextPortfolio.id);
                   }
                 }}>Eliminar Portfolio</button>
               </div>
@@ -1570,8 +1820,24 @@ function App() {
             </div>
 
             {showAddHolding && (
-              <div className="collapsible-content active">
-                <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Nuevo Holding</div>
+              <div className="collapsible-content active" tabIndex="0" onPaste={handlePasteCapture} style={{ outline: 'none' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div className="panel-title" style={{ fontSize: '14px', margin: 0 }}>Nuevo Holding</div>
+                  <div 
+                    style={{ 
+                      fontSize: '12px', color: 'var(--text-muted)', 
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      border: '1px dashed var(--accent)', padding: '8px 12px',
+                      borderRadius: '8px', backgroundColor: 'rgba(99, 102, 241, 0.05)',
+                      cursor: 'text'
+                    }}
+                    title="Haz click en cualquier parte de este cuadro y presiona Ctrl+V"
+                  >
+                    <span>📸 Haz click en este recuadro y presiona <b>Ctrl + V</b> para pegar una captura del broker y autocompletar.</span>
+                  </div>
+                </div>
+                {isAnalyzingImage && <div style={{ marginBottom: '12px', fontSize: '13px', color: 'var(--accent)', fontWeight: 'bold' }}>Analizando imagen con IA... ⏳</div>}
+                {analyzeImageError && <div style={{ marginBottom: '12px', fontSize: '13px', color: 'var(--danger)' }}>{analyzeImageError}</div>}
                 <div className="form-row">
                   <div>
                     <label>Tipo</label>
@@ -2785,6 +3051,12 @@ function App() {
             
             <button className="btn" style={{ marginTop: '16px', width: '100%', border: 'none', background: 'transparent' }} onClick={() => setHoldingToDelete(null)}>Cancelar</button>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'api-dashboard' && (
+        <div className="tab-content fade-in">
+          <ApiUsageDashboard />
         </div>
       )}
 
