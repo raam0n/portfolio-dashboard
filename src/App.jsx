@@ -913,7 +913,25 @@ function App() {
     }
   };
 
-  const refreshAll = async () => {
+  const [refreshPref, setRefreshPref] = useState(() => {
+    return localStorage.getItem('refresh_preference') || 'ask'; // 'ask', 'current', 'all'
+  });
+  const [showRefreshModal, setShowRefreshModal] = useState(false);
+  const [dontAskRefreshAgain, setDontAskRefreshAgain] = useState(false);
+
+  const TAB_LABELS = {
+    portfolio: 'Mi Portfolio',
+    flujos: 'Flujos de Caja',
+    operaciones: 'Histórico de Operaciones',
+    watchlist: 'Watchlist',
+    mercados: 'Mercados & Índices Globales',
+    insights: 'Insights',
+    evaluacion: 'Evaluación de Cartera',
+    trades: 'Trades',
+    'api-dashboard': 'API Dashboard'
+  };
+
+  const refreshData = async (scope = 'all') => {
     setStatus('loading');
     setStatusText('Consultando mercado...');
     let hasError = false;
@@ -925,24 +943,44 @@ function App() {
       newStats[ticker] = data;
     };
 
-    // Fetch Data912 arg bonds live data
-    let argBondsData = {};
-    try {
-      const bondsRes = await fetch('https://data912.com/live/arg_bonds');
-      if (bondsRes.ok) {
-        const bondsArray = await bondsRes.json();
-        bondsArray.forEach(b => {
-          argBondsData[b.symbol] = b;
-        });
+    let trackedItems = [];
+    let shouldFetchIndices = scope === 'all' || activeTab === 'mercados';
+    let shouldFetchOps = scope === 'all' || activeTab === 'operaciones';
+
+    if (scope === 'all') {
+      trackedItems = [...holdings, ...watchlist];
+    } else {
+      if (activeTab === 'watchlist') {
+        trackedItems = watchlist;
+      } else if (activeTab === 'mercados') {
+        trackedItems = [];
+      } else if (activeTab === 'operaciones') {
+        trackedItems = holdings;
+      } else if (activeTab === 'trades') {
+        trackedItems = [...holdings, ...trades];
+      } else {
+        trackedItems = holdings;
       }
-    } catch (e) {
-      console.warn("Failed to fetch Data912 bonds:", e);
     }
 
-    // 1. Fetch current holdings AND watchlist items
-    const trackedItems = [...holdings, ...watchlist];
-    const itemsToFetchYahoo = new Set();
+    // Fetch Data912 arg bonds live data
+    let argBondsData = {};
+    if (trackedItems.some(h => h.tipo === 'bono') || scope === 'all') {
+      try {
+        const bondsRes = await fetch('https://data912.com/live/arg_bonds');
+        if (bondsRes.ok) {
+          const bondsArray = await bondsRes.json();
+          bondsArray.forEach(b => {
+            argBondsData[b.symbol] = b;
+          });
+        }
+      } catch (e) {
+        console.warn("Failed to fetch Data912 bonds:", e);
+      }
+    }
 
+    // 1. Fetch trackedItems (holdings / watchlist / etc)
+    const itemsToFetchYahoo = new Set();
     for (const h of trackedItems) {
       if (h.tipo === 'bono') {
         const bondApiData = argBondsData[h.ticker];
@@ -990,38 +1028,42 @@ function App() {
     }
 
     // 1.5 Global Indices
-    const indicesToFetch = [...GLOBAL_INDICES.filter(i => !i.isCalculated).map(i => i.ticker)];
-    if (GLOBAL_INDICES.some(i => i.ticker === 'MERVAL_USD')) {
-      if (!indicesToFetch.includes('IMV.BA')) indicesToFetch.push('IMV.BA');
-      if (!indicesToFetch.includes('^MERV')) indicesToFetch.push('^MERV');
+    if (shouldFetchIndices) {
+      const indicesToFetch = [...GLOBAL_INDICES.filter(i => !i.isCalculated).map(i => i.ticker)];
+      if (GLOBAL_INDICES.some(i => i.ticker === 'MERVAL_USD')) {
+        if (!indicesToFetch.includes('IMV.BA')) indicesToFetch.push('IMV.BA');
+        if (!indicesToFetch.includes('^MERV')) indicesToFetch.push('^MERV');
+      }
+      
+      await Promise.all(indicesToFetch.map(async (ticker) => {
+        const data = await fetchPrice(ticker);
+        if (data) applyData(ticker, data);
+      }));
     }
-    
-    await Promise.all(indicesToFetch.map(async (ticker) => {
-      const data = await fetchPrice(ticker);
-      if (data) applyData(ticker, data);
-    }));
 
     // 2. Fetch older operations not currently tracked manually
-    const opsToFetch = new Set();
-    for (const op of operaciones) {
-      const yt = getYahooTicker({ ticker: op.ticker, tipo: op.assetTipo || 'accion' });
-      if (yt && newPrices[yt] === undefined) {
-        opsToFetch.add(yt);
-      }
-    }
-
-    const opsChunks = chunkArray(Array.from(opsToFetch), 10);
-    for (const chunk of opsChunks) {
-      await Promise.all(chunk.map(async (yt) => {
-        const d1 = await fetchPrice(yt);
-        if (d1 !== null) {
-          applyData(yt, d1);
-        } else if (prices[yt]) {
-          newPrices[yt] = prices[yt];
-        } else {
-          hasError = true;
+    if (shouldFetchOps) {
+      const opsToFetch = new Set();
+      for (const op of operaciones) {
+        const yt = getYahooTicker({ ticker: op.ticker, tipo: op.assetTipo || 'accion' });
+        if (yt && newPrices[yt] === undefined) {
+          opsToFetch.add(yt);
         }
-      }));
+      }
+
+      const opsChunks = chunkArray(Array.from(opsToFetch), 10);
+      for (const chunk of opsChunks) {
+        await Promise.all(chunk.map(async (yt) => {
+          const d1 = await fetchPrice(yt);
+          if (d1 !== null) {
+            applyData(yt, d1);
+          } else if (prices[yt]) {
+            newPrices[yt] = prices[yt];
+          } else {
+            hasError = true;
+          }
+        }));
+      }
     }
 
     let fetchedDolarMep = null;
@@ -1097,7 +1139,29 @@ function App() {
     setDailyStats(newStats);
     const ts = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
     setStatus(hasError ? 'error' : 'ok');
-    setStatusText(`Actualizado ${ts}`);
+    const scopeLabel = scope === 'current' ? 'Vista actual' : 'Todo';
+    setStatusText(`Actualizado (${scopeLabel}) ${ts}`);
+  };
+
+  const refreshAll = () => refreshData('all');
+
+  const handleRefreshClick = () => {
+    if (refreshPref === 'current') {
+      refreshData('current');
+    } else if (refreshPref === 'all') {
+      refreshData('all');
+    } else {
+      setShowRefreshModal(true);
+    }
+  };
+
+  const executeRefreshChoice = (scope) => {
+    setShowRefreshModal(false);
+    if (dontAskRefreshAgain) {
+      setRefreshPref(scope);
+      localStorage.setItem('refresh_preference', scope);
+    }
+    refreshData(scope);
   };
 
   // Store the latest refreshAll to avoid stale closures in the interval
@@ -1622,10 +1686,134 @@ function App() {
         <div className="refresh-bar">
           <div className={`dot ${status}`}></div>
           <span id="status-text">{statusText}</span>
-          <button className="btn btn-sm" onClick={refreshAll}>Actualizar</button>
+          <div style={{ display: 'inline-flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
+            <button 
+              className="btn btn-sm" 
+              style={{ borderRadius: 0, borderRight: '1px solid rgba(255, 255, 255, 0.1)' }}
+              onClick={handleRefreshClick}
+              title={refreshPref === 'current' ? `Actualizar solo ${TAB_LABELS[activeTab] || 'vista actual'}` : refreshPref === 'all' ? 'Actualizar todo el Dashboard' : 'Preguntar qué actualizar'}
+            >
+              Actualizar {refreshPref === 'current' ? '⚡' : refreshPref === 'all' ? '🌐' : ''}
+            </button>
+            <button 
+              className="btn btn-sm" 
+              style={{ borderRadius: 0, padding: '4px 6px', fontSize: '10px' }}
+              onClick={() => setShowRefreshModal(true)}
+              title="Opciones de actualización"
+            >
+              ▼
+            </button>
+          </div>
           <button className="btn btn-sm" onClick={() => setShowSettings(!showSettings)}>Ajustes</button>
         </div>
       </header>
+
+      {/* Refresh Selection Modal */}
+      {showRefreshModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(10, 11, 26, 0.75)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div className="glass-panel" style={{
+            width: '90%',
+            maxWidth: '440px',
+            padding: '1.5rem',
+            borderRadius: '12px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(94, 106, 210, 0.4)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🔄 Opciones de Actualización
+              </h3>
+              <button 
+                style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '1.2rem' }}
+                onClick={() => setShowRefreshModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: '1.4' }}>
+              ¿Qué datos deseas consultar y actualizar en este momento?
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '1.25rem' }}>
+              <button
+                className="btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
+                  gap: '12px',
+                  padding: '12px 14px',
+                  textAlign: 'left',
+                  backgroundColor: 'rgba(94, 106, 210, 0.15)',
+                  border: '1px solid rgba(94, 106, 210, 0.4)'
+                }}
+                onClick={() => executeRefreshChoice('current')}
+              >
+                <span style={{ fontSize: '1.4rem' }}>⚡</span>
+                <div>
+                  <div style={{ fontWeight: '600', color: '#fff', fontSize: '0.9rem' }}>
+                    Actualizar solo {TAB_LABELS[activeTab] || 'vista actual'}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#a0a5d0', marginTop: '2px' }}>
+                    Refresco rápido de los datos pertenecientes a esta pantalla.
+                  </div>
+                </div>
+              </button>
+
+              <button
+                className="btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
+                  gap: '12px',
+                  padding: '12px 14px',
+                  textAlign: 'left',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--glass-border)'
+                }}
+                onClick={() => executeRefreshChoice('all')}
+              >
+                <span style={{ fontSize: '1.4rem' }}>🌐</span>
+                <div>
+                  <div style={{ fontWeight: '600', color: '#fff', fontSize: '0.9rem' }}>
+                    Actualizar todo el Dashboard
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#a0a5d0', marginTop: '2px' }}>
+                    Consulta holdings, watchlist, operaciones pasadas e índices.
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              <input 
+                type="checkbox" 
+                id="dontAskCheck"
+                checked={dontAskRefreshAgain}
+                onChange={(e) => setDontAskRefreshAgain(e.target.checked)}
+                style={{ cursor: 'pointer' }}
+              />
+              <label htmlFor="dontAskCheck" style={{ cursor: 'pointer', userSelect: 'none' }}>
+                Recordar mi elección para futuros clics
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs Navigation */}
       <nav className="tabs-nav">
@@ -1738,6 +1926,23 @@ function App() {
               <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
                 <button className="btn btn-primary" onClick={importar}>Restaurar</button>
                 <button className="btn btn-danger" onClick={borrarTodo}>Reset de Fábrica</button>
+              </div>
+              <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+                <label style={{ fontWeight: '600', color: '#fff' }}>Comportamiento de Actualización</label>
+                <p className="hint" style={{ marginBottom: '8px' }}>Elige qué ocurre al hacer clic directamente en "Actualizar".</p>
+                <select 
+                  value={refreshPref}
+                  onChange={(e) => {
+                    setRefreshPref(e.target.value);
+                    localStorage.setItem('refresh_preference', e.target.value);
+                  }}
+                  className="form-control"
+                  style={{ width: '100%', maxWidth: '320px', padding: '6px 10px', fontSize: '13px', backgroundColor: '#1a1b35', color: '#ffffff', border: '1px solid var(--glass-border)', borderRadius: '6px' }}
+                >
+                  <option value="ask">❓ Preguntar siempre (Vista actual vs Todo)</option>
+                  <option value="current">⚡ Actualizar siempre solo la vista actual</option>
+                  <option value="all">🌐 Actualizar siempre todo el Dashboard</option>
+                </select>
               </div>
             </div>
           </div>

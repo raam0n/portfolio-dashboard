@@ -3,7 +3,15 @@ import { createClient } from '@supabase/supabase-js';
 import ytSearch from 'yt-search';
 import { YoutubeTranscript } from 'youtube-transcript';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import fs from 'fs';
+import path from 'path';
 
+const DEBUG_MODE = true; // Cambiar a false en producción si no quieres guardar logs
+const LOGS_DIR = path.join(process.cwd(), 'logs');
+
+if (DEBUG_MODE && !fs.existsSync(LOGS_DIR)) {
+  fs.mkdirSync(LOGS_DIR, { recursive: true });
+}
 // Configurar Supabase
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
@@ -24,12 +32,34 @@ if (!geminiApiKey) {
 const genAI = new GoogleGenerativeAI(geminiApiKey);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
+// Helper para loguear uso
+async function logApiUsageToSupabase(service_name, feature, endpoint_model, tokens_prompt, tokens_completion, status, error_message) {
+  try {
+    await supabase.from('api_usage_logs').insert([{
+      service_name,
+      feature,
+      endpoint_model,
+      tokens_prompt,
+      tokens_completion,
+      status,
+      error_message,
+      user_id: 'system_etl'
+    }]);
+  } catch(e) {
+    console.error("No se pudo loguear el uso de API en ETL", e);
+  }
+}
+
 // Función auxiliar para reintentar llamadas a Gemini en caso de error 503 o 429
 async function generateContentWithRetry(prompt, retries = 10, delay = 5000) {
   for (let i = 0; i < retries; i++) {
     try {
       const result = await model.generateContent(prompt);
       const response = await result.response;
+      
+      const usage = response.usageMetadata || {};
+      await logApiUsageToSupabase('Gemini', 'youtube_etl', 'gemini-2.5-flash', usage.promptTokenCount || 0, usage.candidatesTokenCount || 0, 'success', null);
+      
       return response.text();
     } catch (err) {
       const errMsg = err.message || '';
@@ -38,6 +68,7 @@ async function generateContentWithRetry(prompt, retries = 10, delay = 5000) {
       if (isDailyLimit) {
         // Si es límite diario, no tiene sentido reintentar. Lanzamos el error inmediatamente.
         console.error("\n[Gemini API] Límite diario de peticiones alcanzado (20/día).");
+        await logApiUsageToSupabase('Gemini', 'youtube_etl', 'gemini-2.5-flash', 0, 0, 'rate_limit', 'Daily Limit 20/day reached');
         throw err;
       }
 
@@ -51,6 +82,8 @@ async function generateContentWithRetry(prompt, retries = 10, delay = 5000) {
         delay *= 1.5; // Backoff exponencial
         continue;
       }
+      
+      await logApiUsageToSupabase('Gemini', 'youtube_etl', 'gemini-2.5-flash', 0, 0, 'error', err.message);
       throw err;
     }
   }
@@ -90,6 +123,7 @@ async function runETL() {
     try {
       // 2. Obtener videos buscando el nombre del canal
       const searchResult = await ytSearch(channel.channel_name);
+      await logApiUsageToSupabase('YouTube', 'youtube_etl_search', 'yt-search', 0, 0, 'success', null);
       
       // Filtramos para asegurarnos de que el video sea realmente del canal
       const channelVideos = searchResult.videos.filter(v => 
@@ -125,14 +159,22 @@ async function runETL() {
       try {
         const transcript = await YoutubeTranscript.fetchTranscript(videoId);
         transcriptText = transcript.map(t => t.text).join(' ');
+        await logApiUsageToSupabase('YouTube', 'youtube_etl_transcript', 'youtube-transcript', 0, 0, 'success', null);
       } catch (e) {
         console.error("Error obteniendo la transcripción, es posible que el video no tenga subtítulos:", e.message);
+        await logApiUsageToSupabase('YouTube', 'youtube_etl_transcript', 'youtube-transcript', 0, 0, 'error', e.message);
         continue; // Si no hay subs, saltamos
       }
 
       if (!transcriptText || transcriptText.trim().length === 0) {
          console.log("La transcripción está vacía.");
          continue;
+      }
+
+      if (DEBUG_MODE) {
+        const transcriptPath = path.join(LOGS_DIR, `${videoId}_1_transcript_raw.txt`);
+        fs.writeFileSync(transcriptPath, transcriptText, 'utf-8');
+        console.log(`[DEBUG] Transcripción cruda guardada en: ${transcriptPath}`);
       }
 
       // 5. Enviar al LLM
@@ -182,6 +224,12 @@ Transcripción: ${transcriptText}`;
       
       console.log("Respuesta de Gemini recibida.");
 
+      if (DEBUG_MODE) {
+        const geminiRawPath = path.join(LOGS_DIR, `${videoId}_2_gemini_raw.json`);
+        fs.writeFileSync(geminiRawPath, rawResponse, 'utf-8');
+        console.log(`[DEBUG] Respuesta cruda de Gemini guardada en: ${geminiRawPath}`);
+      }
+
       let sector = "N/A";
       let summary = "No se pudo extraer el resumen.";
       let tickerInsights = [];
@@ -199,6 +247,12 @@ Transcripción: ${transcriptText}`;
       } catch (err) {
          console.error("Error parseando el JSON de Gemini:", err);
          summary = textResponse; // Fallback
+      }
+
+      if (DEBUG_MODE) {
+        const parsedPath = path.join(LOGS_DIR, `${videoId}_3_parsed_final.json`);
+        fs.writeFileSync(parsedPath, JSON.stringify({ sector, summary, tickerInsights, tickersMentioned }, null, 2), 'utf-8');
+        console.log(`[DEBUG] JSON final estructurado guardado en: ${parsedPath}`);
       }
 
       // 6. Insertar en la BD
