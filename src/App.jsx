@@ -948,16 +948,19 @@ function App() {
     let shouldFetchOps = scope === 'all' || activeTab === 'operaciones';
 
     if (scope === 'all') {
-      trackedItems = [...holdings, ...watchlist];
+      const allHoldingsList = Object.values(allHoldings || {}).flat().filter(Boolean);
+      const allOpsList = Object.values(allOperaciones || {}).flat().filter(Boolean).map(op => ({ ticker: op.ticker, tipo: op.assetTipo || 'accion' }));
+      const allTradesList = Object.values(allTrades || {}).flat().filter(Boolean).map(t => ({ ticker: t.ticker, tipo: t.tipo || 'accion' }));
+      trackedItems = [...allHoldingsList, ...watchlist, ...allOpsList, ...allTradesList];
     } else {
       if (activeTab === 'watchlist') {
         trackedItems = watchlist;
       } else if (activeTab === 'mercados') {
         trackedItems = [];
       } else if (activeTab === 'operaciones') {
-        trackedItems = holdings;
+        trackedItems = [...holdings, ...operaciones.map(op => ({ ticker: op.ticker, tipo: op.assetTipo || 'accion' }))];
       } else if (activeTab === 'trades') {
-        trackedItems = [...holdings, ...trades];
+        trackedItems = [...holdings, ...trades.map(t => ({ ticker: t.ticker, tipo: t.tipo || 'accion' }))];
       } else {
         trackedItems = holdings;
       }
