@@ -833,6 +833,21 @@ function App() {
 
 
 
+  const formatLastUpdated = (stats) => {
+    if (!stats) return '—';
+    const timestamp = stats.updatedAt || (stats.regularMarketTime ? stats.regularMarketTime * 1000 : null);
+    if (!timestamp) return '—';
+    const d = new Date(timestamp);
+    const now = new Date();
+    const isToday = d.getDate() === now.getDate() &&
+                    d.getMonth() === now.getMonth() &&
+                    d.getFullYear() === now.getFullYear();
+    const timeStr = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return timeStr;
+    const dateStr = d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+    return `${dateStr} ${timeStr}`;
+  };
+
   const getYahooTicker = (h) => {
     if (h.tipo === 'efectivo') return null;
     let t = h.ticker.trim().toUpperCase();
@@ -841,12 +856,34 @@ function App() {
     return null;
   };
 
+  const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      return response;
+    } catch (err) {
+      clearTimeout(timer);
+      throw err;
+    }
+  };
+
   const fetchPrice = async (yahooTicker) => {
     try {
       const url5y = `/api/market/v8/finance/chart/${yahooTicker}?interval=1d&range=5y`;
       const url1d = `/api/market/v8/finance/chart/${yahooTicker}?interval=1d&range=1d`;
 
-      const [r5y, r1d] = await Promise.all([fetch(url5y), fetch(url1d)]);
+      const [r5y, r1d] = await Promise.all([
+        fetchWithTimeout(url5y, {}, 8000),
+        fetchWithTimeout(url1d, {}, 8000)
+      ]);
+
+      if (!r5y.ok || !r1d.ok) {
+        console.warn(`Yahoo response not ok for ${yahooTicker}: r5y=${r5y.status}, r1d=${r1d.status}`);
+        return null;
+      }
+
       const d5y = await r5y.json();
       const d1d = await r1d.json();
 
@@ -943,207 +980,221 @@ function App() {
       newStats[ticker] = data;
     };
 
-    let trackedItems = [];
-    let shouldFetchIndices = scope === 'all' || activeTab === 'mercados';
-    let shouldFetchOps = scope === 'all' || activeTab === 'operaciones';
+    try {
+      let trackedItems = [];
+      let shouldFetchIndices = scope === 'all' || activeTab === 'mercados';
+      let shouldFetchOps = scope === 'all' || activeTab === 'operaciones';
 
-    if (scope === 'all') {
-      const allHoldingsList = Object.values(allHoldings || {}).flat().filter(Boolean);
-      const allOpsList = Object.values(allOperaciones || {}).flat().filter(Boolean).map(op => ({ ticker: op.ticker, tipo: op.assetTipo || 'accion' }));
-      const allTradesList = Object.values(allTrades || {}).flat().filter(Boolean).map(t => ({ ticker: t.ticker, tipo: t.tipo || 'accion' }));
-      trackedItems = [...allHoldingsList, ...watchlist, ...allOpsList, ...allTradesList];
-    } else {
-      if (activeTab === 'watchlist') {
-        trackedItems = watchlist;
-      } else if (activeTab === 'mercados') {
-        trackedItems = [];
-      } else if (activeTab === 'operaciones') {
-        trackedItems = [...holdings, ...operaciones.map(op => ({ ticker: op.ticker, tipo: op.assetTipo || 'accion' }))];
-      } else if (activeTab === 'trades') {
-        trackedItems = [...holdings, ...trades.map(t => ({ ticker: t.ticker, tipo: t.tipo || 'accion' }))];
+      if (scope === 'all') {
+        const allHoldingsList = Object.values(allHoldings || {}).flat().filter(Boolean);
+        const allOpsList = Object.values(allOperaciones || {}).flat().filter(Boolean).map(op => ({ ticker: op.ticker, tipo: op.assetTipo || 'accion' }));
+        const allTradesList = Object.values(allTrades || {}).flat().filter(Boolean).map(t => ({ ticker: t.ticker, tipo: t.tipo || 'accion' }));
+        trackedItems = [...allHoldingsList, ...watchlist, ...allOpsList, ...allTradesList];
       } else {
-        trackedItems = holdings;
-      }
-    }
-
-    // Fetch Data912 arg bonds live data
-    let argBondsData = {};
-    if (trackedItems.some(h => h.tipo === 'bono') || scope === 'all') {
-      try {
-        const bondsRes = await fetch('https://data912.com/live/arg_bonds');
-        if (bondsRes.ok) {
-          const bondsArray = await bondsRes.json();
-          bondsArray.forEach(b => {
-            argBondsData[b.symbol] = b;
-          });
-        }
-      } catch (e) {
-        console.warn("Failed to fetch Data912 bonds:", e);
-      }
-    }
-
-    // 1. Fetch trackedItems (holdings / watchlist / etc)
-    const itemsToFetchYahoo = new Set();
-    for (const h of trackedItems) {
-      if (h.tipo === 'bono') {
-        const bondApiData = argBondsData[h.ticker];
-        if (bondApiData) {
-          const price = bondApiData.c / 100;
-          const changePct = bondApiData.pct_change || 0;
-          const prevClose = price / (1 + (changePct / 100));
-          const change = price - prevClose;
-          applyData(h.ticker, { price, change, changePct, isOpen: true });
-        } else if (h.precioActual !== undefined) {
-          applyData(h.ticker, { price: h.precioActual, change: 0, changePct: 0 });
-        }
-        continue;
-      }
-      const yt = getYahooTicker(h);
-      if (yt) {
-        itemsToFetchYahoo.add(yt);
-      }
-    }
-
-    // Función auxiliar para procesar en lotes (chunks) paralelos
-    const chunkArray = (array, size) => {
-      const result = [];
-      for (let i = 0; i < array.length; i += size) {
-        result.push(array.slice(i, i + size));
-      }
-      return result;
-    };
-
-    const uniqueYahooTickers = Array.from(itemsToFetchYahoo);
-    const tickerChunks = chunkArray(uniqueYahooTickers, 10);
-
-    for (const chunk of tickerChunks) {
-      await Promise.all(chunk.map(async (yt) => {
-        const data = await fetchPrice(yt);
-        if (data !== null) {
-          applyData(yt, data);
-        } else if (prices[yt]) {
-          // If we have cached price, use it as fallback quietly
-          newPrices[yt] = prices[yt];
+        if (activeTab === 'watchlist') {
+          trackedItems = watchlist;
+        } else if (activeTab === 'mercados') {
+          trackedItems = [];
+        } else if (activeTab === 'operaciones') {
+          trackedItems = [...holdings, ...operaciones.map(op => ({ ticker: op.ticker, tipo: op.assetTipo || 'accion' }))];
+        } else if (activeTab === 'trades') {
+          trackedItems = [...holdings, ...trades.map(t => ({ ticker: t.ticker, tipo: t.tipo || 'accion' }))];
         } else {
-          hasError = true;
-        }
-      }));
-    }
-
-    // 1.5 Global Indices
-    if (shouldFetchIndices) {
-      const indicesToFetch = [...GLOBAL_INDICES.filter(i => !i.isCalculated).map(i => i.ticker)];
-      if (GLOBAL_INDICES.some(i => i.ticker === 'MERVAL_USD')) {
-        if (!indicesToFetch.includes('IMV.BA')) indicesToFetch.push('IMV.BA');
-        if (!indicesToFetch.includes('^MERV')) indicesToFetch.push('^MERV');
-      }
-      
-      await Promise.all(indicesToFetch.map(async (ticker) => {
-        const data = await fetchPrice(ticker);
-        if (data) applyData(ticker, data);
-      }));
-    }
-
-    // 2. Fetch older operations not currently tracked manually
-    if (shouldFetchOps) {
-      const opsToFetch = new Set();
-      for (const op of operaciones) {
-        const yt = getYahooTicker({ ticker: op.ticker, tipo: op.assetTipo || 'accion' });
-        if (yt && newPrices[yt] === undefined) {
-          opsToFetch.add(yt);
+          trackedItems = holdings;
         }
       }
 
-      const opsChunks = chunkArray(Array.from(opsToFetch), 10);
-      for (const chunk of opsChunks) {
+      // Fetch Data912 arg bonds live data
+      let argBondsData = {};
+      if (trackedItems.some(h => h.tipo === 'bono') || scope === 'all') {
+        try {
+          const bondsRes = await fetchWithTimeout('https://data912.com/live/arg_bonds', {}, 8000);
+          if (bondsRes.ok) {
+            const bondsArray = await bondsRes.json();
+            if (Array.isArray(bondsArray)) {
+              bondsArray.forEach(b => {
+                if (b && b.symbol) argBondsData[b.symbol] = b;
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to fetch Data912 bonds:", e);
+        }
+      }
+
+      // 1. Fetch trackedItems (holdings / watchlist / etc)
+      const itemsToFetchYahoo = new Set();
+      for (const h of trackedItems) {
+        if (!h || !h.ticker) continue;
+        if (h.tipo === 'bono') {
+          const bondApiData = argBondsData[h.ticker];
+          if (bondApiData) {
+            const price = bondApiData.c / 100;
+            const changePct = bondApiData.pct_change || 0;
+            const prevClose = price / (1 + (changePct / 100));
+            const change = price - prevClose;
+            applyData(h.ticker, { price, change, changePct, isOpen: true });
+          } else if (h.precioActual !== undefined) {
+            applyData(h.ticker, { price: h.precioActual, change: 0, changePct: 0 });
+          }
+          continue;
+        }
+        const yt = getYahooTicker(h);
+        if (yt) {
+          itemsToFetchYahoo.add(yt);
+        }
+      }
+
+      // Función auxiliar para procesar en lotes (chunks) paralelos
+      const chunkArray = (array, size) => {
+        const result = [];
+        for (let i = 0; i < array.length; i += size) {
+          result.push(array.slice(i, i + size));
+        }
+        return result;
+      };
+
+      const uniqueYahooTickers = Array.from(itemsToFetchYahoo);
+      const tickerChunks = chunkArray(uniqueYahooTickers, 10);
+
+      for (const chunk of tickerChunks) {
         await Promise.all(chunk.map(async (yt) => {
-          const d1 = await fetchPrice(yt);
-          if (d1 !== null) {
-            applyData(yt, d1);
+          const data = await fetchPrice(yt);
+          if (data !== null) {
+            applyData(yt, data);
           } else if (prices[yt]) {
+            // If we have cached price, use it as fallback quietly
             newPrices[yt] = prices[yt];
           } else {
             hasError = true;
           }
         }));
       }
-    }
 
-    let fetchedDolarMep = null;
-    try {
-      const mepR = await fetch('https://dolarapi.com/v1/dolares/bolsa');
-      const mepD = await mepR.json();
-      if (mepD && mepD.venta) {
-        setDolarMep(mepD.venta);
-        fetchedDolarMep = mepD.venta;
+      // 1.5 Global Indices
+      if (shouldFetchIndices) {
+        const indicesToFetch = [...GLOBAL_INDICES.filter(i => !i.isCalculated).map(i => i.ticker)];
+        if (GLOBAL_INDICES.some(i => i.ticker === 'MERVAL_USD')) {
+          if (!indicesToFetch.includes('IMV.BA')) indicesToFetch.push('IMV.BA');
+          if (!indicesToFetch.includes('^MERV')) indicesToFetch.push('^MERV');
+        }
+        
+        await Promise.all(indicesToFetch.map(async (ticker) => {
+          const data = await fetchPrice(ticker);
+          if (data) applyData(ticker, data);
+        }));
       }
 
-      const cclR = await fetch('https://dolarapi.com/v1/dolares/contadoconliqui');
-      const cclD = await cclR.json();
-      if (cclD && cclD.venta) {
-        setDolarCcl(cclD.venta);
-        const mArs = newStats['IMV.BA'] || newStats['^MERV'];
-        if (mArs) {
-          applyData('MERVAL_USD', {
-            ...mArs,
-            price: mArs.price / cclD.venta,
-            change: mArs.change / cclD.venta,
-            history: (mArs.history || []).map(v => v ? v / cclD.venta : null)
-          });
+      // 2. Fetch older operations not currently tracked manually
+      if (shouldFetchOps) {
+        const opsToFetch = new Set();
+        for (const op of (operaciones || [])) {
+          if (!op || !op.ticker) continue;
+          const yt = getYahooTicker({ ticker: op.ticker, tipo: op.assetTipo || 'accion' });
+          if (yt && newPrices[yt] === undefined) {
+            opsToFetch.add(yt);
+          }
+        }
+
+        const opsChunks = chunkArray(Array.from(opsToFetch), 10);
+        for (const chunk of opsChunks) {
+          await Promise.all(chunk.map(async (yt) => {
+            const d1 = await fetchPrice(yt);
+            if (d1 !== null) {
+              applyData(yt, d1);
+            } else if (prices[yt]) {
+              newPrices[yt] = prices[yt];
+            } else {
+              hasError = true;
+            }
+          }));
         }
       }
-    } catch (e) {
-      console.warn('DolarAPI fetch error', e);
-    }
 
-    // Calculate implied Dolar MEP yesterday close using AL30/AL30D data912 or GGAL as fallback
-    let mepPrevVal = null;
-    let mepProxyTodayVal = null;
-    try {
-      const b_al30 = argBondsData['AL30'];
-      const b_al30d = argBondsData['AL30D'];
-      if (b_al30 && b_al30d && b_al30d.c > 0) {
-        const al30_prev = b_al30.c / (1 + (b_al30.pct_change || 0) / 100);
-        const al30d_prev = b_al30d.c / (1 + (b_al30d.pct_change || 0) / 100);
-        if (al30d_prev > 0) {
-          mepPrevVal = al30_prev / al30d_prev;
-          mepProxyTodayVal = b_al30.c / b_al30d.c;
-        }
-      }
-    } catch (e) {
-      console.warn("Failed to fetch AL30 MEP proxy from data912:", e);
-    }
-
-    if (!mepPrevVal) {
+      let fetchedDolarMep = null;
       try {
-        const [ggalAr, ggalUs] = await Promise.all([
-          fetchPrice('GGAL.BA'),
-          fetchPrice('GGAL')
-        ]);
-        if (ggalAr && ggalUs && ggalUs.prevClose > 0 && ggalUs.price > 0) {
-          mepPrevVal = (ggalAr.prevClose / ggalUs.prevClose) * 10;
-          mepProxyTodayVal = (ggalAr.price / ggalUs.price) * 10;
+        const mepR = await fetchWithTimeout('https://dolarapi.com/v1/dolares/bolsa', {}, 8000);
+        if (mepR.ok) {
+          const mepD = await mepR.json();
+          if (mepD && mepD.venta) {
+            setDolarMep(mepD.venta);
+            fetchedDolarMep = mepD.venta;
+          }
+        }
+
+        const cclR = await fetchWithTimeout('https://dolarapi.com/v1/dolares/contadoconliqui', {}, 8000);
+        if (cclR.ok) {
+          const cclD = await cclR.json();
+          if (cclD && cclD.venta) {
+            setDolarCcl(cclD.venta);
+            const mArs = newStats['IMV.BA'] || newStats['^MERV'];
+            if (mArs) {
+              applyData('MERVAL_USD', {
+                ...mArs,
+                price: mArs.price / cclD.venta,
+                change: mArs.change / cclD.venta,
+                history: (mArs.history || []).map(v => v ? v / cclD.venta : null)
+              });
+            }
+          }
         }
       } catch (e) {
-        console.warn("Failed to fetch GGAL MEP proxy:", e);
+        console.warn('DolarAPI fetch error', e);
       }
-    }
 
-    if (mepPrevVal) {
-      if (fetchedDolarMep && mepProxyTodayVal) {
-        const ratio = mepPrevVal / mepProxyTodayVal;
-        setDolarMepPrev(fetchedDolarMep * ratio);
-      } else {
-        setDolarMepPrev(mepPrevVal);
+      // Calculate implied Dolar MEP yesterday close using AL30/AL30D data912 or GGAL as fallback
+      let mepPrevVal = null;
+      let mepProxyTodayVal = null;
+      try {
+        const b_al30 = argBondsData['AL30'];
+        const b_al30d = argBondsData['AL30D'];
+        if (b_al30 && b_al30d && b_al30d.c > 0) {
+          const al30_prev = b_al30.c / (1 + (b_al30.pct_change || 0) / 100);
+          const al30d_prev = b_al30d.c / (1 + (b_al30d.pct_change || 0) / 100);
+          if (al30d_prev > 0) {
+            mepPrevVal = al30_prev / al30d_prev;
+            mepProxyTodayVal = b_al30.c / b_al30d.c;
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to fetch AL30 MEP proxy from data912:", e);
       }
-    }
 
-    setPrices(newPrices);
-    setDailyStats(newStats);
-    const ts = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-    setStatus(hasError ? 'error' : 'ok');
-    const scopeLabel = scope === 'current' ? 'Vista actual' : 'Todo';
-    setStatusText(`Actualizado (${scopeLabel}) ${ts}`);
+      if (!mepPrevVal) {
+        try {
+          const [ggalAr, ggalUs] = await Promise.all([
+            fetchPrice('GGAL.BA'),
+            fetchPrice('GGAL')
+          ]);
+          if (ggalAr && ggalUs && ggalUs.prevClose > 0 && ggalUs.price > 0) {
+            mepPrevVal = (ggalAr.prevClose / ggalUs.prevClose) * 10;
+            mepProxyTodayVal = (ggalAr.price / ggalUs.price) * 10;
+          }
+        } catch (e) {
+          console.warn("Failed to fetch GGAL MEP proxy:", e);
+        }
+      }
+
+      if (mepPrevVal) {
+        if (fetchedDolarMep && mepProxyTodayVal) {
+          const ratio = mepPrevVal / mepProxyTodayVal;
+          setDolarMepPrev(fetchedDolarMep * ratio);
+        } else {
+          setDolarMepPrev(mepPrevVal);
+        }
+      }
+
+      setPrices(newPrices);
+      setDailyStats(newStats);
+    } catch (error) {
+      console.error("Unhandled error during refreshData:", error);
+      hasError = true;
+    } finally {
+      const ts = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+      setStatus(hasError ? 'error' : 'ok');
+      const scopeLabel = scope === 'current' ? 'Vista actual' : 'Todo';
+      setStatusText(`Actualizado (${scopeLabel}) ${ts}`);
+    }
   };
 
   const refreshAll = () => refreshData('all');
@@ -2139,6 +2190,7 @@ function App() {
                       <th>Cant.</th>
                       <th>P. Compra</th>
                       <th>P. Actual</th>
+                      <th>Últ. Actualización</th>
                       <th>Valor ($)</th>
                       <th onClick={() => setHoldingsSort('pnlA')} style={{cursor: 'pointer'}} title="Ordenar por P&L $">P&L $ {holdingsSort === 'pnlA' ? '↓' : ''}</th>
                       <th onClick={() => setHoldingsSort('pnlP')} style={{cursor: 'pointer'}} title="Ordenar por P&L %">P&L % {holdingsSort === 'pnlP' ? '↓' : ''}</th>
@@ -2203,6 +2255,11 @@ function App() {
                                   </div>
                                 )}
                               </td>
+                              <td>
+                                <span style={{ fontSize: '11px', opacity: 0.85 }} title={stats && (stats.updatedAt || stats.regularMarketTime) ? new Date(stats.updatedAt || stats.regularMarketTime * 1000).toLocaleString('es-AR') : ''}>
+                                  {isEfectivo ? '—' : formatLastUpdated(stats)}
+                                </span>
+                              </td>
                               <td>{valor !== null ? '$' + fmt(valor) : '—'}</td>
                               <td className={cssPnl}>{pnlA !== null ? sign + '$' + fmt(pnlA) : '—'}</td>
                               <td className={cssPnl}><strong>{fmtPct(pnlP)}</strong></td>
@@ -2215,7 +2272,7 @@ function App() {
                             </tr>
                             {expandedTicker === h.ticker && (
                               <tr className="expanded-panel-row">
-                                <td colSpan="11">
+                                <td colSpan="12">
                                   <HistoricalChart data={stats} ticker={h.ticker} name={h.nombre} />
                                 </td>
                               </tr>
@@ -2592,6 +2649,7 @@ function App() {
                     <th>Subsector</th>
                     <th>País</th>
                     <th>P. Mercado</th>
+                    <th>Últ. Actualización</th>
                     <th>1 Día</th>
                     <th>5 Días</th>
                     <th>1 Mes</th>
@@ -2656,6 +2714,11 @@ function App() {
                                 </div>
                               )}
                             </td>
+                            <td>
+                              <span style={{ fontSize: '11px', opacity: 0.85 }} title={stats && (stats.updatedAt || stats.regularMarketTime) ? new Date(stats.updatedAt || stats.regularMarketTime * 1000).toLocaleString('es-AR') : ''}>
+                                {formatLastUpdated(stats)}
+                              </span>
+                            </td>
                             <td className={todayCss}><strong>{todayText}</strong></td>
                             <td>{stats ? fmtHist(stats.hist5d) : '—'}</td>
                             <td>{stats ? fmtHist(stats.hist1m) : '—'}</td>
@@ -2666,7 +2729,7 @@ function App() {
                           </tr>
                           {expandedTicker === w.ticker && (
                             <tr className="expanded-panel-row">
-                              <td colSpan="12">
+                              <td colSpan="15">
                                 <HistoricalChart data={stats} ticker={w.ticker} name={w.nombre} />
                               </td>
                             </tr>
