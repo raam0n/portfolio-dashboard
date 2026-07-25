@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './index.css';
 import MarketInsights from './components/MarketInsights';
 import MarketTreemap from './components/MarketTreemap';
@@ -28,6 +28,61 @@ const GLOBAL_INDICES = [
   { ticker: 'BZ=F', name: 'Brent Oil', desc: 'Petróleo Brent. Referencia global para el mercado europeo y mundial.' },
   { ticker: 'BTC-USD', name: 'Bitcoin', desc: 'Referencia principal del mercado de criptoactivos.' },
 ];
+
+const SEED_TICKER_CATALOG = {
+  // Acciones Argentina (BCBA)
+  'GGAL': { ticker: 'GGAL', nombre: 'Grupo Financiero Galicia', tipo: 'accion', mercado: 'BCBA', sector: 'Financials', subsector: 'Banking', pais: 'Argentina' },
+  'YPFD': { ticker: 'YPFD', nombre: 'YPF S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Energy', subsector: 'Oil & Gas', pais: 'Argentina' },
+  'BMA': { ticker: 'BMA', nombre: 'Banco Macro S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Financials', subsector: 'Banking', pais: 'Argentina' },
+  'BBAR': { ticker: 'BBAR', nombre: 'BBVA Argentina', tipo: 'accion', mercado: 'BCBA', sector: 'Financials', subsector: 'Banking', pais: 'Argentina' },
+  'PAMP': { ticker: 'PAMP', nombre: 'Pampa Energía S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Utilities', subsector: 'Electricity', pais: 'Argentina' },
+  'ALUA': { ticker: 'ALUA', nombre: 'Aluar Aluminio Argentino', tipo: 'accion', mercado: 'BCBA', sector: 'Basic Materials', subsector: 'Aluminum', pais: 'Argentina' },
+  'TXAR': { ticker: 'TXAR', nombre: 'Ternium Argentina S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Basic Materials', subsector: 'Steel', pais: 'Argentina' },
+  'TGSU2': { ticker: 'TGSU2', nombre: 'Transportadora de Gas del Sur', tipo: 'accion', mercado: 'BCBA', sector: 'Utilities', subsector: 'Gas Utility', pais: 'Argentina' },
+  'EDN': { ticker: 'EDN', nombre: 'Edenor S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Utilities', subsector: 'Electricity Distribution', pais: 'Argentina' },
+  'CEPU': { ticker: 'CEPU', nombre: 'Central Puerto S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Utilities', subsector: 'Power Generation', pais: 'Argentina' },
+  'CRES': { ticker: 'CRES', nombre: 'Cresud S.A.C.I.F. y A.', tipo: 'accion', mercado: 'BCBA', sector: 'Real Estate', subsector: 'Agriculture & Real Estate', pais: 'Argentina' },
+  'SUPV': { ticker: 'SUPV', nombre: 'Grupo Supervielle S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Financials', subsector: 'Banking', pais: 'Argentina' },
+  'MIRG': { ticker: 'MIRG', nombre: 'Mirgor S.A.C.I.F.I.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Consumer Cyclical', subsector: 'Electronics', pais: 'Argentina' },
+  'COME': { ticker: 'COME', nombre: 'Sociedad Comercial del Plata', tipo: 'accion', mercado: 'BCBA', sector: 'Industrials', subsector: 'Conglomerates', pais: 'Argentina' },
+
+  // Bonos Argentina
+  'AL30': { ticker: 'AL30', nombre: 'Bono República Argentina 2030 (AL30)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley Arg', pais: 'Argentina' },
+  'GD30': { ticker: 'GD30', nombre: 'Bono Global Argentina 2030 (GD30)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley NY', pais: 'Argentina' },
+  'AL29': { ticker: 'AL29', nombre: 'Bono República Argentina 2029 (AL29)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley Arg', pais: 'Argentina' },
+  'GD29': { ticker: 'GD29', nombre: 'Bono Global Argentina 2029 (GD29)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley NY', pais: 'Argentina' },
+  'AL35': { ticker: 'AL35', nombre: 'Bono República Argentina 2035 (AL35)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley Arg', pais: 'Argentina' },
+  'GD35': { ticker: 'GD35', nombre: 'Bono Global Argentina 2035 (GD35)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley NY', pais: 'Argentina' },
+  'AE38': { ticker: 'AE38', nombre: 'Bono República Argentina 2038 (AE38)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley Arg', pais: 'Argentina' },
+  'GD38': { ticker: 'GD38', nombre: 'Bono Global Argentina 2038 (GD38)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley NY', pais: 'Argentina' },
+  'AL41': { ticker: 'AL41', nombre: 'Bono República Argentina 2041 (AL41)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley Arg', pais: 'Argentina' },
+  'GD41': { ticker: 'GD41', nombre: 'Bono Global Argentina 2041 (GD41)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley NY', pais: 'Argentina' },
+
+  // CEDEARs / US Stocks
+  'AAPL': { ticker: 'AAPL', nombre: 'Apple Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Technology', subsector: 'Consumer Electronics', pais: 'USA' },
+  'MSFT': { ticker: 'MSFT', nombre: 'Microsoft Corporation', tipo: 'cedear', mercado: 'BCBA', sector: 'Technology', subsector: 'Software', pais: 'USA' },
+  'NVDA': { ticker: 'NVDA', nombre: 'NVIDIA Corporation', tipo: 'cedear', mercado: 'BCBA', sector: 'Technology', subsector: 'Semiconductors', pais: 'USA' },
+  'AMZN': { ticker: 'AMZN', nombre: 'Amazon.com Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumer Cyclical', subsector: 'Internet Retail', pais: 'USA' },
+  'GOOGL': { ticker: 'GOOGL', nombre: 'Alphabet Inc. (Google)', tipo: 'cedear', mercado: 'BCBA', sector: 'Communication Services', subsector: 'Internet Services', pais: 'USA' },
+  'META': { ticker: 'META', nombre: 'Meta Platforms Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Communication Services', subsector: 'Social Media', pais: 'USA' },
+  'TSLA': { ticker: 'TSLA', nombre: 'Tesla Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumer Cyclical', subsector: 'Auto Manufacturers', pais: 'USA' },
+  'MELI': { ticker: 'MELI', nombre: 'MercadoLibre Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumer Cyclical', subsector: 'Internet Retail', pais: 'Uruguay' },
+  'SPY': { ticker: 'SPY', nombre: 'SPDR S&P 500 ETF Trust', tipo: 'cedear', mercado: 'BCBA', sector: 'Index Fund', subsector: 'ETF US', pais: 'USA' },
+  'QQQ': { ticker: 'QQQ', nombre: 'Invesco QQQ Trust (Nasdaq-100)', tipo: 'cedear', mercado: 'BCBA', sector: 'Index Fund', subsector: 'ETF US', pais: 'USA' },
+  'IWM': { ticker: 'IWM', nombre: 'iShares Russell 2000 ETF', tipo: 'cedear', mercado: 'BCBA', sector: 'Index Fund', subsector: 'ETF US', pais: 'USA' },
+  'EEM': { ticker: 'EEM', nombre: 'iShares MSCI Emerging Markets ETF', tipo: 'cedear', mercado: 'BCBA', sector: 'Index Fund', subsector: 'ETF US', pais: 'Global' },
+  'KO': { ticker: 'KO', nombre: 'The Coca-Cola Company', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumer Defensive', subsector: 'Beverages', pais: 'USA' },
+  'PEP': { ticker: 'PEP', nombre: 'PepsiCo Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumer Defensive', subsector: 'Beverages & Snacks', pais: 'USA' },
+  'JNJ': { ticker: 'JNJ', nombre: 'Johnson & Johnson', tipo: 'cedear', mercado: 'BCBA', sector: 'Healthcare', subsector: 'Pharmaceuticals', pais: 'USA' },
+  'PFE': { ticker: 'PFE', nombre: 'Pfizer Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Healthcare', subsector: 'Pharmaceuticals', pais: 'USA' },
+  'XOM': { ticker: 'XOM', nombre: 'Exxon Mobil Corporation', tipo: 'cedear', mercado: 'BCBA', sector: 'Energy', subsector: 'Oil & Gas Integrated', pais: 'USA' },
+  'CVX': { ticker: 'CVX', nombre: 'Chevron Corporation', tipo: 'cedear', mercado: 'BCBA', sector: 'Energy', subsector: 'Oil & Gas Integrated', pais: 'USA' },
+  'JPM': { ticker: 'JPM', nombre: 'JPMorgan Chase & Co.', tipo: 'cedear', mercado: 'BCBA', sector: 'Financials', subsector: 'Diversified Banking', pais: 'USA' },
+  'C': { ticker: 'C', nombre: 'Citigroup Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Financials', subsector: 'Diversified Banking', pais: 'USA' },
+  'BAC': { ticker: 'BAC', nombre: 'Bank of America Corp.', tipo: 'cedear', mercado: 'BCBA', sector: 'Financials', subsector: 'Diversified Banking', pais: 'USA' },
+  'DIS': { ticker: 'DIS', nombre: 'The Walt Disney Company', tipo: 'cedear', mercado: 'BCBA', sector: 'Communication Services', subsector: 'Entertainment', pais: 'USA' },
+  'NFLX': { ticker: 'NFLX', nombre: 'Netflix Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Communication Services', subsector: 'Entertainment', pais: 'USA' }
+};
 
 const fmt = (n, dec = 2) => {
   if (n == null || isNaN(n)) return '—';
@@ -709,6 +764,137 @@ function App() {
   const [wlTypeFilters, setWlTypeFilters] = useState([]);
   const [wlSectorFilters, setWlSectorFilters] = useState([]);
 
+  // Dynamic & Custom Ticker Catalog
+  const [customTickers, setCustomTickers] = useState(() => JSON.parse(localStorage.getItem('custom_ticker_dictionary') || '{}'));
+
+  const saveCustomTicker = (info) => {
+    if (!info || !info.ticker) return;
+    const t = info.ticker.trim().toUpperCase();
+    if (!t) return;
+    setCustomTickers(prev => {
+      const existing = prev[t] || {};
+      const updated = {
+        ticker: t,
+        nombre: info.nombre !== undefined && info.nombre !== '' ? info.nombre : (existing.nombre || ''),
+        tipo: info.tipo || existing.tipo || 'accion',
+        mercado: info.mercado || existing.mercado || 'BCBA',
+        sector: info.sector || existing.sector || '',
+        subsector: info.subsector || existing.subsector || '',
+        pais: info.pais || existing.pais || ''
+      };
+      const next = { ...prev, [t]: updated };
+      localStorage.setItem('custom_ticker_dictionary', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const tickerCatalog = useMemo(() => {
+    const catalog = { ...SEED_TICKER_CATALOG };
+
+    // Merge holdings
+    Object.values(allHoldings).forEach(holdingsList => {
+      if (Array.isArray(holdingsList)) {
+        holdingsList.forEach(h => {
+          if (h && h.ticker) {
+            const t = h.ticker.toUpperCase();
+            catalog[t] = {
+              ticker: t,
+              nombre: h.nombre || (catalog[t] && catalog[t].nombre) || '',
+              tipo: h.tipo || (catalog[t] && catalog[t].tipo) || 'accion',
+              mercado: h.mercado || (catalog[t] && catalog[t].mercado) || 'BCBA',
+              sector: (catalog[t] && catalog[t].sector) || '',
+              subsector: (catalog[t] && catalog[t].subsector) || '',
+              pais: (catalog[t] && catalog[t].pais) || ''
+            };
+          }
+        });
+      }
+    });
+
+    // Merge watchlist
+    if (Array.isArray(watchlist)) {
+      watchlist.forEach(w => {
+        if (w && w.ticker) {
+          const t = w.ticker.toUpperCase();
+          catalog[t] = {
+            ticker: t,
+            nombre: w.nombre || (catalog[t] && catalog[t].nombre) || '',
+            tipo: w.tipo || (catalog[t] && catalog[t].tipo) || 'accion',
+            mercado: w.mercado || (catalog[t] && catalog[t].mercado) || 'BCBA',
+            sector: w.sector || (catalog[t] && catalog[t].sector) || '',
+            subsector: w.subsector || (catalog[t] && catalog[t].subsector) || '',
+            pais: w.pais || (catalog[t] && catalog[t].pais) || ''
+          };
+        }
+      });
+    }
+
+    // Merge operations
+    Object.values(allOperaciones).forEach(opList => {
+      if (Array.isArray(opList)) {
+        opList.forEach(op => {
+          if (op && op.ticker) {
+            const t = op.ticker.toUpperCase();
+            if (!catalog[t]) {
+              catalog[t] = {
+                ticker: t,
+                nombre: '',
+                tipo: op.assetTipo || 'accion',
+                mercado: 'BCBA'
+              };
+            }
+          }
+        });
+      }
+    });
+
+    // Merge custom tickers
+    Object.keys(customTickers).forEach(t => {
+      const item = customTickers[t];
+      catalog[t] = {
+        ...(catalog[t] || {}),
+        ...item,
+        ticker: t
+      };
+    });
+
+    return catalog;
+  }, [allHoldings, watchlist, allOperaciones, customTickers]);
+
+  const handleNewTickerChange = (val) => {
+    const upper = val.toUpperCase();
+    setNewTicker(upper);
+    const match = tickerCatalog[upper.trim()];
+    if (match) {
+      if (match.nombre) setNewNombre(match.nombre);
+      if (match.tipo) setNewTipo(match.tipo);
+      if (match.mercado) setNewMercado(match.mercado);
+    }
+  };
+
+  const handleWlTickerChange = (val) => {
+    const upper = val.toUpperCase();
+    setWlTicker(upper);
+    const match = tickerCatalog[upper.trim()];
+    if (match) {
+      if (match.nombre) setWlNombre(match.nombre);
+      if (match.tipo) setWlTipo(match.tipo);
+      if (match.mercado) setWlMercado(match.mercado);
+      if (match.sector) setWlSector(match.sector);
+      if (match.subsector) setWlSubsector(match.subsector);
+      if (match.pais) setWlPais(match.pais);
+    }
+  };
+
+  const handleOpTickerChange = (val) => {
+    const upper = val.toUpperCase();
+    setOpTicker(upper);
+    const match = tickerCatalog[upper.trim()];
+    if (match) {
+      if (match.tipo) setOpAssetTipo(match.tipo);
+    }
+  };
+
   const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
   const [analyzeImageError, setAnalyzeImageError] = useState(null);
 
@@ -1280,6 +1466,7 @@ function App() {
       setHoldings([...holdings, h]);
     }
 
+    saveCustomTicker({ ticker, nombre: newNombre.trim(), tipo: newTipo, mercado: newMercado });
     setPrices(nPrices);
     setNewTicker(''); setNewNombre(''); setNewCantidad(''); setNewPrecio(''); setNewPrecioActual('');
     setEditingHoldingOriginal(null); setRegisterPartialSale(false); setPartialSalePrice('');
@@ -1344,6 +1531,7 @@ function App() {
 
     const w = { ticker, tipo: wlTipo, mercado: wlMercado, nombre: wlNombre.trim(), sector: wlSector.trim(), subsector: wlSubsector.trim(), pais: wlPais.trim() };
 
+    saveCustomTicker({ ticker, nombre: wlNombre.trim(), tipo: wlTipo, mercado: wlMercado, sector: wlSector.trim(), subsector: wlSubsector.trim(), pais: wlPais.trim() });
     setWatchlist([...watchlist, w]);
     setWlTicker(''); setWlNombre(''); setWlSector(''); setWlSubsector(''); setWlPais('');
     setShowAddWatchlist(false);
@@ -1704,6 +1892,13 @@ function App() {
 
   return (
     <div className="app-container">
+      <datalist id="ticker-suggestions">
+        {Object.values(tickerCatalog).map(item => (
+          <option key={item.ticker} value={item.ticker}>
+            {item.nombre ? `${item.nombre} (${item.tipo || ''})` : item.ticker}
+          </option>
+        ))}
+      </datalist>
       {/* Header */}
       <header className="header" style={{ marginBottom: '0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -2126,7 +2321,7 @@ function App() {
                   </div>
                   <div>
                     <label>Ticker</label>
-                    <input value={newTicker} onChange={e => setNewTicker(e.target.value.toUpperCase())} placeholder="ej: GGAL" />
+                    <input value={newTicker} onChange={e => handleNewTickerChange(e.target.value)} list="ticker-suggestions" placeholder="ej: GGAL" />
                   </div>
                 </div>
                 <div className="form-row trio">
@@ -2366,7 +2561,7 @@ function App() {
                 </div>
                 <div>
                   <label>Ticker</label>
-                  <input value={opTicker} onChange={e => setOpTicker(e.target.value.toUpperCase())} placeholder="GGAL" />
+                  <input value={opTicker} onChange={e => handleOpTickerChange(e.target.value)} list="ticker-suggestions" placeholder="GGAL" />
                 </div>
                 <div>
                   <label>Movimiento</label>
@@ -2514,7 +2709,7 @@ function App() {
                   </div>
                   <div>
                     <label>Ticker</label>
-                    <input value={wlTicker} onChange={e => setWlTicker(e.target.value.toUpperCase())} placeholder="ej: AAPL" />
+                    <input value={wlTicker} onChange={e => handleWlTickerChange(e.target.value)} list="ticker-suggestions" placeholder="ej: AAPL" />
                   </div>
                   <div>
                     <label>Nombre (opc.)</label>
