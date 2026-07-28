@@ -15,20 +15,32 @@ const CHART_COLORS = [
   '#06b6d4', '#e11d48', '#8b5cf6', '#22d3ee', '#fb923c',
 ];
 const GLOBAL_INDICES = [
-  { ticker: '^GSPC', name: 'S&P 500', desc: 'Benchmark principal del mercado estadounidense.' },
-  { ticker: '^DJI', name: 'Dow Jones', desc: 'Índice industrial de referencia de las 30 mayores empresas de EE.UU.' },
-  { ticker: '^IXIC', name: 'Nasdaq', desc: 'Índice enfocado en empresas tecnológicas y de crecimiento.' },
-  { ticker: '^VIX', name: 'VIX (Miedo)', desc: 'Índice de volatilidad; clave para medir el sentimiento de "miedo" en el mercado.' },
-  { ticker: '^STOXX50E', name: 'Euro Stoxx 50', desc: 'El índice más representativo de las 50 mayores empresas de la Eurozona.' },
-  { ticker: 'EWZ', name: 'Bovespa (USD)', desc: 'iShares MSCI Brazil ETF; usado como proxy del mercado brasileño en dólares.' },
-  { ticker: 'MERVAL_USD', name: 'Merval (USD)', desc: 'Índice S&P Merval dividido por el Dólar CCL. Refleja el valor real en dólares de las acciones argentinas.', isCalculated: true },
-  { ticker: '^TNX', name: '10Y Yield', desc: 'Rendimiento del bono del Tesoro a 10 años. Si sube, suele presionar a la baja a las acciones y encarece el crédito.' },
-  { ticker: 'GC=F', name: 'Oro', desc: 'Futuros del Oro. Activo refugio por excelencia ante incertidumbre o inflación.' },
-  { ticker: 'DX-Y.NYB', name: 'DXY', desc: 'Índice Dólar. Mide la fortaleza del dólar frente a otras divisas. Si sube, los emergentes suelen sufrir.' },
-  { ticker: 'CL=F', name: 'WTI Oil', desc: 'Crudo West Texas Intermediate. Referencia principal del petróleo en EE.UU.' },
-  { ticker: 'BZ=F', name: 'Brent Oil', desc: 'Petróleo Brent. Referencia global para el mercado europeo y mundial.' },
-  { ticker: 'BTC-USD', name: 'Bitcoin', desc: 'Referencia principal del mercado de criptoactivos.' },
+  // 📊 Índices de Mercado (Spot)
+  { ticker: '^GSPC', name: 'S&P 500 (US 500)', category: 'indices', desc: 'Benchmark principal del mercado estadounidense de acciones de gran capitalización.' },
+  { ticker: '^DJI', name: 'Dow Jones (US 30)', category: 'indices', desc: 'Índice industrial de referencia de las 30 mayores empresas de EE.UU.' },
+  { ticker: '^NDX', name: 'Nasdaq 100 (US TECH 100)', category: 'indices', desc: 'Índice de las 100 mayores empresas no financieras cotizadas en Nasdaq.' },
+  { ticker: '^RUT', name: 'Russell 2000 (US 2000)', category: 'indices', desc: 'Índice de referencia para 2.000 empresas de pequeña capitalización (Small Caps) de EE.UU.' },
+  { ticker: '^VIX', name: 'S&P VIX (Volatilidad)', category: 'indices', desc: 'Índice de volatilidad del S&P 500; mide las expectativas de volatilidad del mercado a 30 días.' },
+  { ticker: '^STOXX50E', name: 'Euro Stoxx 50', category: 'indices', desc: 'El índice más representativo de las 50 mayores empresas de la Eurozona.' },
+  { ticker: 'EWZ', name: 'Bovespa (USD)', category: 'indices', desc: 'iShares MSCI Brazil ETF; usado como proxy del mercado brasileño en dólares.' },
+  { ticker: 'MERVAL_USD', name: 'Merval (USD)', category: 'indices', desc: 'Índice S&P Merval dividido por el Dólar CCL. Refleja el valor real en dólares de las acciones argentinas.', isCalculated: true },
+
+  // 📈 Futuros de Índices EE.UU.
+  { ticker: 'ES=F', name: 'Futuro US 500 (E-mini S&P)', category: 'futuros', desc: 'Contrato de futuros e-mini del S&P 500 (CME). Cotiza casi 24hs al día anticipando el mercado.' },
+  { ticker: 'YM=F', name: 'Futuro US 30 (E-mini Dow)', category: 'futuros', desc: 'Contrato de futuros e-mini del Dow Jones Industrial Average 30.' },
+  { ticker: 'NQ=F', name: 'Futuro US TECH 100 (E-mini Nasdaq)', category: 'futuros', desc: 'Contrato de futuros e-mini del Nasdaq 100.' },
+  { ticker: 'RTY=F', name: 'Futuro US 2000 (E-mini Russell)', category: 'futuros', desc: 'Contrato de futuros e-mini del Russell 2000 Small Caps.' },
+  { ticker: 'VX=F', name: 'Futuro S&P VIX', category: 'futuros', desc: 'Contrato de futuros sobre el índice de volatilidad VIX.' },
+
+  // 🌐 Commodities & Macroeconómicos
+  { ticker: '^TNX', name: '10Y Yield', category: 'macro', desc: 'Rendimiento del bono del Tesoro a 10 años. Si sube, suele presionar a la baja a las acciones y encarece el crédito.' },
+  { ticker: 'DX-Y.NYB', name: 'DXY (Índice Dólar)', category: 'macro', desc: 'Índice Dólar. Mide la fortaleza del dólar frente a otras divisas globales.' },
+  { ticker: 'GC=F', name: 'Oro (Futuros)', category: 'macro', desc: 'Futuros del Oro. Activo refugio por excelencia ante incertidumbre o inflación.' },
+  { ticker: 'CL=F', name: 'WTI Oil (Futuros)', category: 'macro', desc: 'Crudo West Texas Intermediate. Referencia principal del petróleo en EE.UU.' },
+  { ticker: 'BZ=F', name: 'Brent Oil (Futuros)', category: 'macro', desc: 'Petróleo Brent. Referencia global para el mercado europeo y mundial.' },
+  { ticker: 'BTC-USD', name: 'Bitcoin', category: 'macro', desc: 'Referencia principal del mercado de criptoactivos.' },
 ];
+
 
 const SEED_TICKER_CATALOG = {
   // Acciones Argentina (BCBA)
@@ -3282,80 +3294,103 @@ function App() {
         </div>
       )}
 
-      {activeTab === 'mercados' && (
-        <div className="glass-panel">
-          <div className="panel-header">
-            <div className="panel-title">Referencia de Mercados Globales</div>
-          </div>
+      {activeTab === 'mercados' && (() => {
+        const MARKET_CATEGORIES = [
+          { id: 'indices', title: '📊 Índices de Mercado (Spot)', subtitle: 'Índices bursátiles de contado principales (US 500, US 30, US TECH 100, US 2000, VIX, etc.)' },
+          { id: 'futuros', title: '📈 Futuros de Índices de EE.UU.', subtitle: 'Contratos de futuros e-mini (US 500, US 30, US TECH 100, US 2000, VIX) que cotizan casi 24hs al día anticipando el mercado' },
+          { id: 'macro', title: '🌐 Commodities & Indicadores Macroeconómicos', subtitle: 'Tasa 10Y EE.UU., Índice Dólar (DXY), Oro, Petróleo (WTI/Brent) y Bitcoin' },
+        ];
 
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Indicador</th>
-                  <th>Precio</th>
-                  <th>Variación Hoy</th>
-                  <th>1 Mes</th>
-                  <th>6 Meses</th>
-                  <th>1 Año</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...GLOBAL_INDICES].sort((a, b) => (dailyStats[b.ticker]?.changePct ?? 0) - (dailyStats[a.ticker]?.changePct ?? 0)).map(idx => {
-                  const stats = dailyStats[idx.ticker];
-                  if (!stats) return null;
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {MARKET_CATEGORIES.map(cat => {
+              const catItems = GLOBAL_INDICES.filter(i => i.category === cat.id);
+              if (catItems.length === 0) return null;
 
-                  const isPos = stats.change >= 0;
-                  const fmtHist = (val) => {
-                    if (val == null) return <span style={{ color: '#666' }}>—</span>;
-                    let css = val >= 0 ? 'positive' : 'negative';
-                    return <span className={css}><strong>{fmtPct(val)}</strong></span>;
-                  };
+              return (
+                <div key={cat.id} className="glass-panel">
+                  <div className="panel-header" style={{ marginBottom: '1rem' }}>
+                    <div>
+                      <div className="panel-title" style={{ fontSize: '18px', color: '#fff' }}>{cat.title}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{cat.subtitle}</div>
+                    </div>
+                    <span style={{ fontSize: '11px', background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', padding: '4px 10px', borderRadius: '12px', fontWeight: '600' }}>
+                      {catItems.length} activos
+                    </span>
+                  </div>
 
-                  return (
-                    <React.Fragment key={idx.ticker}>
-                      <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === idx.ticker ? null : idx.ticker)}>
-                        <td>
-                          <div className="ticker-name">{idx.name}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{idx.ticker}</div>
-                        </td>
-                        <td>
-                          <strong className={!stats.isOpen ? 'price-stale' : ''}>
-                            {idx.ticker === 'BTC-USD' ? '' : '$'}{fmt(stats.price, idx.ticker === 'BTC-USD' || idx.ticker === '^TNX' ? 2 : 2)}
-                          </strong>
-                        </td>
-                        <td className={isPos ? 'positive' : 'negative'}>
-                          <strong>{fmtPct(stats.changePct)}</strong>
-                        </td>
-                        <td>{fmtHist(stats.hist1m)}</td>
-                        <td>{fmtHist(stats.hist6m)}</td>
-                        <td>{fmtHist(stats.hist1y)}</td>
-                        <td style={{ color: 'var(--accent)', fontSize: '12px' }}>{expandedTicker === idx.ticker ? '▲ Info' : '▼ Info'}</td>
-                      </tr>
-                      {expandedTicker === idx.ticker && (
-                        <tr className="expanded-panel-row">
-                          <td colSpan="7">
-                            <div className="market-detail-container">
-                              <div className="market-explanation">
-                                <h4>Acerca de {idx.name}</h4>
-                                <p>{idx.desc}</p>
-                              </div>
-                              <div style={{ flex: 1 }}>
-                                <HistoricalChart data={stats} ticker={idx.ticker} name={idx.name} />
-                              </div>
-                            </div>
-                          </td>
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Indicador</th>
+                          <th>Precio</th>
+                          <th>Variación Hoy</th>
+                          <th>1 Mes</th>
+                          <th>6 Meses</th>
+                          <th>1 Año</th>
+                          <th></th>
                         </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </thead>
+                      <tbody>
+                        {catItems.map(idx => {
+                          const stats = dailyStats[idx.ticker];
+                          if (!stats) return null;
+
+                          const isPos = stats.change >= 0;
+                          const fmtHist = (val) => {
+                            if (val == null) return <span style={{ color: '#666' }}>—</span>;
+                            let css = val >= 0 ? 'positive' : 'negative';
+                            return <span className={css}><strong>{fmtPct(val)}</strong></span>;
+                          };
+
+                          return (
+                            <React.Fragment key={idx.ticker}>
+                              <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === idx.ticker ? null : idx.ticker)}>
+                                <td>
+                                  <div className="ticker-name">{idx.name}</div>
+                                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{idx.ticker}</div>
+                                </td>
+                                <td>
+                                  <strong className={!stats.isOpen ? 'price-stale' : ''}>
+                                    {idx.ticker === 'BTC-USD' ? '' : '$'}{fmt(stats.price, idx.ticker === 'BTC-USD' || idx.ticker === '^TNX' ? 2 : 2)}
+                                  </strong>
+                                </td>
+                                <td className={isPos ? 'positive' : 'negative'}>
+                                  <strong>{fmtPct(stats.changePct)}</strong>
+                                </td>
+                                <td>{fmtHist(stats.hist1m)}</td>
+                                <td>{fmtHist(stats.hist6m)}</td>
+                                <td>{fmtHist(stats.hist1y)}</td>
+                                <td style={{ color: 'var(--accent)', fontSize: '12px' }}>{expandedTicker === idx.ticker ? '▲ Info' : '▼ Info'}</td>
+                              </tr>
+                              {expandedTicker === idx.ticker && (
+                                <tr className="expanded-panel-row">
+                                  <td colSpan="7">
+                                    <div className="market-detail-container">
+                                      <div className="market-explanation">
+                                        <h4>Acerca de {idx.name}</h4>
+                                        <p>{idx.desc}</p>
+                                      </div>
+                                      <div style={{ flex: 1 }}>
+                                        <HistoricalChart data={stats} ticker={idx.ticker} name={idx.name} />
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
 
       {/* --- TAB INSIGHTS --- */}
