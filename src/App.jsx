@@ -3766,7 +3766,7 @@ function App() {
                                 <th style={{ padding: '4px' }}>Ticker</th>
                                 <th style={{ padding: '4px', textAlign: 'right' }}>Cant. @ Venta</th>
                                 <th style={{ padding: '4px', textAlign: 'right' }}>Actual</th>
-                                <th style={{ padding: '4px', textAlign: 'right' }}>Análisis Post-Venta</th>
+                                <th style={{ padding: '4px', textAlign: 'right' }}>Resultado</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -3784,7 +3784,7 @@ function App() {
                                     <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(op.cantidad, 0)} @ ${fmt(op.precio)}</td>
                                     <td style={{ padding: '4px', textAlign: 'right' }}>{curPrice !== null ? `$${fmt(curPrice)}` : '—'}</td>
                                     <td style={{ padding: '4px', textAlign: 'right' }} className={isGoodSale ? 'positive' : 'negative'}>
-                                      {oppPnL !== null ? `${isGoodSale ? 'Evitaste perder' : 'Dejaste de ganar'} ${fmtPct(Math.abs(pct))}` : '—'}
+                                      {oppPnL !== null ? `${fmtPct(pct)} (${isGoodSale ? '+' : '-'}${fmt(Math.abs(oppPnL))})` : '—'}
                                     </td>
                                   </tr>
                                 );
