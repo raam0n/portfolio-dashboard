@@ -695,8 +695,22 @@ function App() {
     if (existing) return JSON.parse(existing);
     return { "Mi Portfolio Principal": JSON.parse(localStorage.getItem('portfolio_evals') || '[]') };
   });
-  const evals = allEvals[currentPortfolioId] || [];
+  const rawEvals = allEvals[currentPortfolioId] || [];
+  const evals = useMemo(() => {
+    return rawEvals.map(ev => {
+      if (Array.isArray(ev.opIds)) return ev;
+      return {
+        id: ev.id || Date.now().toString(),
+        nombre: ev.nombre || `Evaluación: ${ev.ticker || 'Operación'} (${(ev.tipo || '').toUpperCase()})`,
+        fecha: ev.fecha || new Date().toISOString().split('T')[0],
+        notas: '',
+        opIds: ev.opId ? [ev.opId] : (ev.id ? [ev.id] : []),
+        excluded: !!ev.excluded
+      };
+    });
+  }, [rawEvals]);
   const setEvals = (val) => setAllEvals(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
+
 
   const [allFlujos, setAllFlujos] = useState(() => {
     const existing = localStorage.getItem('all_flujos');
@@ -727,10 +741,15 @@ function App() {
   const [expandedTicker, setExpandedTicker] = useState(null); // Ticker of the expanded row in Watchlist/Portfolio
   const [holdingsSort, setHoldingsSort] = useState('default'); // 'default', 'alpha', 'pct', 'pnlA', 'pnlP'
 
-  // Trade form state
+  // Trade & Evaluation form state
   const [tradeCompraId, setTradeCompraId] = useState('');
   const [tradeVentaId, setTradeVentaId] = useState('');
-  const [evalOpId, setEvalOpId] = useState('');
+  const [evalNombre, setEvalNombre] = useState('');
+  const [evalNotas, setEvalNotas] = useState('');
+  const [evalSelectedOpIds, setEvalSelectedOpIds] = useState([]);
+  const [editingGroupId, setEditingGroupId] = useState(null);
+  const [evalOpSearch, setEvalOpSearch] = useState('');
+
 
   // Form states
   const [newTipo, setNewTipo] = useState('accion');
@@ -1637,36 +1656,73 @@ function App() {
     setTrades(trades.filter(t => t.id !== id));
   };
 
-  // --- EVALUATIONS BUSINESS LOGIC ---
-  const agregarEval = () => {
-    const op = operaciones.find(o => o.id === evalOpId);
-    if (!op) return alert('Seleccioná una operación del histórico.');
-    if (evals.find(e => e.opId === op.id)) return alert('Esta operación ya está siendo evaluada.');
+  // --- EVALUATIONS BUSINESS LOGIC (GROUPED ROTATIONS) ---
+  const abrirNuevaEvalModal = () => {
+    setEditingGroupId(null);
+    setEvalNombre('');
+    setEvalNotas('');
+    setEvalSelectedOpIds([]);
+    setEvalOpSearch('');
+    setShowAddEval(true);
+  };
 
-    const newEval = {
-      id: Date.now().toString(),
-      opId: op.id,
-      ticker: op.ticker,
-      cantidad: op.cantidad,
-      precio: op.precio,
-      fecha: op.fecha,
-      tipo: op.tipo,
-      excluded: false
-    };
+  const abrirEditarEvalModal = (group) => {
+    setEditingGroupId(group.id);
+    setEvalNombre(group.nombre || '');
+    setEvalNotas(group.notas || '');
+    setEvalSelectedOpIds(group.opIds || []);
+    setEvalOpSearch('');
+    setShowAddEval(true);
+  };
 
-    setEvals([...evals, newEval]);
-    setEvalOpId('');
+  const guardarEvalGroup = () => {
+    const nombreClean = evalNombre.trim();
+    if (!nombreClean) return alert('Ingresá un nombre para la evaluación de rotación.');
+    if (evalSelectedOpIds.length === 0) return alert('Seleccioná al menos una operación para evaluar en este grupo.');
+
+    if (editingGroupId) {
+      setEvals(evals.map(g => g.id === editingGroupId ? {
+        ...g,
+        nombre: nombreClean,
+        notas: evalNotas.trim(),
+        opIds: [...evalSelectedOpIds]
+      } : g));
+    } else {
+      const newGroup = {
+        id: Date.now().toString(),
+        nombre: nombreClean,
+        fecha: new Date().toISOString().split('T')[0],
+        notas: evalNotas.trim(),
+        opIds: [...evalSelectedOpIds],
+        excluded: false
+      };
+      setEvals([...evals, newGroup]);
+    }
+
+    setEvalNombre('');
+    setEvalNotas('');
+    setEvalSelectedOpIds([]);
+    setEditingGroupId(null);
     setShowAddEval(false);
   };
 
-  const eliminarEval = (id) => {
-    if (!window.confirm('¿Remover esta evaluación?')) return;
-    setEvals(evals.filter(e => e.id !== id));
+  const toggleSelectOpForEval = (opId) => {
+    if (evalSelectedOpIds.includes(opId)) {
+      setEvalSelectedOpIds(evalSelectedOpIds.filter(id => id !== opId));
+    } else {
+      setEvalSelectedOpIds([...evalSelectedOpIds, opId]);
+    }
+  };
+
+  const eliminarEvalGroup = (id) => {
+    if (!window.confirm('¿Eliminar esta evaluación de rotación?')) return;
+    setEvals(evals.filter(g => g.id !== id));
   };
 
   const toggleEvalExclusion = (id) => {
-    setEvals(evals.map(e => e.id === id ? { ...e, excluded: !e.excluded } : e));
+    setEvals(evals.map(g => g.id === id ? { ...g, excluded: !g.excluded } : g));
   };
+
 
 
   // --- IMP/EXP LOGIC ---
@@ -3429,224 +3485,404 @@ function App() {
       {activeTab === 'evaluacion' && (
         <div className="glass-panel">
           <div className="panel-header">
-            <div className="panel-title">Evaluación de Operaciones Individuales ({evals.length})</div>
-            <button className="btn btn-primary btn-sm" onClick={() => setShowAddEval(!showAddEval)}>+ Agregar a Seguimiento</button>
+            <div>
+              <div className="panel-title">Evaluación de Rotaciones de Portfolio ({evals.length})</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                Agrupá compras y ventas para evaluar el rendimiento neto de tus rotaciones de cartera a lo largo del tiempo.
+              </div>
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={abrirNuevaEvalModal}>
+              + Nueva Evaluación / Rotación
+            </button>
           </div>
 
           {showAddEval && (
-            <div className="collapsible-content active">
-              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Nueva Evaluación</div>
-              {operaciones.length === 0 ? (
-                <div className="empty-state" style={{ padding: '1rem' }}>
-                  No hay operaciones en el histórico para evaluar.
+            <div className="collapsible-content active" style={{ background: 'rgba(0,0,0,0.3)', padding: '1.25rem', borderRadius: '10px', border: '1px solid var(--glass-border)', marginTop: '1rem' }}>
+              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '15px', color: '#6366f1' }}>
+                {editingGroupId ? '✏️ Editar Evaluación / Rotación' : '➕ Crear Nueva Evaluación / Rotación'}
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600' }}>Nombre / Título de la Rotación</label>
+                  <input 
+                    type="text"
+                    className="form-control"
+                    placeholder="Ej: Rotación Bancos -> Cedears Tech (Julio 2026)" 
+                    value={evalNombre} 
+                    onChange={e => setEvalNombre(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff' }}
+                  />
                 </div>
-              ) : (
-                <div className="form-row">
-                  <div style={{ flex: 1 }}>
-                    <label>Seleccionar Operación</label>
-                    <select value={evalOpId} onChange={e => setEvalOpId(e.target.value)}>
-                      <option value="">— Seleccioná una operación —</option>
-                      {[...operaciones].sort((a, b) => b.fecha.localeCompare(a.fecha)).map(o => (
-                        <option key={o.id} value={o.id}>
-                          {o.fecha} · {o.ticker} · {o.tipo.toUpperCase()} {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                    <button className="btn btn-primary" onClick={agregarEval}>Agregar</button>
-                    <button className="btn" onClick={() => setShowAddEval(false)}>Cancelar</button>
-                  </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600' }}>Notas / Racional de Inversión (Opcional)</label>
+                  <input 
+                    type="text"
+                    className="form-control"
+                    placeholder="Ej: Venta de GGAL y BMA para financiar compras de NVDA y AMD" 
+                    value={evalNotas} 
+                    onChange={e => setEvalNotas(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff' }}
+                  />
                 </div>
-              )}
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '600' }}>
+                    Seleccionar Operaciones para incluir en este Grupo ({evalSelectedOpIds.length} seleccionadas)
+                  </label>
+                  <input 
+                    type="text"
+                    placeholder="Filtrar por ticker o fecha..."
+                    value={evalOpSearch}
+                    onChange={e => setEvalOpSearch(e.target.value)}
+                    style={{ padding: '4px 8px', fontSize: '12px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '4px', color: '#fff', width: '220px' }}
+                  />
+                </div>
+
+                {operaciones.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '1rem' }}>No hay operaciones en el histórico para evaluar.</div>
+                ) : (
+                  <div style={{ maxHeight: '240px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '6px' }}>
+                      {[...operaciones]
+                        .sort((a, b) => b.fecha.localeCompare(a.fecha))
+                        .filter(o => !evalOpSearch || o.ticker.toLowerCase().includes(evalOpSearch.toLowerCase()) || o.fecha.includes(evalOpSearch) || o.tipo.includes(evalOpSearch))
+                        .map(o => {
+                          const isSelected = evalSelectedOpIds.includes(o.id);
+                          return (
+                            <div 
+                              key={o.id} 
+                              onClick={() => toggleSelectOpForEval(o.id)}
+                              style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '8px', 
+                                padding: '6px 10px', 
+                                background: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255,255,255,0.03)', 
+                                border: isSelected ? '1px solid #6366f1' : '1px solid transparent',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              <input 
+                                type="checkbox" 
+                                checked={isSelected} 
+                                onChange={() => {}} 
+                                style={{ cursor: 'pointer' }}
+                              />
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{o.fecha}</span>
+                              <strong style={{ fontSize: '13px', color: '#fff', minWidth: '60px' }}>{o.ticker}</strong>
+                              <span className={`badge badge-${o.tipo}`} style={{ fontSize: '10px', padding: '2px 6px' }}>{o.tipo.toUpperCase()}</span>
+                              <span style={{ fontSize: '11px', marginLeft: 'auto', fontWeight: '500' }}>
+                                {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button className="btn btn-primary" onClick={guardarEvalGroup}>
+                  {editingGroupId ? 'Guardar Cambios' : 'Crear Evaluación de Rotación'}
+                </button>
+                <button className="btn" onClick={() => { setShowAddEval(false); setEditingGroupId(null); }}>
+                  Cancelar
+                </button>
+              </div>
             </div>
           )}
 
           {evals.length === 0 && !showAddEval ? (
-            <div className="empty-state">
-              No estás evaluando ninguna operación. Agregá una para ver su rendimiento actual.
+            <div className="empty-state" style={{ marginTop: '1.5rem', padding: '3rem 1rem' }}>
+              <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>No hay evaluaciones de rotación creadas todavía.</div>
+              <p className="hint">Creá un grupo de evaluación seleccionando operaciones de compra y venta para medir el resultado neto de tus decisiones de cartera.</p>
+              <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={abrirNuevaEvalModal}>
+                + Crear Primera Evaluación de Rotación
+              </button>
             </div>
           ) : (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-                {evals.map(ev => {
-                  const yt = getYahooTicker({ ticker: ev.ticker, tipo: ev.tipo || 'accion' });
-                  const curPrice = yt ? prices[yt] : (prices[ev.ticker] ?? null);
-                  const opTotal = ev.precio * ev.cantidad;
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1.5rem' }}>
+              {evals.map(group => {
+                const groupOps = (group.opIds || []).map(id => operaciones.find(o => o.id === id)).filter(Boolean);
+                const comprasOps = groupOps.filter(o => o.tipo === 'compra');
+                const ventasOps = groupOps.filter(o => o.tipo === 'venta');
 
-                  let perfHtml = null;
-                  if (curPrice === null) {
-                    perfHtml = <div className="empty-state" style={{ padding: '20px' }}>Cargando cotización...</div>;
-                  } else {
-                    const diff = curPrice - ev.precio;
-                    const pct = (diff / ev.precio) * 100;
-                    const nominal = diff * ev.cantidad;
+                let groupBuyCost = 0;
+                let groupBuyValue = 0;
+                let groupSellProceeds = 0;
+                let groupSellValue = 0;
 
-                    if (ev.tipo === 'compra') {
-                      const isPos = diff >= 0;
-                      perfHtml = (
-                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Rendimiento desde la compra:</div>
-                          <div className={isPos ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
-                            {fmtPct(pct)} ({isPos ? '+' : '-'}${fmt(Math.abs(nominal))})
-                          </div>
-                          <div className="hint" style={{ marginTop: '8px' }}>
-                            Compra: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
-                          </div>
-                        </div>
-                      );
-                    } else {
-                      const isGoodSale = diff <= 0;
-                      const opportunity = -nominal;
-                      const oppPct = -pct;
-                      perfHtml = (
-                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Análisis post-venta:</div>
-                          <div className={isGoodSale ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '700' }}>
-                            {isGoodSale ? 'Evitaste perder' : 'Dejaste de ganar'}{' '}
-                            {fmtPct(Math.abs(oppPct))} ({isGoodSale ? '+' : '-'}${fmt(Math.abs(opportunity))})
-                          </div>
-                          <div className="hint" style={{ marginTop: '8px' }}>
-                            Venta: ${fmt(ev.precio)} → Actual: <strong>${fmt(curPrice)}</strong>
-                          </div>
-                        </div>
-                      );
-                    }
-                  }
-
-                  return (
-                    <div key={ev.id} className="glass-panel" style={{ background: 'rgba(0,0,0,0.2)', position: 'relative', opacity: ev.excluded ? 0.5 : 1, transition: 'opacity 0.2s' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                        <div>
-                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>{ev.fecha}</div>
-                          <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{ev.ticker}</div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <label className="mcd-option" style={{ margin: 0, padding: '4px 8px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', border: '1px solid var(--glass-border)', cursor: 'pointer' }}>
-                            <input type="checkbox" checked={!ev.excluded} onChange={() => toggleEvalExclusion(ev.id)} style={{ width: '12px', height: '12px' }} />
-                            <span style={{ fontSize: '10px', marginLeft: '4px' }}>Incluir</span>
-                          </label>
-                          <button className="btn btn-sm btn-danger" onClick={() => eliminarEval(ev.id)} style={{ padding: '2px 6px' }}>✕</button>
-                        </div>
-                      </div>
-                      <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                        <div>
-                          <span className={`badge badge-${ev.tipo}`}>{ev.tipo}</span>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>{fmt(ev.cantidad, 0)} nominales</span>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total operado</div>
-                          <div style={{ fontSize: '13px', fontWeight: '600' }}>${fmt(opTotal)}</div>
-                        </div>
-                      </div>
-                      {perfHtml}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Net Summary Panel */}
-              {evals.filter(e => !e.excluded).length > 0 && (() => {
-                let netResult = 0;
-                let totalBuyVol = 0;
-                let totalSellVol = 0;
-
-                let totalHoldingResult = 0;
-                let totalSaleResult = 0;
-
-                evals.filter(e => !e.excluded).forEach(ev => {
-                  const yt = getYahooTicker({ ticker: ev.ticker, tipo: ev.tipo || 'accion' });
-                  const curPrice = yt ? prices[yt] : (prices[ev.ticker] ?? null);
-                  const opTotal = ev.precio * ev.cantidad;
-
+                comprasOps.forEach(op => {
+                  const yt = getYahooTicker({ ticker: op.ticker, tipo: op.assetTipo || 'accion' });
+                  const curPrice = yt ? prices[yt] : (prices[op.ticker] ?? null);
+                  const cost = op.precio * op.cantidad;
+                  groupBuyCost += cost;
                   if (curPrice !== null) {
-                    if (ev.tipo === 'compra') {
-                      const res = (curPrice - ev.precio) * ev.cantidad;
-                      netResult += res;
-                      totalHoldingResult += res;
-                      totalBuyVol += opTotal;
-                    } else {
-                      const res = (ev.precio - curPrice) * ev.cantidad;
-                      netResult += res;
-                      totalSaleResult += res;
-                      totalSellVol += opTotal;
-                    }
+                    groupBuyValue += curPrice * op.cantidad;
+                  } else {
+                    groupBuyValue += cost;
                   }
                 });
 
-                const totalVol = totalBuyVol + totalSellVol;
-                const netPct = totalBuyVol > 0 ? (netResult / totalBuyVol) * 100 : 0;
+                ventasOps.forEach(op => {
+                  const yt = getYahooTicker({ ticker: op.ticker, tipo: op.assetTipo || 'accion' });
+                  const curPrice = yt ? prices[yt] : (prices[op.ticker] ?? null);
+                  const proceed = op.precio * op.cantidad;
+                  groupSellProceeds += proceed;
+                  if (curPrice !== null) {
+                    groupSellValue += curPrice * op.cantidad;
+                  } else {
+                    groupSellValue += proceed;
+                  }
+                });
+
+                const buyPnL = groupBuyValue - groupBuyCost;
+                const salePnL = groupSellProceeds - groupSellValue; // Positive if sold above current price
+                const netGroupPnL = buyPnL + salePnL;
+                const baseDenom = groupBuyCost + groupSellValue;
+                const netGroupPct = baseDenom > 0 ? (netGroupPnL / baseDenom) * 100 : 0;
+                const isGroupPos = netGroupPnL >= 0;
 
                 return (
-                  <div className="glass-panel" style={{ marginTop: '2rem', background: 'rgba(94, 106, 210, 0.08)', border: '1px solid rgba(94, 106, 210, 0.25)', padding: '1.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '2rem' }}>
-
-                      {/* Left: Title and Volumes */}
-                      <div style={{ flex: 1 }}>
-                        <div className="panel-title" style={{ fontSize: '20px', marginBottom: '6px' }}>Resultado Neto Consolidado</div>
-                        <p className="hint" style={{ marginBottom: '24px', fontSize: '13px' }}>Suma de rendimientos (compras) y beneficios de oportunidad (ventas) seleccionados.</p>
-
-                        <div style={{ display: 'flex', gap: '2.5rem' }}>
-                          <div>
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Volumen Compras</div>
-                            <div style={{ fontSize: '16px', fontWeight: '700' }}>${fmt(totalBuyVol)}</div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Volumen Ventas</div>
-                            <div style={{ fontSize: '16px', fontWeight: '700' }}>${fmt(totalSellVol)}</div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Total Operado</div>
-                            <div style={{ fontSize: '16px', fontWeight: '700', color: '#6366f1' }}>${fmt(totalVol)}</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Right: Specific Results and Total */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '3rem' }}>
-
-                        {/* Stacked Mid Boxes */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'right', minWidth: '160px' }}>
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Res. por Tenencia</div>
-                            <div style={{ fontSize: '16px', fontWeight: '700' }} className={totalHoldingResult >= 0 ? 'positive' : 'negative'}>
-                              {totalHoldingResult >= 0 ? '+' : '-'}${fmt(Math.abs(totalHoldingResult))}
-                            </div>
-                          </div>
-                          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'right', minWidth: '160px' }}>
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Res. por Venta</div>
-                            <div style={{ fontSize: '16px', fontWeight: '700' }} className={totalSaleResult >= 0 ? 'positive' : 'negative'}>
-                              {totalSaleResult >= 0 ? '+' : '-'}${fmt(Math.abs(totalSaleResult))}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Far Right: Total Result */}
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px', opacity: 0.8 }}>Resultado Final</div>
-                          <div className={`metric-value ${netResult >= 0 ? 'positive' : 'negative'}`} style={{ fontSize: '42px', fontWeight: '800', lineHeight: '1', marginBottom: '8px' }}>
-                            {netResult >= 0 ? '+' : '-'}${fmt(Math.abs(netResult))}
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
-                            <span className={netResult >= 0 ? 'positive' : 'negative'} style={{ fontWeight: '700', fontSize: '18px' }}>
-                              {fmtPct(netPct)}
+                  <div 
+                    key={group.id} 
+                    className="glass-panel" 
+                    style={{ 
+                      background: 'rgba(15, 16, 35, 0.6)', 
+                      border: '1px solid var(--glass-border)', 
+                      padding: '1.25rem',
+                      opacity: group.excluded ? 0.5 : 1,
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {/* Header del Grupo de Evaluación */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '18px', fontWeight: '700', color: '#fff' }}>{group.nombre}</span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px' }}>
+                            {group.fecha}
+                          </span>
+                          {comprasOps.length > 0 && ventasOps.length > 0 ? (
+                            <span style={{ fontSize: '10px', background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', padding: '2px 8px', borderRadius: '12px', fontWeight: '600' }}>
+                              ROTACIÓN DE CARTERA
                             </span>
-                            {dolarMep && (
-                              <span style={{ fontSize: '15px', color: 'var(--text-muted)', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '12px' }}>
-                                ≈ US$ {fmt(Math.abs(netResult) / dolarMep)}
-                              </span>
-                            )}
-                          </div>
+                          ) : comprasOps.length > 0 ? (
+                            <span style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 8px', borderRadius: '12px', fontWeight: '600' }}>
+                              GRUPO DE COMPRAS
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '10px', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '2px 8px', borderRadius: '12px', fontWeight: '600' }}>
+                              GRUPO DE VENTAS
+                            </span>
+                          )}
                         </div>
-
+                        {group.notas && (
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', fontStyle: 'italic' }}>
+                            💡 {group.notas}
+                          </div>
+                        )}
                       </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <label className="mcd-option" style={{ margin: 0, padding: '4px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', border: '1px solid var(--glass-border)', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={!group.excluded} 
+                            onChange={() => toggleEvalExclusion(group.id)} 
+                            style={{ width: '13px', height: '13px' }} 
+                          />
+                          <span style={{ fontSize: '11px', marginLeft: '6px' }}>Incluir en Totales</span>
+                        </label>
+                        <button className="btn btn-sm" onClick={() => abrirEditarEvalModal(group)} style={{ fontSize: '11px', padding: '4px 10px' }}>
+                          ✏️ Editar
+                        </button>
+                        <button className="btn btn-sm btn-danger" onClick={() => eliminarEvalGroup(group.id)} style={{ fontSize: '11px', padding: '4px 8px' }}>
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Detalle de Operaciones en el Grupo */}
+                    <div style={{ display: 'grid', gridTemplateColumns: comprasOps.length > 0 && ventasOps.length > 0 ? '1fr 1fr' : '1fr', gap: '1rem' }}>
+                      
+                      {/* Sección Compras */}
+                      {comprasOps.length > 0 && (
+                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+                          <div style={{ fontSize: '12px', fontWeight: '700', color: '#34d399', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>🛒 COMPRAS REALIZADAS ({comprasOps.length})</span>
+                            <span>Invertido: ${fmt(groupBuyCost)}</span>
+                          </div>
+                          <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'left' }}>
+                                <th style={{ padding: '4px' }}>Ticker</th>
+                                <th style={{ padding: '4px', textAlign: 'right' }}>Cant. @ Precio</th>
+                                <th style={{ padding: '4px', textAlign: 'right' }}>Actual</th>
+                                <th style={{ padding: '4px', textAlign: 'right' }}>Resultado</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {comprasOps.map(op => {
+                                const yt = getYahooTicker({ ticker: op.ticker, tipo: op.assetTipo || 'accion' });
+                                const curPrice = yt ? prices[yt] : (prices[op.ticker] ?? null);
+                                const diff = curPrice !== null ? curPrice - op.precio : null;
+                                const pct = diff !== null ? (diff / op.precio) * 100 : null;
+                                const pnl = diff !== null ? diff * op.cantidad : null;
+                                const isPos = pnl >= 0;
+
+                                return (
+                                  <tr key={op.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                                    <td style={{ padding: '4px 0', fontWeight: '600' }}>{op.ticker}</td>
+                                    <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(op.cantidad, 0)} @ ${fmt(op.precio)}</td>
+                                    <td style={{ padding: '4px', textAlign: 'right' }}>{curPrice !== null ? `$${fmt(curPrice)}` : '—'}</td>
+                                    <td style={{ padding: '4px', textAlign: 'right' }} className={isPos ? 'positive' : 'negative'}>
+                                      {pnl !== null ? `${fmtPct(pct)} (${isPos ? '+' : '-'}${fmt(Math.abs(pnl))})` : '—'}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      {/* Sección Ventas */}
+                      {ventasOps.length > 0 && (
+                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                          <div style={{ fontSize: '12px', fontWeight: '700', color: '#f87171', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>🏷️ VENTAS REALIZADAS ({ventasOps.length})</span>
+                            <span>Liberado: ${fmt(groupSellProceeds)}</span>
+                          </div>
+                          <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'left' }}>
+                                <th style={{ padding: '4px' }}>Ticker</th>
+                                <th style={{ padding: '4px', textAlign: 'right' }}>Cant. @ Venta</th>
+                                <th style={{ padding: '4px', textAlign: 'right' }}>Actual</th>
+                                <th style={{ padding: '4px', textAlign: 'right' }}>Análisis Post-Venta</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {ventasOps.map(op => {
+                                const yt = getYahooTicker({ ticker: op.ticker, tipo: op.assetTipo || 'accion' });
+                                const curPrice = yt ? prices[yt] : (prices[op.ticker] ?? null);
+                                const diff = curPrice !== null ? op.precio - curPrice : null; // Positive if sold above current price
+                                const pct = curPrice !== null ? ((op.precio - curPrice) / op.precio) * 100 : null;
+                                const oppPnL = diff !== null ? diff * op.cantidad : null;
+                                const isGoodSale = oppPnL >= 0;
+
+                                return (
+                                  <tr key={op.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                                    <td style={{ padding: '4px 0', fontWeight: '600' }}>{op.ticker}</td>
+                                    <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(op.cantidad, 0)} @ ${fmt(op.precio)}</td>
+                                    <td style={{ padding: '4px', textAlign: 'right' }}>{curPrice !== null ? `$${fmt(curPrice)}` : '—'}</td>
+                                    <td style={{ padding: '4px', textAlign: 'right' }} className={isGoodSale ? 'positive' : 'negative'}>
+                                      {oppPnL !== null ? `${isGoodSale ? 'Evitaste perder' : 'Dejaste de ganar'} ${fmtPct(Math.abs(pct))}` : '—'}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
 
                     </div>
+
+                    {/* Resumen Neto de la Rotación */}
+                    <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        Impacto Neto de esta Evaluación / Rotación:
+                      </div>
+                      <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          Resultado Combinado:
+                        </div>
+                        <div className={isGroupPos ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '800' }}>
+                          {fmtPct(netGroupPct)} ({isGroupPos ? '+' : '-'}${fmt(Math.abs(netGroupPnL))})
+                          {dolarMep && (
+                            <span style={{ fontSize: '12px', fontWeight: '400', opacity: 0.8, marginLeft: '8px' }}>
+                              ≈ US$ {fmt(Math.abs(netGroupPnL) / dolarMep)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
                   </div>
                 );
-              })()}
-            </>
+              })}
+            </div>
           )}
+
+          {/* Panel Consolidado Total de Evaluaciones Activas */}
+          {evals.filter(e => !e.excluded).length > 0 && (() => {
+            let totalNetPnL = 0;
+            let totalBuyVol = 0;
+            let totalSellVol = 0;
+
+            evals.filter(e => !e.excluded).forEach(group => {
+              const groupOps = (group.opIds || []).map(id => operaciones.find(o => o.id === id)).filter(Boolean);
+              
+              groupOps.forEach(op => {
+                const yt = getYahooTicker({ ticker: op.ticker, tipo: op.assetTipo || 'accion' });
+                const curPrice = yt ? prices[yt] : (prices[op.ticker] ?? null);
+                const opTotal = op.precio * op.cantidad;
+
+                if (op.tipo === 'compra') {
+                  totalBuyVol += opTotal;
+                  if (curPrice !== null) {
+                    totalNetPnL += (curPrice - op.precio) * op.cantidad;
+                  }
+                } else {
+                  totalSellVol += opTotal;
+                  if (curPrice !== null) {
+                    totalNetPnL += (op.precio - curPrice) * op.cantidad;
+                  }
+                }
+              });
+            });
+
+            const totalVol = totalBuyVol + totalSellVol;
+            const netPct = totalBuyVol > 0 ? (totalNetPnL / totalBuyVol) * 100 : 0;
+            const isPos = totalNetPnL >= 0;
+
+            return (
+              <div className="glass-panel" style={{ marginTop: '2rem', background: 'rgba(94, 106, 210, 0.08)', border: '1px solid rgba(94, 106, 210, 0.25)', padding: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div className="panel-title" style={{ fontSize: '18px', marginBottom: '4px' }}>
+                      🌐 Resultado Neto Consolidado de las Evaluaciones Activas
+                    </div>
+                    <p className="hint" style={{ fontSize: '12px' }}>
+                      Rendimiento total sumando todas las rotaciones y grupos de evaluación activos.
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Impacto Neto Total</div>
+                    <div className={isPos ? 'positive' : 'negative'} style={{ fontSize: '28px', fontWeight: '800' }}>
+                      {fmtPct(netPct)} ({isPos ? '+' : '-'}${fmt(Math.abs(totalNetPnL))})
+                      {dolarMep && (
+                        <span style={{ fontSize: '14px', fontWeight: '400', opacity: 0.8, marginLeft: '10px' }}>
+                          ≈ US$ {fmt(Math.abs(totalNetPnL) / dolarMep)}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      Volumen Compras: ${fmt(totalBuyVol)} · Volumen Ventas: ${fmt(totalSellVol)} (Total: ${fmt(totalVol)})
+                    </div>
+                </div>
+              </div>
+            </div>
+          );
+          })()}
         </div>
       )}
 
