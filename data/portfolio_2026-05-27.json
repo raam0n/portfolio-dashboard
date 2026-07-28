@@ -2,91 +2,75 @@
   "allHoldings": {
     "ramon": [
       {
-        "ticker": "ARS",
-        "tipo": "efectivo",
-        "mercado": "OTC",
-        "nombre": "Pesos Argentinos",
-        "cantidad": 6714896.79,
-        "precioEntrada": 1
+        "ticker": "BMA",
+        "tipo": "accion",
+        "mercado": "BCBA",
+        "nombre": "Banco Macro",
+        "cantidad": 2838,
+        "precioEntrada": 14213.17
       },
       {
         "ticker": "AMD",
         "tipo": "cedear",
         "mercado": "BCBA",
-        "nombre": "Advanced Micro Devices Inc.",
-        "cantidad": 94.0,
-        "precioEntrada": 79000.0
+        "nombre": "Advanced Micro Devices",
+        "cantidad": 94,
+        "precioEntrada": 79000
       },
       {
         "ticker": "ASML",
         "tipo": "cedear",
         "mercado": "BCBA",
-        "nombre": "ASML Holding N.V.",
-        "cantidad": 667.0,
-        "precioEntrada": 18480.0
-      },
-      {
-        "ticker": "BMA",
-        "tipo": "accion",
-        "mercado": "BCBA",
-        "nombre": "Banco Macro S.A.",
-        "cantidad": 2838.0,
-        "precioEntrada": 12847.79
-      },
-      {
-        "ticker": "DOLAR",
-        "tipo": "cedear",
-        "mercado": "BCBA",
-        "nombre": "Dólar Mep / Cable",
-        "cantidad": 2791.2382,
-        "precioEntrada": 1446.11
+        "nombre": "ASML Holding",
+        "cantidad": 667,
+        "precioEntrada": 18480
       },
       {
         "ticker": "EWY",
         "tipo": "cedear",
         "mercado": "BCBA",
         "nombre": "iShares MSCI South Korea ETF",
-        "cantidad": 2165.0,
-        "precioEntrada": 5285.0
+        "cantidad": 2165,
+        "precioEntrada": 5285
       },
       {
         "ticker": "MP",
         "tipo": "cedear",
         "mercado": "BCBA",
-        "nombre": "MP Materials Corp.",
-        "cantidad": 1560.0,
+        "nombre": "MP Materials",
+        "cantidad": 1560,
         "precioEntrada": 8707.57
       },
       {
         "ticker": "MRVL",
         "tipo": "cedear",
         "mercado": "BCBA",
-        "nombre": "Marvell Technology Inc.",
-        "cantidad": 170.0,
-        "precioEntrada": 29880.0
+        "nombre": "Marvell Technology",
+        "cantidad": 170,
+        "precioEntrada": 29880
       },
       {
         "ticker": "MSFT",
         "tipo": "cedear",
         "mercado": "BCBA",
-        "nombre": "Microsoft Corporation",
-        "cantidad": 516.0,
-        "precioEntrada": 19892.08
+        "nombre": "Microsoft",
+        "cantidad": 516,
+        "precioEntrada": 19390
       },
       {
         "ticker": "MU",
         "tipo": "cedear",
         "mercado": "BCBA",
-        "nombre": "Micron Technology Inc.",
-        "cantidad": 75.0,
-        "precioEntrada": 337615.0
+        "nombre": "Micron Technology",
+        "cantidad": 75,
+        "precioEntrada": 337583.16
       },
       {
         "ticker": "NVDA",
         "tipo": "cedear",
         "mercado": "BCBA",
-        "nombre": "NVIDIA Corporation",
-        "cantidad": 1960.0,
+        "nombre": "Nvidia Corp",
+        "cantidad": 1960,
         "precioEntrada": 13019.55
       },
       {
@@ -94,32 +78,48 @@
         "tipo": "cedear",
         "mercado": "BCBA",
         "nombre": "Oklo Inc.",
-        "cantidad": 51.0,
-        "precioEntrada": 2568.82
+        "cantidad": 51,
+        "precioEntrada": 2568.83
       },
       {
         "ticker": "ORCL",
         "tipo": "cedear",
         "mercado": "BCBA",
         "nombre": "Oracle Corporation",
-        "cantidad": 150.0,
-        "precioEntrada": 70225.0
+        "cantidad": 150,
+        "precioEntrada": 70225
       },
       {
         "ticker": "PLTR",
         "tipo": "cedear",
         "mercado": "BCBA",
-        "nombre": "Palantir Technologies Inc.",
-        "cantidad": 15.0,
-        "precioEntrada": 58743.42
+        "nombre": "Palantir Technologies",
+        "cantidad": 15,
+        "precioEntrada": 58743.43
       },
       {
         "ticker": "SNDK",
         "tipo": "cedear",
         "mercado": "BCBA",
-        "nombre": "SanDisk / Western Digital",
-        "cantidad": 584.0,
+        "nombre": "SNDK",
+        "cantidad": 584,
         "precioEntrada": 16384.04
+      },
+      {
+        "ticker": "YPFD",
+        "tipo": "accion",
+        "mercado": "BCBA",
+        "nombre": "YPF",
+        "cantidad": 107,
+        "precioEntrada": 51762.46
+      },
+      {
+        "ticker": "ARS",
+        "tipo": "efectivo",
+        "mercado": "OTC",
+        "nombre": "Pesos Argentinos",
+        "cantidad": 6714896.79,
+        "precioEntrada": 1
       }
     ],
     "jorgito": [
