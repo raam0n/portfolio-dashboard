@@ -608,6 +608,40 @@ function IndexTickerBar({ dailyStats }) {
   );
 }
 
+// --- LOCALSTORAGE UTILITIES & SAFETY ---
+function safeSetItem(key, value) {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    const stringVal = typeof value === 'string' ? value : JSON.stringify(value);
+    localStorage.setItem(key, stringVal);
+  } catch (err) {
+    console.warn(`[localStorage] Failed to save key "${key}":`, err);
+    if (err && (err.name === 'QuotaExceededError' || err.code === 22 || err.code === 1014)) {
+      try {
+        localStorage.removeItem('cached_stats');
+        localStorage.removeItem('cached_prices');
+        if (key !== 'cached_stats' && key !== 'cached_prices') {
+          const stringVal = typeof value === 'string' ? value : JSON.stringify(value);
+          localStorage.setItem(key, stringVal);
+        }
+      } catch (retryErr) {
+        console.error(`[localStorage] Critical: Storage full, could not save "${key}":`, retryErr);
+      }
+    }
+  }
+}
+
+function sanitizeStatsForStorage(statsObj) {
+  if (!statsObj || typeof statsObj !== 'object') return {};
+  const cleanObj = {};
+  for (const [key, val] of Object.entries(statsObj)) {
+    if (!val || typeof val !== 'object') continue;
+    const { history, timestamps, ...rest } = val;
+    cleanObj[key] = rest;
+  }
+  return cleanObj;
+}
+
 // --- MIGRATION TO PORTFOLIO NAMES AS IDS ---
 function migratePortfoliosToNames() {
   try {
@@ -630,7 +664,7 @@ function migratePortfoliosToNames() {
     // Migrate current portfolio ID
     const currentId = localStorage.getItem('current_portfolio_id') || 'default';
     const newCurrentId = idToNameMap[currentId] || currentId;
-    localStorage.setItem('current_portfolio_id', newCurrentId);
+    safeSetItem('current_portfolio_id', newCurrentId);
     
     // Helper to migrate keys in object
     const migrateObjectKeys = (localStorageKey) => {
@@ -648,7 +682,7 @@ function migratePortfoliosToNames() {
             newData[newId] = val;
           }
         }
-        localStorage.setItem(localStorageKey, JSON.stringify(newData));
+        safeSetItem(localStorageKey, newData);
       } catch (err) {
         console.error(`Error migrating ${localStorageKey}:`, err);
       }
@@ -661,7 +695,7 @@ function migratePortfoliosToNames() {
     migrateObjectKeys('all_flujos');
     
     // Save updated portfolios list
-    localStorage.setItem('portfolios_list', JSON.stringify(migratedPortfolios));
+    safeSetItem('portfolios_list', migratedPortfolios);
     console.log("Migration to portfolio names completed successfully!");
   } catch (e) {
     console.error("Error during portfolio migration:", e);
@@ -815,7 +849,7 @@ function App() {
         pais: info.pais || existing.pais || ''
       };
       const next = { ...prev, [t]: updated };
-      localStorage.setItem('custom_ticker_dictionary', JSON.stringify(next));
+      safeSetItem('custom_ticker_dictionary', next);
       return next;
     });
   };
@@ -1033,20 +1067,20 @@ function App() {
 
   // Persist storage whenever collections change
   useEffect(() => {
-    localStorage.setItem('all_holdings', JSON.stringify(allHoldings));
-    localStorage.setItem('all_operaciones', JSON.stringify(allOperaciones));
-    localStorage.setItem('all_trades', JSON.stringify(allTrades));
-    localStorage.setItem('all_evals', JSON.stringify(allEvals));
-    localStorage.setItem('all_flujos', JSON.stringify(allFlujos));
-    localStorage.setItem('portfolio_watchlist', JSON.stringify(watchlist));
-    localStorage.setItem('portfolios_list', JSON.stringify(portfolios));
-    localStorage.setItem('current_portfolio_id', currentPortfolioId);
+    safeSetItem('all_holdings', allHoldings);
+    safeSetItem('all_operaciones', allOperaciones);
+    safeSetItem('all_trades', allTrades);
+    safeSetItem('all_evals', allEvals);
+    safeSetItem('all_flujos', allFlujos);
+    safeSetItem('portfolio_watchlist', watchlist);
+    safeSetItem('portfolios_list', portfolios);
+    safeSetItem('current_portfolio_id', currentPortfolioId);
   }, [allHoldings, allOperaciones, allTrades, allEvals, allFlujos, watchlist, portfolios, currentPortfolioId]);
 
   // Persist prices separately whenever they are successfully updated
   useEffect(() => {
-    if (Object.keys(prices).length > 0) localStorage.setItem('cached_prices', JSON.stringify(prices));
-    if (Object.keys(dailyStats).length > 0) localStorage.setItem('cached_stats', JSON.stringify(dailyStats));
+    if (Object.keys(prices).length > 0) safeSetItem('cached_prices', prices);
+    if (Object.keys(dailyStats).length > 0) safeSetItem('cached_stats', sanitizeStatsForStorage(dailyStats));
   }, [prices, dailyStats]);
 
 
@@ -1431,7 +1465,7 @@ function App() {
     setShowRefreshModal(false);
     if (dontAskRefreshAgain) {
       setRefreshPref(scope);
-      localStorage.setItem('refresh_preference', scope);
+      safeSetItem('refresh_preference', scope);
     }
     refreshData(scope);
   };
@@ -2403,7 +2437,7 @@ function App() {
                   value={refreshPref}
                   onChange={(e) => {
                     setRefreshPref(e.target.value);
-                    localStorage.setItem('refresh_preference', e.target.value);
+                    safeSetItem('refresh_preference', e.target.value);
                   }}
                   className="form-control"
                   style={{ width: '100%', maxWidth: '320px', padding: '6px 10px', fontSize: '13px', backgroundColor: '#1a1b35', color: '#ffffff', border: '1px solid var(--glass-border)', borderRadius: '6px' }}
