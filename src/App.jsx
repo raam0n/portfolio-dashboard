@@ -3749,6 +3749,16 @@ function App() {
                                 );
                               })}
                             </tbody>
+                            <tfoot style={{ borderTop: '1px solid rgba(255,255,255,0.15)', fontWeight: '700' }}>
+                              <tr>
+                                <td style={{ padding: '6px 0', color: '#fff' }}>TOTAL COMPRAS</td>
+                                <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupBuyCost)}</td>
+                                <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupBuyValue)}</td>
+                                <td style={{ padding: '6px', textAlign: 'right' }} className={buyPnL >= 0 ? 'positive' : 'negative'}>
+                                  {fmtPct(groupBuyCost > 0 ? (buyPnL / groupBuyCost) * 100 : 0)} ({buyPnL >= 0 ? '+' : '-'}${fmt(Math.abs(buyPnL))})
+                                </td>
+                              </tr>
+                            </tfoot>
                           </table>
                         </div>
                       )}
@@ -3790,6 +3800,16 @@ function App() {
                                 );
                               })}
                             </tbody>
+                            <tfoot style={{ borderTop: '1px solid rgba(255,255,255,0.15)', fontWeight: '700' }}>
+                              <tr>
+                                <td style={{ padding: '6px 0', color: '#fff' }}>TOTAL VENTAS</td>
+                                <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupSellProceeds)}</td>
+                                <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupSellValue)}</td>
+                                <td style={{ padding: '6px', textAlign: 'right' }} className={salePnL >= 0 ? 'positive' : 'negative'}>
+                                  {fmtPct(groupSellProceeds > 0 ? (salePnL / groupSellProceeds) * 100 : 0)} ({salePnL >= 0 ? '+' : '-'}${fmt(Math.abs(salePnL))})
+                                </td>
+                              </tr>
+                            </tfoot>
                           </table>
                         </div>
                       )}
