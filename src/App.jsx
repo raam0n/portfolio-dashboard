@@ -3724,6 +3724,7 @@ function App() {
                               <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'left' }}>
                                 <th style={{ padding: '4px' }}>Ticker</th>
                                 <th style={{ padding: '4px', textAlign: 'right' }}>Cant. @ Precio</th>
+                                <th style={{ padding: '4px', textAlign: 'right' }}>Total Operado</th>
                                 <th style={{ padding: '4px', textAlign: 'right' }}>Actual</th>
                                 <th style={{ padding: '4px', textAlign: 'right' }}>Resultado</th>
                               </tr>
@@ -3736,11 +3737,13 @@ function App() {
                                 const pct = diff !== null ? (diff / op.precio) * 100 : null;
                                 const pnl = diff !== null ? diff * op.cantidad : null;
                                 const isPos = pnl >= 0;
+                                const opTotal = op.precio * op.cantidad;
 
                                 return (
                                   <tr key={op.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
                                     <td style={{ padding: '4px 0', fontWeight: '600' }}>{op.ticker}</td>
                                     <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(op.cantidad, 0)} @ ${fmt(op.precio)}</td>
+                                    <td style={{ padding: '4px', textAlign: 'right', fontWeight: '600' }}>${fmt(opTotal)}</td>
                                     <td style={{ padding: '4px', textAlign: 'right' }}>{curPrice !== null ? `$${fmt(curPrice)}` : '—'}</td>
                                     <td style={{ padding: '4px', textAlign: 'right' }} className={isPos ? 'positive' : 'negative'}>
                                       {pnl !== null ? `${fmtPct(pct)} (${isPos ? '+' : '-'}${fmt(Math.abs(pnl))})` : '—'}
@@ -3752,6 +3755,7 @@ function App() {
                             <tfoot style={{ borderTop: '1px solid rgba(255,255,255,0.15)', fontWeight: '700' }}>
                               <tr>
                                 <td style={{ padding: '6px 0', color: '#fff' }}>TOTAL COMPRAS</td>
+                                <td style={{ padding: '6px', textAlign: 'right', color: 'var(--text-muted)' }}>—</td>
                                 <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupBuyCost)}</td>
                                 <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupBuyValue)}</td>
                                 <td style={{ padding: '6px', textAlign: 'right' }} className={buyPnL >= 0 ? 'positive' : 'negative'}>
@@ -3775,6 +3779,7 @@ function App() {
                               <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'left' }}>
                                 <th style={{ padding: '4px' }}>Ticker</th>
                                 <th style={{ padding: '4px', textAlign: 'right' }}>Cant. @ Venta</th>
+                                <th style={{ padding: '4px', textAlign: 'right' }}>Total Operado</th>
                                 <th style={{ padding: '4px', textAlign: 'right' }}>Actual</th>
                                 <th style={{ padding: '4px', textAlign: 'right' }}>Resultado</th>
                               </tr>
@@ -3787,11 +3792,13 @@ function App() {
                                 const pct = curPrice !== null ? ((op.precio - curPrice) / op.precio) * 100 : null;
                                 const oppPnL = diff !== null ? diff * op.cantidad : null;
                                 const isGoodSale = oppPnL >= 0;
+                                const opTotal = op.precio * op.cantidad;
 
                                 return (
                                   <tr key={op.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
                                     <td style={{ padding: '4px 0', fontWeight: '600' }}>{op.ticker}</td>
                                     <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(op.cantidad, 0)} @ ${fmt(op.precio)}</td>
+                                    <td style={{ padding: '4px', textAlign: 'right', fontWeight: '600' }}>${fmt(opTotal)}</td>
                                     <td style={{ padding: '4px', textAlign: 'right' }}>{curPrice !== null ? `$${fmt(curPrice)}` : '—'}</td>
                                     <td style={{ padding: '4px', textAlign: 'right' }} className={isGoodSale ? 'positive' : 'negative'}>
                                       {oppPnL !== null ? `${fmtPct(pct)} (${isGoodSale ? '+' : '-'}${fmt(Math.abs(oppPnL))})` : '—'}
@@ -3803,6 +3810,7 @@ function App() {
                             <tfoot style={{ borderTop: '1px solid rgba(255,255,255,0.15)', fontWeight: '700' }}>
                               <tr>
                                 <td style={{ padding: '6px 0', color: '#fff' }}>TOTAL VENTAS</td>
+                                <td style={{ padding: '6px', textAlign: 'right', color: 'var(--text-muted)' }}>—</td>
                                 <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupSellProceeds)}</td>
                                 <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupSellValue)}</td>
                                 <td style={{ padding: '6px', textAlign: 'right' }} className={salePnL >= 0 ? 'positive' : 'negative'}>
