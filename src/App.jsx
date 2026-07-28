@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import './index.css';
 import MarketInsights from './components/MarketInsights';
 import MarketTreemap from './components/MarketTreemap';
@@ -1774,6 +1775,144 @@ function App() {
     }
   };
 
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const isExcel = file.name.endsWith('.xls') || file.name.endsWith('.xlsx');
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      try {
+        let rawObjects = [];
+        if (isExcel) {
+          const data = new Uint8Array(event.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheet];
+          rawObjects = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        } else {
+          const text = event.target.result;
+          const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+          if (lines.length < 2) return alert('El archivo está vacío o no contiene suficientes filas.');
+
+          const delimiter = lines[0].includes(';') ? ';' : ',';
+          const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, ''));
+          for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(delimiter).map(v => v.trim().replace(/^["']|["']$/g, ''));
+            const obj = {};
+            headers.forEach((h, idx) => { obj[h] = values[idx] || ''; });
+            rawObjects.push(obj);
+          }
+        }
+
+        if (!rawObjects || rawObjects.length === 0) {
+          return alert('No se encontraron filas de datos en el archivo.');
+        }
+
+        // Helper to find key case-insensitively
+        const findKey = (obj, keys) => {
+          const lowerObj = {};
+          Object.keys(obj).forEach(k => { lowerObj[k.trim().toLowerCase()] = k; });
+          for (const key of keys) {
+            const match = Object.keys(lowerObj).find(k => k.includes(key));
+            if (match) return lowerObj[match];
+          }
+          return null;
+        };
+
+        const sample = rawObjects[0];
+        const fechaKey = findKey(sample, ['fecha', 'date', 'concertacion']);
+        const tickerKey = findKey(sample, ['ticker', 'especie', 'simbolo', 'symbol']);
+        const tipoKey = findKey(sample, ['operacion', 'operación', 'tipo', 'descripcion', 'type']);
+        const cantKey = findKey(sample, ['cantidad operada', 'cantidad', 'quantity', 'cant']);
+        const precKey = findKey(sample, ['precio operado', 'precio', 'price', 'prec']);
+        const assetKey = findKey(sample, ['assettipo', 'tipo de instrumento', 'asset_tipo', 'categoria']);
+        const estadoKey = findKey(sample, ['estado', 'status']);
+
+        if (!fechaKey || !tickerKey || !tipoKey || !cantKey || !precKey) {
+          return alert('No se encontraron las columnas requeridas (Fecha, Ticker, Operacion/Tipo, Cantidad, Precio).');
+        }
+
+        const currentOps = operaciones || [];
+        const newOps = [];
+        let addedCount = 0;
+        let dupCount = 0;
+
+        rawObjects.forEach((row, i) => {
+          if (estadoKey && row[estadoKey]) {
+            const st = String(row[estadoKey]).toLowerCase();
+            if (!['ejecutada', 'finalizada', 'parcialmente cancelada'].includes(st)) return;
+          }
+
+          let fechaRaw = String(row[fechaKey] || '').trim();
+          let rawTicker = String(row[tickerKey] || '').trim().toUpperCase();
+          let rawTipo = String(row[tipoKey] || '').trim().toLowerCase();
+          let cant = parseFloat(row[cantKey]);
+          let prec = parseFloat(row[precKey]);
+
+          if (!fechaRaw || !rawTicker || isNaN(cant) || isNaN(prec) || cant <= 0 || prec <= 0) return;
+
+          let fecha = fechaRaw.split('T')[0].split(' ')[0];
+          if (fecha.includes('/')) {
+            const parts = fecha.split('/');
+            if (parts[0].length === 4) fecha = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            else if (parts[2].length === 4) fecha = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+
+          if (!fecha.startsWith('2026')) return;
+
+          let tipo = (rawTipo.includes('compra') || rawTipo === 'c' || rawTipo === 'buy') ? 'compra' : 
+                     (rawTipo.includes('venta') || rawTipo === 'v' || rawTipo === 'sell') ? 'venta' : null;
+          if (!tipo) return;
+
+          let assetTipo = assetKey && row[assetKey] ? String(row[assetKey]).toLowerCase() : 'accion';
+          let ticker = rawTicker;
+          if ((assetTipo === 'accion' || assetTipo === 'cedear') && !ticker.endsWith('.BA') && !ticker.endsWith('.US') && !ticker.startsWith('$')) {
+            ticker = ticker + '.BA';
+          }
+
+          const exists = currentOps.some(o => 
+            o.ticker === ticker && o.fecha === fecha && o.tipo === tipo && 
+            Math.abs(o.cantidad - cant) < 0.0001 && Math.abs(o.precio - prec) < 0.0001
+          );
+
+          if (!exists) {
+            newOps.push({
+              id: (Date.now() + i).toString(),
+              ticker,
+              assetTipo,
+              tipo,
+              cantidad: cant,
+              precio: prec,
+              fecha
+            });
+            addedCount++;
+          } else {
+            dupCount++;
+          }
+        });
+
+        if (addedCount === 0) {
+          return alert(`No se agregaron nuevas operaciones del año 2026 (${dupCount} operaciones duplicadas/omitidas).`);
+        }
+
+        setOperaciones([...currentOps, ...newOps]);
+        alert(`¡Éxito! Se agregaron ${addedCount} operaciones de 2026 al portfolio (${dupCount} omitidas por duplicadas).`);
+      } catch (err) {
+        alert('Error al procesar el archivo: ' + err.message);
+      }
+    };
+
+    if (isExcel) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
+  };
+
+
+
   // Computations
   let totalValorARS = 0;
   let totalCostoARS = 0;
@@ -2169,13 +2308,26 @@ function App() {
               </div>
             </div>
             <div>
-              <label>Importar Datos</label>
-              <p className="hint" style={{ marginBottom: '8px' }}>Atención: Pegá un JSON válido. Esto sobreescribirá todo.</p>
-              <textarea rows="4" placeholder='{"holdings":[...],"operaciones":[...]}' style={{ fontFamily: 'monospace', fontSize: '11px' }} value={importJson} onChange={e => setImportJson(e.target.value)}></textarea>
-              <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
-                <button className="btn btn-primary" onClick={importar}>Restaurar</button>
-                <button className="btn btn-danger" onClick={borrarTodo}>Reset de Fábrica</button>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ fontWeight: '600', color: '#fff' }}>Importar Operaciones desde Excel / CSV (2026)</label>
+                <p className="hint" style={{ marginBottom: '8px' }}>Subí tu archivo de Balanz u otro broker (.xls, .xlsx, .csv). Filtrará e incorporará operaciones de 2026.</p>
+                <input 
+                  type="file" 
+                  accept=".xls,.xlsx,.csv" 
+                  onChange={handleFileUpload}
+                  style={{ fontSize: '12px', color: 'var(--text-muted)' }}
+                />
               </div>
+              <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+                <label>Importar Backup Completo (JSON)</label>
+                <p className="hint" style={{ marginBottom: '8px' }}>Atención: Pegá un JSON válido. Esto sobreescribirá todo.</p>
+                <textarea rows="4" placeholder='{"holdings":[...],"operaciones":[...]}' style={{ fontFamily: 'monospace', fontSize: '11px' }} value={importJson} onChange={e => setImportJson(e.target.value)}></textarea>
+                <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                  <button className="btn btn-primary" onClick={importar}>Restaurar</button>
+                  <button className="btn btn-danger" onClick={borrarTodo}>Reset de Fábrica</button>
+                </div>
+              </div>
+
               <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
                 <label style={{ fontWeight: '600', color: '#fff' }}>Comportamiento de Actualización</label>
                 <p className="hint" style={{ marginBottom: '8px' }}>Elige qué ocurre al hacer clic directamente en "Actualizar".</p>
@@ -2197,6 +2349,7 @@ function App() {
           </div>
         </div>
       )}
+
 
       {/* --- TAB 1: PORTFOLIO --- */}
       {activeTab === 'portfolio' && (

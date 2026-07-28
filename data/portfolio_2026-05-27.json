@@ -265,6 +265,1554 @@
       "cantidad": 216,
       "precio": 36950.2,
       "fecha": "2026-05-26"
+    },
+    {
+      "id": "1785224924698",
+      "ticker": "SNDK.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 200.0,
+      "precio": 11890.0,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924699",
+      "ticker": "LAC.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 82.0,
+      "precio": 4560.0,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924700",
+      "ticker": "NVDA.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 690.0,
+      "precio": 13110.0,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924701",
+      "ticker": "NOW.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 10000.0,
+      "precio": 982.5,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924702",
+      "ticker": "AVGO.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 330.0,
+      "precio": 15500.0,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924703",
+      "ticker": "IWM.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 44.0,
+      "precio": 46600.0,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924704",
+      "ticker": "COPX.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 100.0,
+      "precio": 8740.0,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924705",
+      "ticker": "NVDA.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 381.0,
+      "precio": 13050.0,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924706",
+      "ticker": "RGTI.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 70.0,
+      "precio": 12040.0,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924707",
+      "ticker": "BBAR.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 415.0,
+      "precio": 10170.0,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924708",
+      "ticker": "NVDA.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 93.0,
+      "precio": 13050.0,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924709",
+      "ticker": "NVDA.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 321.0,
+      "precio": 13050.0,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924710",
+      "ticker": "GGAL.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 607.0,
+      "precio": 7985.0,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924711",
+      "ticker": "BBAR.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 45.0,
+      "precio": 10190.0,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924713",
+      "ticker": "RIO.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 10.0,
+      "precio": 18200.0,
+      "fecha": "2026-07-27"
+    },
+    {
+      "id": "1785224924715",
+      "ticker": "GGAL.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 30.0,
+      "precio": 7775.0,
+      "fecha": "2026-07-17"
+    },
+    {
+      "id": "1785224924716",
+      "ticker": "OKLO.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 46.0,
+      "precio": 2570.0,
+      "fecha": "2026-07-15"
+    },
+    {
+      "id": "1785224924717",
+      "ticker": "OKLO.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 4.0,
+      "precio": 2562.5,
+      "fecha": "2026-07-15"
+    },
+    {
+      "id": "1785224924718",
+      "ticker": "OKLO.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 1.0,
+      "precio": 2540.0,
+      "fecha": "2026-07-15"
+    },
+    {
+      "id": "1785224924720",
+      "ticker": "EWY.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 2165.0,
+      "precio": 5285.0,
+      "fecha": "2026-07-13"
+    },
+    {
+      "id": "1785224924721",
+      "ticker": "ORCL.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 150.0,
+      "precio": 70225.0,
+      "fecha": "2026-07-13"
+    },
+    {
+      "id": "1785224924722",
+      "ticker": "YPFD.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 250.0,
+      "precio": 76840.2,
+      "fecha": "2026-07-13"
+    },
+    {
+      "id": "1785224924723",
+      "ticker": "PAMP.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 390.0,
+      "precio": 5270.0,
+      "fecha": "2026-07-13"
+    },
+    {
+      "id": "1785224924724",
+      "ticker": "URA.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 65.0,
+      "precio": 13250.0,
+      "fecha": "2026-07-07"
+    },
+    {
+      "id": "1785224924726",
+      "ticker": "NVDA.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 1.0,
+      "precio": 12700.0,
+      "fecha": "2026-07-02"
+    },
+    {
+      "id": "1785224924727",
+      "ticker": "NVDA.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 131.0,
+      "precio": 12700.0,
+      "fecha": "2026-07-02"
+    },
+    {
+      "id": "1785224924728",
+      "ticker": "MU.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 15.0,
+      "precio": 330875.0,
+      "fecha": "2026-07-01"
+    },
+    {
+      "id": "1785224924729",
+      "ticker": "PLTR.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 80.0,
+      "precio": 66550.0,
+      "fecha": "2026-07-01"
+    },
+    {
+      "id": "1785224924730",
+      "ticker": "SNDK.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 324.0,
+      "precio": 19020.0,
+      "fecha": "2026-07-01"
+    },
+    {
+      "id": "1785224924731",
+      "ticker": "PLTR.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 95.0,
+      "precio": 66500.0,
+      "fecha": "2026-07-01"
+    },
+    {
+      "id": "1785224924732",
+      "ticker": "NVDA.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 4.0,
+      "precio": 12890.0,
+      "fecha": "2026-06-30"
+    },
+    {
+      "id": "1785224924733",
+      "ticker": "NVDA.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 339.0,
+      "precio": 12890.0,
+      "fecha": "2026-06-30"
+    },
+    {
+      "id": "1785224924734",
+      "ticker": "MP.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 500.0,
+      "precio": 8620.0,
+      "fecha": "2026-06-30"
+    },
+    {
+      "id": "1785224924735",
+      "ticker": "ASML.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 667.0,
+      "precio": 18480.0,
+      "fecha": "2026-06-24"
+    },
+    {
+      "id": "1785224924736",
+      "ticker": "PLTR.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 170.0,
+      "precio": 58825.0,
+      "fecha": "2026-06-24"
+    },
+    {
+      "id": "1785224924737",
+      "ticker": "MRVL.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 170.0,
+      "precio": 29880.0,
+      "fecha": "2026-06-24"
+    },
+    {
+      "id": "1785224924738",
+      "ticker": "AVGO.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 330.0,
+      "precio": 15160.0,
+      "fecha": "2026-06-24"
+    },
+    {
+      "id": "1785224924739",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 2000.0,
+      "precio": 13940.0,
+      "fecha": "2026-06-24"
+    },
+    {
+      "id": "1785224924740",
+      "ticker": "YPFD.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 70.0,
+      "precio": 70725.0,
+      "fecha": "2026-06-24"
+    },
+    {
+      "id": "1785224924741",
+      "ticker": "AMD.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 94.0,
+      "precio": 79000.0,
+      "fecha": "2026-06-24"
+    },
+    {
+      "id": "1785224924743",
+      "ticker": "PLTR.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 20.0,
+      "precio": 58050.0,
+      "fecha": "2026-06-24"
+    },
+    {
+      "id": "1785224924744",
+      "ticker": "SNDK.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 60.0,
+      "precio": 17130.0,
+      "fecha": "2026-06-24"
+    },
+    {
+      "id": "1785224924745",
+      "ticker": "RGTI.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 70.0,
+      "precio": 14959.71428571,
+      "fecha": "2026-06-24"
+    },
+    {
+      "id": "1785224924746",
+      "ticker": "RIO.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 40.0,
+      "precio": 18130.0,
+      "fecha": "2026-06-24"
+    },
+    {
+      "id": "1785224924747",
+      "ticker": "IWM.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 44.0,
+      "precio": 45960.0,
+      "fecha": "2026-06-24"
+    },
+    {
+      "id": "1785224924748",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 3671.0,
+      "precio": 15230.0,
+      "fecha": "2026-06-18"
+    },
+    {
+      "id": "1785224924749",
+      "ticker": "MU.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 60.0,
+      "precio": 339300.0,
+      "fecha": "2026-06-18"
+    },
+    {
+      "id": "1785224924751",
+      "ticker": "MP.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 1000.0,
+      "precio": 8665.0,
+      "fecha": "2026-06-12"
+    },
+    {
+      "id": "1785224924752",
+      "ticker": "MP.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 1000.0,
+      "precio": 8645.0,
+      "fecha": "2026-06-12"
+    },
+    {
+      "id": "1785224924753",
+      "ticker": "NOW.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 10000.0,
+      "precio": 893.0,
+      "fecha": "2026-06-12"
+    },
+    {
+      "id": "1785224924754",
+      "ticker": "MSFT.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 516.0,
+      "precio": 19390.0,
+      "fecha": "2026-06-12"
+    },
+    {
+      "id": "1785224924755",
+      "ticker": "PSQ.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 4000.0,
+      "precio": 4810.0,
+      "fecha": "2026-06-12"
+    },
+    {
+      "id": "1785224924757",
+      "ticker": "PSQ.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 4000.0,
+      "precio": 5005.0,
+      "fecha": "2026-06-09"
+    },
+    {
+      "id": "1785224924758",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 300.0,
+      "precio": 13360.0,
+      "fecha": "2026-06-09"
+    },
+    {
+      "id": "1785224924759",
+      "ticker": "YPFD.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 125.0,
+      "precio": 80850.0,
+      "fecha": "2026-06-09"
+    },
+    {
+      "id": "1785224924760",
+      "ticker": "GD41",
+      "assetTipo": "bono",
+      "tipo": "venta",
+      "cantidad": 73.0,
+      "precio": 1112.4,
+      "fecha": "2026-06-09"
+    },
+    {
+      "id": "1785224924761",
+      "ticker": "MSFT.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 85.0,
+      "precio": 20760.0,
+      "fecha": "2026-06-09"
+    },
+    {
+      "id": "1785224924762",
+      "ticker": "NOW.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 1000.0,
+      "precio": 975.0,
+      "fecha": "2026-06-09"
+    },
+    {
+      "id": "1785224924763",
+      "ticker": "BBAR.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 550.0,
+      "precio": 9260.0,
+      "fecha": "2026-06-09"
+    },
+    {
+      "id": "1785224924764",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 1400.0,
+      "precio": 13430.0,
+      "fecha": "2026-06-09"
+    },
+    {
+      "id": "1785224924765",
+      "ticker": "TSLA.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 90.0,
+      "precio": 41620.0,
+      "fecha": "2026-06-09"
+    },
+    {
+      "id": "1785224924766",
+      "ticker": "GOOGL.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 235.0,
+      "precio": 9670.0,
+      "fecha": "2026-06-09"
+    },
+    {
+      "id": "1785224924767",
+      "ticker": "HOOD.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 1891.0,
+      "precio": 4547.5,
+      "fecha": "2026-06-09"
+    },
+    {
+      "id": "1785224924768",
+      "ticker": "NU.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 978.0,
+      "precio": 9015.0,
+      "fecha": "2026-06-09"
+    },
+    {
+      "id": "1785224924769",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 780.0,
+      "precio": 12900.0,
+      "fecha": "2026-06-08"
+    },
+    {
+      "id": "1785224924770",
+      "ticker": "VIST.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 203.0,
+      "precio": 37600.0,
+      "fecha": "2026-06-08"
+    },
+    {
+      "id": "1785224924772",
+      "ticker": "GGAL.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 600.0,
+      "precio": 7430.0,
+      "fecha": "2026-06-04"
+    },
+    {
+      "id": "1785224924773",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 1100.0,
+      "precio": 13310.0,
+      "fecha": "2026-06-04"
+    },
+    {
+      "id": "1785224924774",
+      "ticker": "BBAR.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 1030.0,
+      "precio": 9050.0,
+      "fecha": "2026-06-04"
+    },
+    {
+      "id": "1785224924776",
+      "ticker": "GD41",
+      "assetTipo": "bono",
+      "tipo": "compra",
+      "cantidad": 1.0,
+      "precio": 0.7377,
+      "fecha": "2026-06-04"
+    },
+    {
+      "id": "1785224924777",
+      "ticker": "GD41",
+      "assetTipo": "bono",
+      "tipo": "compra",
+      "cantidad": 72.0,
+      "precio": 0.7377,
+      "fecha": "2026-06-04"
+    },
+    {
+      "id": "1785224924778",
+      "ticker": "YPFD.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 22.0,
+      "precio": 82400.0,
+      "fecha": "2026-06-03"
+    },
+    {
+      "id": "1785224924779",
+      "ticker": "GGAL.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 101.0,
+      "precio": 7340.14851485,
+      "fecha": "2026-06-03"
+    },
+    {
+      "id": "1785224924780",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 200.0,
+      "precio": 12970.0,
+      "fecha": "2026-06-03"
+    },
+    {
+      "id": "1785224924782",
+      "ticker": "BBAR.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 462.0,
+      "precio": 9440.0,
+      "fecha": "2026-06-02"
+    },
+    {
+      "id": "1785224924783",
+      "ticker": "GD41",
+      "assetTipo": "bono",
+      "tipo": "venta",
+      "cantidad": 12.0,
+      "precio": 1101.6,
+      "fecha": "2026-06-02"
+    },
+    {
+      "id": "1785224924784",
+      "ticker": "SUPV.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 10.0,
+      "precio": 2895.0,
+      "fecha": "2026-06-02"
+    },
+    {
+      "id": "1785224924785",
+      "ticker": "LOMA.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 12.0,
+      "precio": 3597.5,
+      "fecha": "2026-06-02"
+    },
+    {
+      "id": "1785224924787",
+      "ticker": "TGNO4.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 4.0,
+      "precio": 4252.5,
+      "fecha": "2026-06-02"
+    },
+    {
+      "id": "1785224924788",
+      "ticker": "TGSU2.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 4.0,
+      "precio": 9365.0,
+      "fecha": "2026-06-02"
+    },
+    {
+      "id": "1785224924789",
+      "ticker": "TRAN.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 8.0,
+      "precio": 4012.5,
+      "fecha": "2026-06-02"
+    },
+    {
+      "id": "1785224924790",
+      "ticker": "HOOD.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 664.0,
+      "precio": 4512.5,
+      "fecha": "2026-06-02"
+    },
+    {
+      "id": "1785224924793",
+      "ticker": "NU.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 978.0,
+      "precio": 8935.0,
+      "fecha": "2026-06-02"
+    },
+    {
+      "id": "1785224924794",
+      "ticker": "NOW.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 1000.0,
+      "precio": 1090.0,
+      "fecha": "2026-06-02"
+    },
+    {
+      "id": "1785224924795",
+      "ticker": "YPFD.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 89.0,
+      "precio": 82050.0,
+      "fecha": "2026-06-02"
+    },
+    {
+      "id": "1785224924797",
+      "ticker": "HOOD.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 427.0,
+      "precio": 4725.0,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924798",
+      "ticker": "MSFT.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 85.0,
+      "precio": 22940.0,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924799",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 294.0,
+      "precio": 13640.0,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924800",
+      "ticker": "GOOGL.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 235.0,
+      "precio": 9680.0,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924802",
+      "ticker": "AL30",
+      "assetTipo": "bono",
+      "tipo": "venta",
+      "cantidad": 4256.0,
+      "precio": 0.6402,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924803",
+      "ticker": "AL30",
+      "assetTipo": "bono",
+      "tipo": "compra",
+      "cantidad": 4256.0,
+      "precio": 918.5,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924804",
+      "ticker": "DOLAR.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 2713.724323,
+      "precio": 1446.3033,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924805",
+      "ticker": "TSLA.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 90.0,
+      "precio": 41800.0,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924806",
+      "ticker": "LAC.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 30.0,
+      "precio": 8000.0,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924807",
+      "ticker": "MP.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 60.0,
+      "precio": 10460.0,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924808",
+      "ticker": "LAC.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 52.0,
+      "precio": 7995.0,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924809",
+      "ticker": "URA.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 65.0,
+      "precio": 14890.0,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924810",
+      "ticker": "RIO.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 50.0,
+      "precio": 19840.0,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924811",
+      "ticker": "COPX.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 100.0,
+      "precio": 9305.0,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924812",
+      "ticker": "BBAR.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 700.0,
+      "precio": 9255.0,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924813",
+      "ticker": "HOOD.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 800.0,
+      "precio": 4505.0,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924814",
+      "ticker": "GGAL.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 891.0,
+      "precio": 7570.0,
+      "fecha": "2026-06-01"
+    },
+    {
+      "id": "1785224924817",
+      "ticker": "PAMP.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 380.0,
+      "precio": 4775.53947368,
+      "fecha": "2026-05-26"
+    },
+    {
+      "id": "1785224924818",
+      "ticker": "VIST.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 200.0,
+      "precio": 36950.2,
+      "fecha": "2026-05-26"
+    },
+    {
+      "id": "1785224924819",
+      "ticker": "VIST.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 12.0,
+      "precio": 36960.0,
+      "fecha": "2026-05-26"
+    },
+    {
+      "id": "1785224924820",
+      "ticker": "VIST.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 4.0,
+      "precio": 36980.0,
+      "fecha": "2026-05-26"
+    },
+    {
+      "id": "1785224924822",
+      "ticker": "AL30",
+      "assetTipo": "bono",
+      "tipo": "venta",
+      "cantidad": 121.0,
+      "precio": 0.6432,
+      "fecha": "2026-05-08"
+    },
+    {
+      "id": "1785224924823",
+      "ticker": "AL30",
+      "assetTipo": "bono",
+      "tipo": "compra",
+      "cantidad": 121.0,
+      "precio": 918.3,
+      "fecha": "2026-05-08"
+    },
+    {
+      "id": "1785224924824",
+      "ticker": "DOLAR.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 77.513894,
+      "precio": 1439.2469,
+      "fecha": "2026-05-08"
+    },
+    {
+      "id": "1785224924825",
+      "ticker": "BBAR.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 11.0,
+      "precio": 7325.0,
+      "fecha": "2026-04-24"
+    },
+    {
+      "id": "1785224924826",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 631.0,
+      "precio": 11280.0,
+      "fecha": "2026-04-24"
+    },
+    {
+      "id": "1785224924827",
+      "ticker": "BBAR.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 600.0,
+      "precio": 7330.0,
+      "fecha": "2026-04-24"
+    },
+    {
+      "id": "1785224924828",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 2750.0,
+      "precio": 11300.0,
+      "fecha": "2026-04-24"
+    },
+    {
+      "id": "1785224924829",
+      "ticker": "BBAR.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 1200.0,
+      "precio": 7320.0,
+      "fecha": "2026-04-24"
+    },
+    {
+      "id": "1785224924830",
+      "ticker": "BBAR.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 1381.0,
+      "precio": 7310.0,
+      "fecha": "2026-04-24"
+    },
+    {
+      "id": "1785224924835",
+      "ticker": "TRAN.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 8.0,
+      "precio": 3840.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924836",
+      "ticker": "TGNO4.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 4.0,
+      "precio": 4325.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924837",
+      "ticker": "TGSU2.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 4.0,
+      "precio": 9140.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924839",
+      "ticker": "GGAL.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 1050.0,
+      "precio": 7000.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924840",
+      "ticker": "VIST.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 423.0,
+      "precio": 32660.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924841",
+      "ticker": "PAMP.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 1000.0,
+      "precio": 4790.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924843",
+      "ticker": "PBR.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 450.0,
+      "precio": 31100.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924844",
+      "ticker": "PBR.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 15.0,
+      "precio": 31040.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924846",
+      "ticker": "GGAL.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 2100.0,
+      "precio": 7010.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924848",
+      "ticker": "GGAL.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 1.0,
+      "precio": 7040.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924849",
+      "ticker": "GGAL.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 1.0,
+      "precio": 7035.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924850",
+      "ticker": "PBR.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 97.0,
+      "precio": 30960.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924853",
+      "ticker": "PAMP.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 520.0,
+      "precio": 4805.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924855",
+      "ticker": "VIST.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 1169.0,
+      "precio": 32540.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924856",
+      "ticker": "GGAL.BA",
+      "assetTipo": "accion",
+      "tipo": "venta",
+      "cantidad": 5381.0,
+      "precio": 7095.02415908,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924857",
+      "ticker": "VIST.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 27.0,
+      "precio": 32540.0,
+      "fecha": "2026-04-21"
+    },
+    {
+      "id": "1785224924859",
+      "ticker": "LOMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 1.0,
+      "precio": 3355.0,
+      "fecha": "2026-04-16"
+    },
+    {
+      "id": "1785224924860",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 16.0,
+      "precio": 11830.0,
+      "fecha": "2026-04-16"
+    },
+    {
+      "id": "1785224924861",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 1393.0,
+      "precio": 11780.0,
+      "fecha": "2026-04-16"
+    },
+    {
+      "id": "1785224924862",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 4.0,
+      "precio": 11770.0,
+      "fecha": "2026-04-16"
+    },
+    {
+      "id": "1785224924867",
+      "ticker": "GD41",
+      "assetTipo": "bono",
+      "tipo": "compra",
+      "cantidad": 2.0,
+      "precio": 1046.9,
+      "fecha": "2026-04-13"
+    },
+    {
+      "id": "1785224924868",
+      "ticker": "LOMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 1.0,
+      "precio": 3477.5,
+      "fecha": "2026-04-13"
+    },
+    {
+      "id": "1785224924869",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 20.0,
+      "precio": 11880.0,
+      "fecha": "2026-04-13"
+    },
+    {
+      "id": "1785224924870",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 1714.0,
+      "precio": 11880.0,
+      "fecha": "2026-04-13"
+    },
+    {
+      "id": "1785224924872",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 50.0,
+      "precio": 11870.0,
+      "fecha": "2026-04-13"
+    },
+    {
+      "id": "1785224924874",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 21.0,
+      "precio": 11890.0,
+      "fecha": "2026-04-13"
+    },
+    {
+      "id": "1785224924878",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 52.0,
+      "precio": 11780.0,
+      "fecha": "2026-04-13"
+    },
+    {
+      "id": "1785224924879",
+      "ticker": "LOMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 10.0,
+      "precio": 3465.0,
+      "fecha": "2026-04-13"
+    },
+    {
+      "id": "1785224924880",
+      "ticker": "SUPV.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 10.0,
+      "precio": 2857.5,
+      "fecha": "2026-04-13"
+    },
+    {
+      "id": "1785224924881",
+      "ticker": "BBAR.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 10.0,
+      "precio": 7990.0,
+      "fecha": "2026-04-13"
+    },
+    {
+      "id": "1785224924882",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 45.0,
+      "precio": 11760.0,
+      "fecha": "2026-04-13"
+    },
+    {
+      "id": "1785224924884",
+      "ticker": "BMA.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 125.0,
+      "precio": 11730.0,
+      "fecha": "2026-04-01"
+    },
+    {
+      "id": "1785224924885",
+      "ticker": "IBIT.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 2.0,
+      "precio": 5650.0,
+      "fecha": "2026-03-30"
+    },
+    {
+      "id": "1785224924886",
+      "ticker": "GD41",
+      "assetTipo": "bono",
+      "tipo": "compra",
+      "cantidad": 10.0,
+      "precio": 0.6766,
+      "fecha": "2026-03-30"
+    },
+    {
+      "id": "1785224924887",
+      "ticker": "IBIT.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 146.0,
+      "precio": 5485.0,
+      "fecha": "2026-03-27"
+    },
+    {
+      "id": "1785224924888",
+      "ticker": "IBIT.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 923.0,
+      "precio": 5490.0,
+      "fecha": "2026-03-27"
+    },
+    {
+      "id": "1785224924889",
+      "ticker": "GGAL.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 23.0,
+      "precio": 6980.0,
+      "fecha": "2026-02-12"
+    },
+    {
+      "id": "1785224924890",
+      "ticker": "GGAL.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 1955.0,
+      "precio": 6985.0,
+      "fecha": "2026-02-12"
+    },
+    {
+      "id": "1785224924891",
+      "ticker": "GGAL.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 461.0,
+      "precio": 6970.0,
+      "fecha": "2026-02-12"
+    },
+    {
+      "id": "1785224924892",
+      "ticker": "GOOGL.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 338.0,
+      "precio": 7915.0,
+      "fecha": "2026-02-12"
+    },
+    {
+      "id": "1785224924893",
+      "ticker": "T31Y7.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 13950000.0,
+      "precio": 1.0275,
+      "fecha": "2026-02-12"
+    },
+    {
+      "id": "1785224924895",
+      "ticker": "T31Y7.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 400000.0,
+      "precio": 1.028,
+      "fecha": "2026-02-09"
+    },
+    {
+      "id": "1785224924898",
+      "ticker": "T31Y7.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 650000.0,
+      "precio": 1.0055,
+      "fecha": "2026-01-26"
+    },
+    {
+      "id": "1785224924899",
+      "ticker": "TO26.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 210000.0,
+      "precio": 0.9251,
+      "fecha": "2026-01-26"
+    },
+    {
+      "id": "1785224924901",
+      "ticker": "GD41",
+      "assetTipo": "bono",
+      "tipo": "venta",
+      "cantidad": 242.0,
+      "precio": 1047.0,
+      "fecha": "2026-01-19"
+    },
+    {
+      "id": "1785224924902",
+      "ticker": "T13F6.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 1000.0,
+      "precio": 1.41466,
+      "fecha": "2026-01-19"
+    },
+    {
+      "id": "1785224924903",
+      "ticker": "BPOC7.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 2.0,
+      "precio": 1456.1,
+      "fecha": "2026-01-19"
+    },
+    {
+      "id": "1785224924904",
+      "ticker": "TTD26.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 1000.0,
+      "precio": 1.3635,
+      "fecha": "2026-01-19"
+    },
+    {
+      "id": "1785224924905",
+      "ticker": "TTS26.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 1000.0,
+      "precio": 1.3865,
+      "fecha": "2026-01-19"
+    },
+    {
+      "id": "1785224924906",
+      "ticker": "TX26.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 1000.0,
+      "precio": 11.735,
+      "fecha": "2026-01-19"
+    },
+    {
+      "id": "1785224924907",
+      "ticker": "TX28.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 1000.0,
+      "precio": 16.775,
+      "fecha": "2026-01-19"
+    },
+    {
+      "id": "1785224924908",
+      "ticker": "TZX28.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 1000.0,
+      "precio": 2.7805,
+      "fecha": "2026-01-19"
+    },
+    {
+      "id": "1785224924909",
+      "ticker": "TZXD6.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 1000.0,
+      "precio": 2.339,
+      "fecha": "2026-01-19"
+    },
+    {
+      "id": "1785224924910",
+      "ticker": "TZXD7.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 1000.0,
+      "precio": 2.157,
+      "fecha": "2026-01-19"
+    },
+    {
+      "id": "1785224924911",
+      "ticker": "T31Y7.BA",
+      "assetTipo": "cedear",
+      "tipo": "compra",
+      "cantidad": 15000000.0,
+      "precio": 1.007,
+      "fecha": "2026-01-16"
+    },
+    {
+      "id": "1785224924912",
+      "ticker": "TZX26.BA",
+      "assetTipo": "cedear",
+      "tipo": "venta",
+      "cantidad": 4559966.0,
+      "precio": 3.294,
+      "fecha": "2026-01-16"
+    },
+    {
+      "id": "1785224924913",
+      "ticker": "YPFD.BA",
+      "assetTipo": "accion",
+      "tipo": "compra",
+      "cantidad": 31.0,
+      "precio": 51550.0,
+      "fecha": "2026-01-07"
     }
   ],
   "watchlist": [

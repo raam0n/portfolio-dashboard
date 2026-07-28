@@ -1,0 +1,5 @@
+Fecha,Ticker,Tipo,Cantidad,Precio,AssetTipo
+2026-06-10,GGAL,compra,100,6800.5,accion
+2026-06-15,YPFD,compra,50,55000.0,accion
+2026-06-20,AAPL,compra,20,3400.0,cedear
+2026-07-05,BMA,venta,30,12000.0,accion
