@@ -823,6 +823,9 @@ function App() {
   const [editingHoldingOriginal, setEditingHoldingOriginal] = useState(null);
   const [registerPartialSale, setRegisterPartialSale] = useState(false);
   const [partialSalePrice, setPartialSalePrice] = useState('');
+  const [registerPurchase, setRegisterPurchase] = useState(true);
+  const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
+  const [purchasePrice, setPurchasePrice] = useState('');
   
   const [holdingToDelete, setHoldingToDelete] = useState(null);
   const [sellPriceForDelete, setSellPriceForDelete] = useState('');
@@ -1509,15 +1512,32 @@ function App() {
     let nPrices = { ...prices };
     const existingIndex = holdings.findIndex(h => h.ticker === ticker && h.mercado === newMercado);
     
+    let opTicker = ticker;
+    if ((newTipo === 'accion' || newTipo === 'cedear') && !opTicker.endsWith('.BA')) {
+      opTicker = opTicker + '.BA';
+    }
+    const finalPurchasePrice = !isNaN(parseFloat(purchasePrice)) ? parseFloat(purchasePrice) : prec;
+    const finalPurchaseDate = purchaseDate || new Date().toISOString().split('T')[0];
+
     if (existingIndex !== -1) {
-      if (editingHoldingOriginal && cant < editingHoldingOriginal.cantidad && registerPartialSale) {
-        const diff = editingHoldingOriginal.cantidad - cant;
-        const sp = parseFloat(partialSalePrice);
-        if (!isNaN(sp)) {
-          const op = { id: Date.now().toString(), ticker: ticker, assetTipo: newTipo, tipo: 'venta', cantidad: diff, precio: sp, fecha: new Date().toISOString().split('T')[0] };
+      if (editingHoldingOriginal) {
+        if (cant < editingHoldingOriginal.cantidad && registerPartialSale) {
+          const diff = editingHoldingOriginal.cantidad - cant;
+          const sp = parseFloat(partialSalePrice);
+          if (!isNaN(sp)) {
+            const op = { id: Date.now().toString(), ticker: opTicker, assetTipo: newTipo, tipo: 'venta', cantidad: diff, precio: sp, fecha: new Date().toISOString().split('T')[0] };
+            setOperaciones(prev => [...prev, op]);
+          }
+        } else if (cant > editingHoldingOriginal.cantidad && registerPurchase) {
+          const diff = cant - editingHoldingOriginal.cantidad;
+          const op = { id: Date.now().toString(), ticker: opTicker, assetTipo: newTipo, tipo: 'compra', cantidad: diff, precio: finalPurchasePrice, fecha: finalPurchaseDate };
           setOperaciones(prev => [...prev, op]);
         }
+      } else if (registerPurchase) {
+        const op = { id: Date.now().toString(), ticker: opTicker, assetTipo: newTipo, tipo: 'compra', cantidad: cant, precio: finalPurchasePrice, fecha: finalPurchaseDate };
+        setOperaciones(prev => [...prev, op]);
       }
+
       const newHoldings = [...holdings];
       newHoldings[existingIndex] = { ...newHoldings[existingIndex], cantidad: cant, precioEntrada: prec, nombre: newNombre.trim(), tipo: newTipo };
       if (newTipo === 'bono') {
@@ -1529,6 +1549,11 @@ function App() {
       }
       setHoldings(newHoldings);
     } else {
+      if (registerPurchase) {
+        const op = { id: Date.now().toString(), ticker: opTicker, assetTipo: newTipo, tipo: 'compra', cantidad: cant, precio: finalPurchasePrice, fecha: finalPurchaseDate };
+        setOperaciones(prev => [...prev, op]);
+      }
+
       const h = { ticker, tipo: newTipo, mercado: newMercado, nombre: newNombre.trim(), cantidad: cant, precioEntrada: prec };
       if (newTipo === 'bono') {
         const pa = parseFloat(newPrecioActual);
@@ -1544,6 +1569,7 @@ function App() {
     setPrices(nPrices);
     setNewTicker(''); setNewNombre(''); setNewCantidad(''); setNewPrecio(''); setNewPrecioActual('');
     setEditingHoldingOriginal(null); setRegisterPartialSale(false); setPartialSalePrice('');
+    setRegisterPurchase(true); setPurchaseDate(new Date().toISOString().split('T')[0]); setPurchasePrice('');
     setShowAddHolding(false);
   };
 
@@ -1551,6 +1577,9 @@ function App() {
     setEditingHoldingOriginal(h);
     setRegisterPartialSale(false);
     setPartialSalePrice('');
+    setRegisterPurchase(true);
+    setPurchaseDate(new Date().toISOString().split('T')[0]);
+    setPurchasePrice('');
     setNewTicker(h.ticker);
     setNewTipo(h.tipo);
     setNewMercado(h.mercado);
@@ -2607,7 +2636,7 @@ function App() {
                 </div>
                 {editingHoldingOriginal && parseFloat(newCantidad) < editingHoldingOriginal.cantidad && (
                   <div style={{ marginBottom: '12px', padding: '10px', backgroundColor: 'rgba(99, 102, 241, 0.1)', borderRadius: '8px', border: '1px dashed var(--accent)' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '8px', fontSize: '13px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: registerPartialSale ? '8px' : '0px', fontSize: '13px' }}>
                       <input type="checkbox" checked={registerPartialSale} onChange={e => setRegisterPartialSale(e.target.checked)} />
                       Registrar la diferencia ({editingHoldingOriginal.cantidad - parseFloat(newCantidad)} nominales) como Venta en Operaciones
                     </label>
@@ -2618,6 +2647,29 @@ function App() {
                           <input type="number" placeholder="0.00" step="0.01" value={partialSalePrice} onChange={e => setPartialSalePrice(e.target.value)} />
                         </div>
                         <div></div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {(!editingHoldingOriginal || (editingHoldingOriginal && parseFloat(newCantidad) > editingHoldingOriginal.cantidad)) && (
+                  <div style={{ marginBottom: '12px', padding: '10px', backgroundColor: 'rgba(99, 102, 241, 0.1)', borderRadius: '8px', border: '1px dashed var(--accent)' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: registerPurchase ? '8px' : '0px', fontSize: '13px' }}>
+                      <input type="checkbox" checked={registerPurchase} onChange={e => setRegisterPurchase(e.target.checked)} />
+                      {editingHoldingOriginal 
+                        ? `Registrar el incremento (+${(parseFloat(newCantidad) || 0) - editingHoldingOriginal.cantidad} nominales) como Compra en Operaciones`
+                        : 'Registrar también como Compra en Histórico de Operaciones'
+                      }
+                    </label>
+                    {registerPurchase && (
+                      <div className="form-row">
+                        <div>
+                          <label>Fecha de Compra</label>
+                          <input type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} />
+                        </div>
+                        <div>
+                          <label>Precio Unitario Compra ($ opc.)</label>
+                          <input type="number" placeholder={newPrecio || "0.00"} step="0.01" value={purchasePrice} onChange={e => setPurchasePrice(e.target.value)} />
+                        </div>
                       </div>
                     )}
                   </div>
