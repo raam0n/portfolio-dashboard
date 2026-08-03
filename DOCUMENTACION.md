@@ -21,12 +21,18 @@ El sistema no utiliza una base de datos relacional tradicional, sino que confía
 - `portfolio_watchlist`: Arreglo de activos en seguimiento. Campos: `ticker`, `tipo`, `mercado`, `nombre`, `categoria`.
 - `portfolio_trades`: Registro de operaciones de "Trade" cerradas (compra y venta emparejadas).
 - `portfolio_evals`: Registro de evaluaciones de rendimiento o notas de trades.
+- `all_liquidaciones`: Diccionario indexado por ID de portfolio y por semestre (ej: `2026-H1`). Almacena el historial de liquidaciones de comisiones (`status`, `valorInicialARS`, `valorFinalARS`, `gananciaARS`, `honorarioPct`, `honorarioARS`, `honorarioUSD`, `fechaCobro`, `mepCobro`).
+- `advisor_private_mode`: Booleano (`true`/`false`) que persiste el estado del Modo Privado / Asesor (enmascaramiento de montos sensibles).
 - `cached_prices` / `cached_stats`: Caché de precios y estadísticas diarias consultadas a las APIs para evitar llamadas innecesarias y acelerar la carga.
 
 ## 📁 Estructura de Archivos
 
 ### Core de la Aplicación (Frontend)
-- `src/App.jsx`: Componente principal. Contiene toda la lógica de negocio, cálculos de portfolio, llamadas a APIs, y renderizado de la UI.
+- `src/App.jsx`: Componente principal. Contiene la gestión del estado global, cambio de solapas, persistencia e importación/exportación de datos.
+- `src/components/HonorariosDashboard.jsx`: Módulo dedicado a la gestión y liquidación de honorarios de asesoría semestrales (5% sobre ganancias en ARS) con soporte multi-cliente y modo privado.
+- `src/components/MarketInsights.jsx`: Componente para visualizar métricas e indicadores de mercado.
+- `src/components/MarketTreemap.jsx`: Mapa de calor de distribución de cartera y mercado.
+- `src/components/ApiUsageDashboard.jsx`: Métricas de consumo de tokens y llamadas a APIs de Inteligencia Artificial / Precios.
 - `src/main.jsx`: Punto de entrada de React que monta la aplicación en el DOM.
 
 ### Lógica y Algoritmos
@@ -58,8 +64,29 @@ El sistema no utiliza una base de datos relacional tradicional, sino que confía
 - **Procesamiento de Histórico (Broker)**:
   - Se consideran exitosas las operaciones en estado `Ejecutada`, `Finalizada` y `Parcialmente Cancelada`.
   - Se ignoran las operaciones `Cancelada` y `Rechazada`.
-  - Para cálculos de volumen y montos, se utilizan estrictamente los campos `Cantidad Operada` y `Precio Operado` (crucial para las parcialmente canceladas).
+  - Para cálculos de volumen y montos, se utilizan strictly los campos `Cantidad Operada` y `Precio Operado` (crucial para las parcialmente canceladas).
   - Los depósitos pueden figurar tanto como `Finalizada` o `Ejecutada`.
+
+- **Módulo de Honorarios y Liquidación de Asesoría (Solapa "Honorarios / Asesoría")**:
+  - **Metodología de Cobro**: Cobro semestral de comisiones sobre las ganancias netas obtenidas en Pesos (ARS) durante un período de 6 meses (H1: 1 de Enero al 30 de Junio, H2: 1 de Julio al 31 de Diciembre). Por defecto el porcentaje de comisión es **5%** (editable por cliente o semestre).
+  - **Fórmula de Ganancia Semestral en ARS**:
+    $$\text{Ganancia Semestral (ARS)} = \text{Valuación Final ARS} - \text{Valuación Inicial ARS} - \text{Flujos Netos ARS}$$
+    Donde:
+    - $\text{Valuación Final ARS}$: Suma del valor de mercado actual de todos los activos de la cartera convertidos a ARS.
+    - $\text{Valuación Inicial ARS}$: Valuación estimada al inicio del semestre (auto-calculada o personalizable mediante campo de ajuste manual).
+    - $\text{Flujos Netos ARS}$: $(\text{Ingresos de Capital en ARS}) - (\text{Extracciones de Capital en ARS})$ ocurridos dentro del semestre. Aislar los flujos netos garantiza que los depósitos o fondeos del cliente **no tributen comisiones como si fuesen ganancias de mercado**.
+  - **Determinación del Honorario a Cobrar**:
+    $$\text{Honorario ARS} = \max\left(0, \text{Ganancia Semestral (ARS)} \times \frac{\text{Comisión \%}}{100}\right)$$
+    $$\text{Honorario USD} = \frac{\text{Honorario ARS}}{\text{Dólar MEP}}$$
+    *(Si el resultado del semestre es negativo o 0, el honorario resultante es $0).*
+  - **Modo Privado / Asesor (Privacidad de Pantalla)**:
+    Un interruptor interactivo (`🔒 Modo Privado: ACTIVO` / `👁️ Modo Asesor: VISIBLE`) permite enmascarar todos los valores monetarios de ganancias y comisiones con caracteres ocultos (`••••••`). Esto permite mostrar la aplicación al cliente sin revelar cifras de facturación o métricas confidenciales.
+  - **Flujo Interactivo de Cobranza**:
+    Al hacer clic en **`💰 Registrar Cobro de Honorarios`**, el sistema:
+    1. Agrega automáticamente una extracción en la solapa de **Flujos de Caja** por el monto exacto cobrado en ARS, especificando el tipo de cambio MEP aplicado y una nota explicativa (ej: `Cobro Honorarios Asesoría (5% - 2026-H1)`).
+    2. Actualiza el estado de la liquidación del semestre a **`COBRADO`** en la insignia de estado y guarda el registro histórico.
+  - **Visión Consolidada Multi-Cliente**:
+    Permite alternar entre la vista de un cliente individual y la **Visión Consolidada**, donde se listan todos los portfolios/clientes registrados en la app, sumando el AUM total, ganancia global generada, honorarios liquidados y el total de **Honorarios Pendientes de Cobro**.
 
 ## 🚀 Configuración y Uso
 1. **Clonar el Repositorio** (o descargar los archivos).

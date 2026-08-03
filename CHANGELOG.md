@@ -1,5 +1,16 @@
 # CHANGELOG - Balanz Overview
 
+## [v1.13] - 2026-07-31 00:35
+
+*Archivos modificados: `src/App.jsx`, `src/components/HonorariosDashboard.jsx`, `DOCUMENTACION.md`, `RESUMEN.md`, `CHANGELOG.md`*
+
+### Added
+- **Módulo de Honorarios y Liquidación de Asesoría Semestral (5%):** Nueva solapa "Honorarios / Asesoría" para calcular comisiones del 5% sobre ganancias en Pesos (ARS) acumuladas en cada semestre.
+- **Aislamiento de Flujos Netos de Capital:** La fórmula descuenta depósitos y retiros para garantizar que el cobro sea estrictamente sobre rendimiento de mercado y no sobre aportes.
+- **Modo Privado / Asesor:** Botón de privacidad `🔒 / 👁️` que oculta cifras sensibles (`••••••`) al presentar la pantalla al cliente.
+- **Cobranza Interactiva:** Botón "Registrar Cobro" que genera automáticamente la extracción en Flujos de Caja y actualiza la liquidación a estado `COBRADO`.
+- **Visión Consolidada Multi-Cliente:** Tablero de control general con el resumen de AUM total, honorarios cobrados y honorarios pendientes de todos los portfolios.
+
 ## [v1.12] - 2026-05-27 03:52
 
 *Archivos modificados: `src/App.jsx`, `CHANGELOG.md`*

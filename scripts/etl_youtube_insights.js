@@ -24,9 +24,9 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Configurar Gemini
-const geminiApiKey = process.env.GEMINI_API_KEY;
+const geminiApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 if (!geminiApiKey) {
-  console.error("Falta la variable de entorno GEMINI_API_KEY.");
+  console.error("Falta la variable de entorno GEMINI_API_KEY o VITE_GEMINI_API_KEY.");
   process.exit(1);
 }
 const genAI = new GoogleGenerativeAI(geminiApiKey);
@@ -108,18 +108,35 @@ async function runETL() {
     return;
   }
 
+  // Lista de canales habilitados para pruebas parciales (fácilmente editable/reversible)
+  const ALLOWED_CHANNELS = [
+    "Inversión Sin Filtros",
+    "Gabriel Martin",
+    "Ser Emprendedor"
+  ];
+
+  // Filtrar los canales de la DB según la lista permitida (coincidencia por nombre parcial o id)
+  const targetChannels = channels.filter(c => 
+    ALLOWED_CHANNELS.some(allowed => 
+      c.channel_name.toLowerCase().includes(allowed.toLowerCase()) ||
+      allowed.toLowerCase().includes(c.channel_name.toLowerCase())
+    )
+  );
+
+  console.log(`Canales filtrados para la prueba (${targetChannels.length}/${channels.length}):`, targetChannels.map(c => c.channel_name));
+
   const unanalyzedChannels = [];
   let quotaExceededAborted = false;
 
-  for (let i = 0; i < channels.length; i++) {
-    const channel = channels[i];
+  for (let i = 0; i < targetChannels.length; i++) {
+    const channel = targetChannels[i];
     
     if (quotaExceededAborted) {
       unanalyzedChannels.push(channel.channel_name);
       continue;
     }
 
-    console.log(`\nProcesando canal (${i + 1}/${channels.length}): ${channel.channel_name} (${channel.channel_id})`);
+    console.log(`\nProcesando canal (${i + 1}/${targetChannels.length}): ${channel.channel_name} (${channel.channel_id})`);
     try {
       // 2. Obtener videos buscando el nombre del canal
       const searchResult = await ytSearch(channel.channel_name);
@@ -204,8 +221,9 @@ Si no se mencionan tickers, devuelve un arreglo vacío [].
 Transcripción: ${transcriptText}`;
 
       let textResponse = "";
+      let rawResponse = "";
       try {
-         const rawResponse = await generateContentWithRetry(prompt);
+         rawResponse = await generateContentWithRetry(prompt);
          textResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
       } catch (geminiErr) {
          console.error(`Error definitivo de Gemini al procesar el canal ${channel.channel_name}:`, geminiErr.message);

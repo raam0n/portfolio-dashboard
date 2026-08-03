@@ -14,6 +14,7 @@ Hemos desarrollado una aplicación web moderna utilizando **React.js** y **Vite*
   - Gráficos integrados, como la distribución porcentual de la cartera (agrupando activos menores al 1% en "Otros").
   - Tabla de "Mis Activos" con ordenamiento dinámico por múltiples columnas (Nombre, %, P&L, etc.).
 - **Watchlist Avanzada:** Lista de seguimiento de activos con campos adicionales como "País de origen" y "Subcategoría", incluyendo filtros dinámicos (MultiCheckDropdown).
+- **Módulo de Honorarios y Asesoría (5% Semestral):** Solapa dedicada a la gestión de carteras de clientes que calcula la comisión semestral (5%) sobre ganancias netas en Pesos (ARS), aislando depósitos/retiros de capital, con **Modo Privado** para ocultar montos confidenciales y liquidación automática en Flujos de Caja.
 - **Persistencia de Datos:** Todo se guarda localmente en el navegador (`localStorage`), por lo que no requiere de una base de datos externa para funcionar de manera individual.
 
 ## 2. Procesamiento de Datos Históricos (Backend en Python)

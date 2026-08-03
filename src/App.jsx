@@ -4,6 +4,7 @@ import './index.css';
 import MarketInsights from './components/MarketInsights';
 import MarketTreemap from './components/MarketTreemap';
 import ApiUsageDashboard from './components/ApiUsageDashboard';
+import { HonorariosDashboard } from './components/HonorariosDashboard';
 import { analyzeMovement } from './services/aiAnalyzer';
 import { extractPortfolioDataFromImage } from './services/visionService';
 
@@ -766,6 +767,12 @@ function App() {
   const flujos = allFlujos[currentPortfolioId] || [];
   const setFlujos = (val) => setAllFlujos(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
 
+  const [allLiquidaciones, setAllLiquidaciones] = useState(() => {
+    const existing = localStorage.getItem('all_liquidaciones');
+    if (existing) return JSON.parse(existing);
+    return {};
+  });
+
   const [watchlist, setWatchlist] = useState(() => JSON.parse(localStorage.getItem('portfolio_watchlist') || '[]'));
 
   const [prices, setPrices] = useState(() => JSON.parse(localStorage.getItem('cached_prices') || '{}'));
@@ -1072,10 +1079,11 @@ function App() {
     safeSetItem('all_trades', allTrades);
     safeSetItem('all_evals', allEvals);
     safeSetItem('all_flujos', allFlujos);
+    safeSetItem('all_liquidaciones', allLiquidaciones);
     safeSetItem('portfolio_watchlist', watchlist);
     safeSetItem('portfolios_list', portfolios);
     safeSetItem('current_portfolio_id', currentPortfolioId);
-  }, [allHoldings, allOperaciones, allTrades, allEvals, allFlujos, watchlist, portfolios, currentPortfolioId]);
+  }, [allHoldings, allOperaciones, allTrades, allEvals, allFlujos, allLiquidaciones, watchlist, portfolios, currentPortfolioId]);
 
   // Persist prices separately whenever they are successfully updated
   useEffect(() => {
@@ -1773,7 +1781,7 @@ function App() {
 
   // --- IMP/EXP LOGIC ---
   const exportar = () => {
-    const json = JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, allFlujos, portfolios, currentPortfolioId, watchlist }, null, 2);
+    const json = JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, allFlujos, allLiquidaciones, portfolios, currentPortfolioId, watchlist }, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1782,7 +1790,7 @@ function App() {
   };
 
   const copiarJSON = () => {
-    const json = JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, allFlujos, portfolios, currentPortfolioId, watchlist }, null, 2);
+    const json = JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, allFlujos, allLiquidaciones, portfolios, currentPortfolioId, watchlist }, null, 2);
     navigator.clipboard.writeText(json).then(() => alert('JSON Copiado'));
   };
 
@@ -1824,7 +1832,8 @@ function App() {
       allOperaciones: migrateDict(data.allOperaciones),
       allTrades: migrateDict(data.allTrades),
       allEvals: migrateDict(data.allEvals),
-      allFlujos: migrateDict(data.allFlujos)
+      allFlujos: migrateDict(data.allFlujos),
+      allLiquidaciones: migrateDict(data.allLiquidaciones)
     };
   };
 
@@ -1869,7 +1878,7 @@ function App() {
   const borrarTodo = () => {
     const typed = window.prompt('Escribí "BORRAR" para formatear todo.');
     if (typed === 'BORRAR') {
-      setAllHoldings({}); setAllOperaciones({}); setAllTrades({}); setAllEvals({}); setAllFlujos({});
+      setAllHoldings({}); setAllOperaciones({}); setAllTrades({}); setAllEvals({}); setAllFlujos({}); setAllLiquidaciones({});
       setPortfolios([{id:'default', name:'Mi Portfolio Principal'}]);
       setCurrentPortfolioId('default');
       setWatchlist([]); setPrices({});
@@ -2307,9 +2316,10 @@ function App() {
 
       {/* Tabs Navigation */}
       <nav className="tabs-nav">
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           <button className={`tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`} onClick={() => setActiveTab('portfolio')}>Mi Portfolio</button>
           <button className={`tab-btn ${activeTab === 'flujos' ? 'active' : ''}`} onClick={() => setActiveTab('flujos')}>Flujos de Caja</button>
+          <button className={`tab-btn ${activeTab === 'honorarios' ? 'active' : ''}`} onClick={() => setActiveTab('honorarios')}>Honorarios / Asesoría</button>
           <button className={`tab-btn ${activeTab === 'operaciones' ? 'active' : ''}`} onClick={() => setActiveTab('operaciones')}>Histórico</button>
           <button className={`tab-btn ${activeTab === 'watchlist' ? 'active' : ''}`} onClick={() => setActiveTab('watchlist')}>Watchlist</button>
           <button className={`tab-btn ${activeTab === 'mercados' ? 'active' : ''}`} onClick={() => setActiveTab('mercados')}>Mercados</button>
@@ -2373,6 +2383,7 @@ function App() {
                     setAllTrades(renameKey);
                     setAllEvals(renameKey);
                     setAllFlujos(renameKey);
+                    setAllLiquidaciones(renameKey);
                     
                     setCurrentPortfolioId(newId);
                   }
@@ -2396,6 +2407,7 @@ function App() {
                     setAllTrades(deleteKey);
                     setAllEvals(deleteKey);
                     setAllFlujos(deleteKey);
+                    setAllLiquidaciones(deleteKey);
                     
                     setCurrentPortfolioId(nextPortfolio.id);
                   }
@@ -3326,6 +3338,25 @@ function App() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* --- TAB: HONORARIOS / ASESORÍA --- */}
+      {activeTab === 'honorarios' && (
+        <HonorariosDashboard
+          portfolios={portfolios}
+          currentPortfolioId={currentPortfolioId}
+          allHoldings={allHoldings}
+          allFlujos={allFlujos}
+          allLiquidaciones={allLiquidaciones}
+          setAllLiquidaciones={setAllLiquidaciones}
+          setAllFlujos={setAllFlujos}
+          prices={prices}
+          dailyStats={dailyStats}
+          dolarMep={dolarMep}
+          fmt={fmt}
+          fmtPct={fmtPct}
+          getYahooTicker={getYahooTicker}
+        />
       )}
 
       {activeTab === 'mercados' && (() => {
