@@ -1704,6 +1704,36 @@ function App() {
     setOperaciones(operaciones.filter(o => o.id !== id));
   };
 
+  const getTradeDays = (fechaCompra, fechaVenta) => {
+    if (!fechaCompra || !fechaVenta) return null;
+    const parseDateStr = (dStr) => {
+      const parts = String(dStr).split('T')[0].split('-');
+      if (parts.length === 3) {
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      }
+      return new Date(dStr);
+    };
+    const d1 = parseDateStr(fechaCompra);
+    const d2 = parseDateStr(fechaVenta);
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return null;
+    const diffTime = d2.getTime() - d1.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+    
+    let text = `${diffDays} días`;
+    if (diffDays < 0) text = `${Math.abs(diffDays)}d (inverso)`;
+    else if (diffDays === 0) text = `0 días (Intradiario)`;
+    else if (diffDays === 1) text = `1 día`;
+    else if (diffDays >= 30 && diffDays < 365) {
+      const m = (diffDays / 30.4375).toFixed(1);
+      text = `${diffDays} días (~${m} meses)`;
+    } else if (diffDays >= 365) {
+      const y = (diffDays / 365.25).toFixed(1);
+      text = `${diffDays} días (~${y} años)`;
+    }
+
+    return { days: diffDays, label: text };
+  };
+
   // --- TRADES BUSINESS LOGIC ---
   const agregarTrade = () => {
     const opCompra = operaciones.find(o => o.id === tradeCompraId);
@@ -3523,6 +3553,63 @@ function App() {
             <button className="btn btn-primary btn-sm" onClick={() => setShowAddTrade(!showAddTrade)}>+ Agregar Trade</button>
           </div>
 
+          {/* Metrics Summary Bar */}
+          {trades.length > 0 && (() => {
+            let totalDays = 0;
+            let validCount = 0;
+            let wins = 0;
+            let totalProfit = 0;
+
+            trades.forEach(t => {
+              const qty = Math.min(t.compraCantidad, t.ventaCantidad);
+              const diff = (t.ventaPrecio - t.compraPrecio) * qty;
+              totalProfit += diff;
+              if (diff >= 0) wins++;
+
+              const dur = getTradeDays(t.compraFecha, t.ventaFecha);
+              if (dur && dur.days >= 0) {
+                totalDays += dur.days;
+                validCount++;
+              }
+            });
+
+            const avgDays = validCount > 0 ? Math.round(totalDays / validCount) : 0;
+            const winRate = ((wins / trades.length) * 100).toFixed(0);
+
+            return (
+              <div className="metrics-grid" style={{ marginBottom: '1.25rem', marginTop: '0.5rem' }}>
+                <div className="metric-card">
+                  <div className="metric-label">Trades Cerrados</div>
+                  <div className="metric-value">{trades.length}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Operaciones emparejadas</div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-label">Duración Promedio</div>
+                  <div className="metric-value" style={{ color: 'var(--accent)' }}>
+                    ⏱️ {avgDays} {avgDays === 1 ? 'día' : 'días'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Tiempo medio de tenencia</div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-label">Tasa de Acierto (Win Rate)</div>
+                  <div className="metric-value" style={{ color: winRate >= 50 ? 'var(--success)' : 'var(--danger)' }}>
+                    {winRate}%
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{wins} ganadores de {trades.length}</div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-label">P&L Total Cerrado</div>
+                  <div className="metric-value">
+                    <span className={totalProfit >= 0 ? 'positive' : 'negative'}>
+                      {totalProfit >= 0 ? '+$' : '-$'}{fmt(Math.abs(totalProfit))}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Resultado neto acumulado</div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Add Trade Form */}
           {showAddTrade && (
             <div className="collapsible-content active">
@@ -3579,18 +3666,39 @@ function App() {
 
                 const nominalDiff = montoVentaOperado - montoCompraOperado;
                 const pctDiff = montoCompraOperado > 0 ? (nominalDiff / montoCompraOperado) * 100 : 0;
-
                 const isPos = nominalDiff >= 0;
+
+                const duration = getTradeDays(trade.compraFecha, trade.ventaFecha);
+
+                // Annualized return (TNA simple equivalent)
+                let annualizedPct = null;
+                if (duration && duration.days > 0) {
+                  annualizedPct = (pctDiff / duration.days) * 365;
+                }
 
                 return (
                   <div key={trade.id} className="glass-panel" style={{ background: 'rgba(0,0,0,0.2)', position: 'relative' }}>
                     {/* Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '8px' }}>
                       <div>
-                        <h3 style={{ fontSize: '15px', marginBottom: '4px' }}>
-                          <span style={{ opacity: 0.7 }}>{trade.compraFecha} → {trade.ventaFecha}</span> · Trade Cerrado: <span style={{ color: 'var(--accent)' }}>{trade.compraTicker}</span>
+                        <h3 style={{ fontSize: '15px', marginBottom: '4px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                          <span style={{ opacity: 0.7 }}>{trade.compraFecha} → {trade.ventaFecha}</span>
+                          {duration && (
+                            <span style={{ 
+                              padding: '2px 8px', 
+                              borderRadius: '12px', 
+                              fontSize: '11px', 
+                              fontWeight: '600', 
+                              backgroundColor: 'rgba(99, 102, 241, 0.15)', 
+                              color: 'var(--accent)',
+                              border: '1px solid rgba(99, 102, 241, 0.3)'
+                            }}>
+                              ⏱️ {duration.label}
+                            </span>
+                          )}
+                          · Trade Cerrado: <span style={{ color: 'var(--accent)' }}>{trade.compraTicker}</span>
                           {trade.compraTicker !== trade.ventaTicker && (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '12px', marginLeft: '6px' }}>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
                               (Venta de {trade.ventaTicker})
                             </span>
                           )}
@@ -3604,24 +3712,42 @@ function App() {
 
                     {/* Scenario output */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '14px' }}>
-                      <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                        Compraste a <strong>${fmt(trade.compraPrecio)}</strong> y lo vendiste a <strong>${fmt(trade.ventaPrecio)}</strong>.
-                        {trade.compraCantidad !== trade.ventaCantidad && (
-                          <div className="hint" style={{ marginTop: '4px' }}>
-                            Cantidades originales: Compra {fmt(trade.compraCantidad, 0)} | Venta {fmt(trade.ventaCantidad, 0)}. Cálculo basado en {fmt(qty, 0)} nominales para igualar.
+                      <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <div>
+                          Compraste a <strong>${fmt(trade.compraPrecio)}</strong> y lo vendiste a <strong>${fmt(trade.ventaPrecio)}</strong>.
+                          {trade.compraCantidad !== trade.ventaCantidad && (
+                            <div className="hint" style={{ marginTop: '4px' }}>
+                              Cantidades originales: Compra {fmt(trade.compraCantidad, 0)} | Venta {fmt(trade.ventaCantidad, 0)}. Cálculo basado en {fmt(qty, 0)} nominales para igualar.
+                            </div>
+                          )}
+                        </div>
+                        {duration && (
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '6px' }}>
+                            Duración: <strong style={{ color: '#fff' }}>{duration.label}</strong>
                           </div>
                         )}
                       </div>
 
-                      <div style={{ padding: '16px', background: isPos ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: `1px solid ${isPos ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`, borderRadius: '8px' }}>
-                        Resultado del Trade:{' '}
-                        <strong className={isPos ? 'positive' : 'negative'} style={{ fontSize: '18px' }}>
-                          {fmtPct(pctDiff)} ({isPos ? '+' : '-'}${fmt(Math.abs(nominalDiff))})
-                        </strong>
-                        {dolarMep && (
-                          <span style={{ fontSize: '14px', fontWeight: '400', opacity: 0.8, marginLeft: '10px' }}>
-                            ≈ US$ {fmt(Math.abs(nominalDiff) / dolarMep)}
-                          </span>
+                      <div style={{ padding: '16px', background: isPos ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: `1px solid ${isPos ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`, borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                        <div>
+                          Resultado del Trade:{' '}
+                          <strong className={isPos ? 'positive' : 'negative'} style={{ fontSize: '18px' }}>
+                            {fmtPct(pctDiff)} ({isPos ? '+' : '-'}${fmt(Math.abs(nominalDiff))})
+                          </strong>
+                          {dolarMep && (
+                            <span style={{ fontSize: '14px', fontWeight: '400', opacity: 0.8, marginLeft: '10px' }}>
+                              ≈ US$ {fmt(Math.abs(nominalDiff) / dolarMep)}
+                            </span>
+                          )}
+                        </div>
+
+                        {annualizedPct !== null && (
+                          <div style={{ fontSize: '13px', textAlign: 'right', opacity: 0.9 }}>
+                            <span className="hint">Rend. Anualizado (TNA eq.): </span>
+                            <strong className={annualizedPct >= 0 ? 'positive' : 'negative'}>
+                              {fmtPct(annualizedPct)} p.a.
+                            </strong>
+                          </div>
                         )}
                       </div>
                     </div>
