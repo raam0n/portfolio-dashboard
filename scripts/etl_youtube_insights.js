@@ -225,7 +225,15 @@ Transcripción: ${transcriptText.substring(0, 15000)}`;
       let tickersMentioned = "N/A";
 
       try {
-        const parsed = JSON.parse(textResponse);
+        let cleanedText = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+        let parsed = null;
+        try {
+          parsed = JSON.parse(cleanedText);
+        } catch (e1) {
+          cleanedText = cleanedText.replace(/[\r\n]+/g, ' ');
+          parsed = JSON.parse(cleanedText);
+        }
+
         sector = parsed.sector || "Finanzas";
         summary = parsed.resumen || textResponse;
         tickerInsights = Array.isArray(parsed.ticker_insights) ? parsed.ticker_insights : [];
@@ -233,7 +241,7 @@ Transcripción: ${transcriptText.substring(0, 15000)}`;
           tickersMentioned = tickerInsights.map(t => t.ticker).join(", ");
         }
       } catch (err) {
-        console.error("Error parseando el JSON de Gemini:", err);
+        console.error("Error parseando el JSON de Gemini:", err.message);
         summary = textResponse;
       }
 
