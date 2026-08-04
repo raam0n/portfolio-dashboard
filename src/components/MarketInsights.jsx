@@ -5,6 +5,55 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+const REAL_VIDEO_DATES = {
+  "iXZ6vSVKr50": "2026-05-31T09:15:22-07:00",
+  "mg9Xn98fk18": "2026-06-01T16:28:01-07:00",
+  "Uc1CP1SRdG0": "2026-05-31T21:54:48-07:00",
+  "qT-dGRYqxSM": "2026-05-31T16:15:29-07:00",
+  "j-IDwouABNY": "2026-05-31T16:12:15-07:00",
+  "rhuYy9LP72M": "2026-05-04T04:21:06-07:00",
+  "3H2w5MlSP7I": "2026-06-01T21:10:30-07:00",
+  "AVA4b_PTVFk": "2026-06-02T12:57:57-07:00",
+  "SxabyTRug1I": "2026-06-01T11:00:32-07:00",
+  "nbshvpFMkHc": "2026-05-31T10:00:27-07:00",
+  "TPSg1CTlszI": "2026-05-30T07:00:33-07:00",
+  "1jH5mPAHWyg": "2026-06-01T13:33:53-07:00",
+  "2YkNDBleFgo": "2026-06-01T20:58:06-07:00",
+  "ZgOtn--QgDs": "2026-05-24T15:00:07-07:00",
+  "6G-IG6opAYE": "2026-05-31T17:05:41-07:00",
+  "0FAZyGtdhQE": "2026-06-01T09:33:11-07:00",
+  "FUKO2gYuCIw": "2026-05-28T06:35:47-07:00",
+  "TVIRZPbrHus": "2022-01-17T15:01:20-08:00",
+  "Z6wEglf1naw": "2026-06-02T16:15:27-07:00",
+  "OgSKm4XAAnQ": "2026-06-02T09:28:43-07:00",
+  "ubz1pZ2Zk3M": "2026-06-02T13:18:41-07:00",
+  "RlNCh-iBuR4": "2026-06-02T11:17:45-07:00",
+  "6-jNBdvbadc": "2026-06-02T06:21:36-07:00",
+  "Jsjdfh_OacU": "2026-06-02T06:30:17-07:00",
+  "LbQc2i2guJ8": "2026-05-31T09:00:29-07:00",
+  "o7TPmgEA2lA": "2026-05-28T07:00:05-07:00",
+  "yrgUTZNWBOE": "2026-08-01T13:23:40-07:00",
+  "8nVaOsZ-NQU": "2026-07-31T13:06:45-07:00",
+  "NsHXz7kbiCs": "2026-08-02T09:15:04-07:00",
+  "AawCcoIpBH4": "2026-08-02T16:07:39-07:00",
+  "zBzy_-xidkM": "2026-08-03T17:00:23-07:00",
+  "ZZvH7vSLqpM": "2026-08-03T15:00:13-07:00",
+  "moHy-d6wZpw": "2026-08-03T17:16:11-07:00",
+  "INIYTUFZNgg": "2026-07-29T10:13:04-07:00",
+  "rv1byYkWxT4": "2026-08-03T14:04:40-07:00",
+  "ml5ZkgZFpVI": "2026-08-03T18:05:27-07:00",
+  "GIeBNBTgDFI": "2025-07-01T10:30:04-07:00",
+  "IWclX9xl44I": "2026-08-01T07:00:19-07:00",
+  "8QLoFZrVRM8": "2026-08-03T12:14:54-07:00",
+  "7VPTMKiuAW0": "2026-08-03T15:56:54-07:00",
+  "Qe1XmzjnFmk": "2026-08-03T18:11:10-07:00",
+  "FkbhwcICNjw": "2026-08-01T15:23:56-07:00",
+  "vn_2LKLXX5k": "2026-08-03T06:45:09-07:00",
+  "jGD-pcpClYg": "2026-08-01T10:26:33-07:00",
+  "Zj4IiBk1Sk0": "2026-08-03T12:00:02-07:00",
+  "HDMc44igV7M": "2026-08-02T07:00:14-07:00"
+};
+
 export default function MarketInsights() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,9 +92,12 @@ export default function MarketInsights() {
       const cleanData = (data || [])
         .filter(log => log.video_id !== 'test_id_9999' && log.channel_name !== 'Test Channel' && log.video_id)
         .map(log => {
+          const realPubDate = REAL_VIDEO_DATES[log.video_id] || log.published_at;
+          let updatedLog = { ...log, published_at: realPubDate };
+
           if (log.video_id === 'jGD-pcpClYg') {
-            return {
-              ...log,
+            updatedLog = {
+              ...updatedLog,
               sector: 'Tecnología',
               thesis_summary: 'El autor analiza el reciente y exitoso reporte de Amazon, destacando su fuerte crecimiento en todas las líneas de negocio, especialmente en AWS, impulsado por la inversión en Inteligencia Artificial. La tesis principal es que el mercado premia a compañías como Amazon (y en menor medida Microsoft) por su alto gasto de capital en infraestructura de IA y nube cuando este está respaldado por grandes volúmenes de contratos ("backlog") y resulta en la expansión de márgenes, a diferencia de empresas como Meta o Google, que son penalizadas por el mercado si sus inversiones no se traducen claramente en rentabilidad inmediata o demanda contractual. Amazon, en particular, se considera bien valorada actualmente, con futuras revalorizaciones ligadas a su continuo crecimiento operativo.',
               ticker_insights: [
@@ -59,8 +111,9 @@ export default function MarketInsights() {
               tickers_mentioned: 'AMZN, GOOGL, META, MSFT, PYPL, V'
             };
           }
-          return log;
-        });
+          return updatedLog;
+        })
+        .sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
 
       setLogs(cleanData);
 
