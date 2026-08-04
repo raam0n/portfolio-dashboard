@@ -97,6 +97,7 @@ async function getLatestVideoFromRSS(channelId) {
 
   const titleMatch = xmlText.match(/<entry>[\s\S]*?<title>(.*?)<\/title>/);
   const videoIdMatch = xmlText.match(/<entry>[\s\S]*?<yt:videoId>(.*?)<\/yt:videoId>/);
+  const publishedMatch = xmlText.match(/<entry>[\s\S]*?<published>(.*?)<\/published>/);
 
   if (!videoIdMatch || !videoIdMatch[1]) {
     return null;
@@ -104,7 +105,8 @@ async function getLatestVideoFromRSS(channelId) {
 
   return {
     videoId: videoIdMatch[1],
-    title: titleMatch ? titleMatch[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'") : 'Sin Título'
+    title: titleMatch ? titleMatch[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'") : 'Sin Título',
+    publishedAt: publishedMatch && publishedMatch[1] ? publishedMatch[1] : new Date().toISOString()
   };
 }
 
@@ -258,7 +260,7 @@ Transcripción: ${transcriptText.substring(0, 15000)}`;
           sector: sector,
           thesis_summary: summary,
           ticker_insights: tickerInsights,
-          published_at: new Date().toISOString()
+          published_at: latestVideo.publishedAt || new Date().toISOString()
         }]);
 
       if (insertError) {

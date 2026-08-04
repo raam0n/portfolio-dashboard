@@ -49,11 +49,13 @@ export default async function handler(req, res) {
 
         const titleMatch = xmlText.match(/<entry>[\s\S]*?<title>(.*?)<\/title>/);
         const videoIdMatch = xmlText.match(/<entry>[\s\S]*?<yt:videoId>(.*?)<\/yt:videoId>/);
+        const publishedMatch = xmlText.match(/<entry>[\s\S]*?<published>(.*?)<\/published>/);
 
         if (!videoIdMatch || !videoIdMatch[1]) continue;
 
         const videoId = videoIdMatch[1];
         const videoTitle = titleMatch ? titleMatch[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'") : 'Sin Título';
+        const videoPublishedAt = publishedMatch && publishedMatch[1] ? publishedMatch[1] : new Date().toISOString();
 
         // Check if video already exists
         const { data: existingVideo } = await supabase
@@ -147,7 +149,7 @@ Transcripción: ${transcriptText.substring(0, 15000)}`;
             sector: sector,
             thesis_summary: summary,
             ticker_insights: tickerInsights,
-            published_at: new Date().toISOString()
+            published_at: videoPublishedAt
           }]);
 
         processedCount++;

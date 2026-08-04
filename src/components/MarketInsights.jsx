@@ -100,10 +100,12 @@ export default function MarketInsights() {
 
             const titleMatch = xml.match(/<entry>[\s\S]*?<title>(.*?)<\/title>/);
             const videoIdMatch = xml.match(/<entry>[\s\S]*?<yt:videoId>(.*?)<\/yt:videoId>/);
+            const publishedMatch = xml.match(/<entry>[\s\S]*?<published>(.*?)<\/published>/);
             if (!videoIdMatch || !videoIdMatch[1]) continue;
 
             const videoId = videoIdMatch[1];
             const videoTitle = titleMatch ? titleMatch[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'") : 'Sin Título';
+            const videoPublishedAt = publishedMatch && publishedMatch[1] ? publishedMatch[1] : new Date().toISOString();
 
             const { data: existing } = await supabase.from('youtube_video_logs').select('video_id').eq('video_id', videoId).single();
             if (existing) continue;
@@ -168,7 +170,7 @@ Resume la tesis cualitativa principal y extrae los tickers recomendados en forma
                   sector: sector,
                   thesis_summary: summary,
                   ticker_insights: insights,
-                  published_at: new Date().toISOString()
+                  published_at: videoPublishedAt
                 }]);
 
                 processed++;
@@ -209,6 +211,19 @@ Resume la tesis cualitativa principal y extrae los tickers recomendados en forma
     if (!dateString) return '';
     const d = new Date(dateString);
     return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatFullDate = (dateString) => {
+    if (!dateString) return 'Sin fecha';
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return 'Sin fecha';
+    return d.toLocaleDateString('es-AR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   // Filtrado de Logs según búsqueda general y ticker seleccionado
@@ -655,7 +670,11 @@ Resume la tesis cualitativa principal y extrae los tickers recomendados en forma
             <div className="empty-state">No se encontraron reviews que coincidan con la búsqueda.</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {Object.keys(groupedByDay).sort().reverse().map(dayKey => {
+              {Object.keys(groupedByDay).sort((a, b) => {
+                if (a === 'Fecha Desconocida' || a === 'Sin Fecha') return 1;
+                if (b === 'Fecha Desconocida' || b === 'Sin Fecha') return -1;
+                return b.localeCompare(a);
+              }).map(dayKey => {
                 const dayLogs = groupedByDay[dayKey];
                 const isDayExpanded = !!expandedDays[dayKey];
                 const dayTickerSummary = getDayTickerSummary(dayLogs);
@@ -856,18 +875,43 @@ Resume la tesis cualitativa principal y extrae los tickers recomendados en forma
                                       ▶
                                     </span>
                                     <div>
-                                      <div style={{ fontSize: '14px', fontWeight: '600', color: '#f3f4f6' }}>
-                                        {log.channel_name} &bull; <span style={{ fontWeight: 'normal', color: 'var(--text-muted)', fontSize: '13px' }}>{log.video_title}</span>
-                                      </div>
-                                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                        Hora: {formatVideoTime(log.published_at)} | Sector: <span style={{ color: '#d1d5db' }}>{log.sector || 'General'}</span>
-                                      </div>
-                                    </div>
+                                       <div style={{ fontSize: '14px', fontWeight: '600', color: '#f3f4f6', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                                         <span>{log.channel_name} &bull;</span>
+                                         <span style={{ fontWeight: 'normal', color: 'var(--text-muted)', fontSize: '13px' }}>{log.video_title}</span>
+                                         <a 
+                                           href={`https://www.youtube.com/watch?v=${log.video_id}`} 
+                                           target="_blank" 
+                                           rel="noopener noreferrer" 
+                                           onClick={(e) => e.stopPropagation()}
+                                           style={{ 
+                                             color: '#818cf8', 
+                                             fontSize: '12px', 
+                                             marginLeft: '4px', 
+                                             textDecoration: 'none',
+                                             fontWeight: '600',
+                                             display: 'inline-flex',
+                                             alignItems: 'center',
+                                             gap: '3px'
+                                           }}
+                                           title="Ver video en YouTube"
+                                         >
+                                           ▶️ Ver en YouTube ↗
+                                         </a>
+                                       </div>
+                                       <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                                         Subido: <span style={{ color: '#d1d5db', fontWeight: '500' }}>{formatFullDate(log.published_at)}</span> &bull; Sector: <span style={{ color: '#d1d5db' }}>{log.sector || 'General'}</span>
+                                       </div>
+                                     </div>
                                   </div>
 
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span className="badge" style={{ background: 'rgba(255,255,255,0.08)', color: '#d1d5db', fontSize: '11px' }}>
-                                      Tickers: {log.tickers_mentioned || 'N/A'}
+                                       Tickers: {(log.tickers_mentioned && log.tickers_mentioned !== 'N/A') 
+                                         ? log.tickers_mentioned 
+                                         : (Array.isArray(log.ticker_insights) && log.ticker_insights.length > 0
+                                             ? log.ticker_insights.map(i => i.ticker).join(', ')
+                                             : 'N/A')
+                                       }
                                     </span>
                                   </div>
                                 </div>
