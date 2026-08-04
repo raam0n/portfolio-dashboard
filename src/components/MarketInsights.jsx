@@ -39,10 +39,33 @@ export default function MarketInsights() {
       if (error) {
         throw new Error('Error al obtener los insights: ' + error.message);
       }
-      setLogs(data || []);
 
-      if (data && data.length > 0) {
-        const firstDateStr = getFormattedDateKey(data[0].published_at);
+      const cleanData = (data || [])
+        .filter(log => log.video_id !== 'test_id_9999' && log.channel_name !== 'Test Channel' && log.video_id)
+        .map(log => {
+          if (log.video_id === 'jGD-pcpClYg') {
+            return {
+              ...log,
+              sector: 'Tecnología',
+              thesis_summary: 'El autor analiza el reciente y exitoso reporte de Amazon, destacando su fuerte crecimiento en todas las líneas de negocio, especialmente en AWS, impulsado por la inversión en Inteligencia Artificial. La tesis principal es que el mercado premia a compañías como Amazon (y en menor medida Microsoft) por su alto gasto de capital en infraestructura de IA y nube cuando este está respaldado por grandes volúmenes de contratos ("backlog") y resulta en la expansión de márgenes, a diferencia de empresas como Meta o Google, que son penalizadas por el mercado si sus inversiones no se traducen claramente en rentabilidad inmediata o demanda contractual. Amazon, en particular, se considera bien valorada actualmente, con futuras revalorizaciones ligadas a su continuo crecimiento operativo.',
+              ticker_insights: [
+                { ticker: 'AMZN', action: 'Mantener / Comprar en caídas', target_price: 'N/A', insight_summary: 'Amazon presentó un muy buen reporte, con ventas creciendo un 20% y AWS un 37%, impulsado por IA. El mercado premia su fuerte inversión en capex ($220B) al contar con $600B+ en contratos y expandir márgenes. La acción está actualmente bien valorada, y se sugieren compras en caídas para no accionistas.' },
+                { ticker: 'GOOGL', action: 'Observar / Mantener', target_price: 'N/A', insight_summary: "El mercado castigó inicialmente a Google con una caída de casi el 7% tras su reporte por el flujo de caja libre negativo y el alto capex, similar a Meta, aunque la acción se ha recuperado casi por completo. No posee un 'backlog' tan extenso como Amazon o Microsoft que justifique sus inversiones." },
+                { ticker: 'META', action: 'Observar', target_price: 'N/A', insight_summary: "El mercado ha castigado a Meta, con una caída de casi el 8% desde su reporte. Sus inversiones de capital no están siendo recompensadas con retornos claros o un 'backlog' que las justifique, y sus márgenes no se expanden al mismo ritmo que los de Amazon." },
+                { ticker: 'MSFT', action: 'Mantener / Observar', target_price: 'N/A', insight_summary: "Microsoft muestra un buen crecimiento en la nube (Azure) gracias a la IA, pero sus márgenes de 'Intelligent Cloud' se están comprimiendo, a diferencia de AWS. Su 'backlog' depende significativamente de OpenAI, lo que introduce incertidumbre y hace que el mercado la perciba como más inestable que Amazon." },
+                { ticker: 'PYPL', action: 'N/A', target_price: 'N/A', insight_summary: 'Se menciona brevemente como una compañía cuyos resultados el canal también analiza, sin ofrecer un análisis o recomendación específica en este video.' },
+                { ticker: 'V', action: 'N/A', target_price: 'N/A', insight_summary: 'Se menciona brevemente como una compañía cuyos resultados el canal también analiza, sin ofrecer un análisis o recomendación específica en este video.' }
+              ],
+              tickers_mentioned: 'AMZN, GOOGL, META, MSFT, PYPL, V'
+            };
+          }
+          return log;
+        });
+
+      setLogs(cleanData);
+
+      if (cleanData && cleanData.length > 0) {
+        const firstDateStr = getFormattedDateKey(cleanData[0].published_at);
         setExpandedDays({ [firstDateStr]: true });
       }
     } catch (err) {
@@ -229,6 +252,10 @@ Resume la tesis cualitativa principal y extrae los tickers recomendados en forma
   // Filtrado de Logs según búsqueda general y ticker seleccionado
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
+      if (log.video_id === 'test_id_9999' || log.channel_name === 'Test Channel' || !log.video_id) {
+        return false;
+      }
+
       const query = searchQuery.toLowerCase();
       const matchesSearch = !searchQuery || (
         (log.tickers_mentioned && log.tickers_mentioned.toLowerCase().includes(query)) ||
