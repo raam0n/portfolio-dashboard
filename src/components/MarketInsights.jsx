@@ -22,35 +22,175 @@ export default function MarketInsights() {
   // Filtro activo para Ticker desde las tarjetas del día
   const [selectedTickerFilter, setSelectedTickerFilter] = useState(null);
 
-  useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('youtube_video_logs')
-          .select('*')
-          .order('published_at', { ascending: false })
-          .limit(100);
+  // Estado para la ejecución del ETL desde el dashboard
+  const [isEtlRunning, setIsEtlRunning] = useState(false);
+  const [etlStatusMessage, setEtlStatusMessage] = useState('');
+  const [etlProgress, setEtlProgress] = useState({ current: 0, total: 0 });
 
-        if (error) {
-          throw new Error('Error al obtener los insights: ' + error.message);
-        }
-        setLogs(data || []);
+  const fetchLogs = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('youtube_video_logs')
+        .select('*')
+        .order('published_at', { ascending: false })
+        .limit(100);
 
-        // Expandir por defecto el primer día publicado
-        if (data && data.length > 0) {
-          const firstDateStr = getFormattedDateKey(data[0].published_at);
-          setExpandedDays({ [firstDateStr]: true });
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+      if (error) {
+        throw new Error('Error al obtener los insights: ' + error.message);
       }
-    };
+      setLogs(data || []);
 
+      if (data && data.length > 0) {
+        const firstDateStr = getFormattedDateKey(data[0].published_at);
+        setExpandedDays({ [firstDateStr]: true });
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchLogs();
   }, []);
+
+  const handleRunEtl = async () => {
+    if (isEtlRunning) return;
+    setIsEtlRunning(true);
+    setEtlStatusMessage('Iniciando análisis de canales de YouTube...');
+    setEtlProgress({ current: 0, total: 0 });
+
+    try {
+      // Intentar primero a través del endpoint servidor /api/run-etl
+      const res = await fetch('/api/run-etl', { method: 'POST' });
+      if (res.ok) {
+        const json = await res.json();
+        setEtlStatusMessage(`¡Análisis completado! Se procesaron ${json.processed || 0} nuevos videos.`);
+      } else {
+        // Fallback: Ejecución directa en navegador / dev mode
+        setEtlStatusMessage('Obteniendo canales registrados desde Supabase...');
+        const { data: channels, error: channelsErr } = await supabase.from('tracked_channels').select('*');
+        if (channelsErr) throw channelsErr;
+
+        if (!channels || channels.length === 0) {
+          setEtlStatusMessage('No hay canales registrados en la base de datos.');
+          return;
+        }
+
+        const totalChannels = channels.length;
+        setEtlProgress({ current: 0, total: totalChannels });
+
+        let processed = 0;
+        const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+        for (let i = 0; i < channels.length; i++) {
+          const ch = channels[i];
+          setEtlProgress({ current: i + 1, total: totalChannels });
+          setEtlStatusMessage(`Consultando canal (${i + 1}/${totalChannels}): ${ch.channel_name}...`);
+
+          try {
+            const feedUrl = import.meta.env.DEV 
+              ? `/api/yt-feed?channel_id=${ch.channel_id}`
+              : `https://www.youtube.com/feeds/videos.xml?channel_id=${ch.channel_id}`;
+            const feedRes = await fetch(feedUrl);
+            if (!feedRes.ok) continue;
+            const xml = await feedRes.text();
+
+            const titleMatch = xml.match(/<entry>[\s\S]*?<title>(.*?)<\/title>/);
+            const videoIdMatch = xml.match(/<entry>[\s\S]*?<yt:videoId>(.*?)<\/yt:videoId>/);
+            if (!videoIdMatch || !videoIdMatch[1]) continue;
+
+            const videoId = videoIdMatch[1];
+            const videoTitle = titleMatch ? titleMatch[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'") : 'Sin Título';
+
+            const { data: existing } = await supabase.from('youtube_video_logs').select('video_id').eq('video_id', videoId).single();
+            if (existing) continue;
+
+            setEtlStatusMessage(`Procesando transcripción con IA (${i + 1}/${totalChannels}): ${ch.channel_name}...`);
+
+            let transcriptText = "";
+            try {
+              const watchRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`);
+              const watchHtml = await watchRes.text();
+              const captionMatch = watchHtml.match(/"captionTracks":\s*(\[.*?\])/);
+              if (captionMatch) {
+                const tracks = JSON.parse(captionMatch[1]);
+                const track = tracks.find(t => t.languageCode === 'es') || tracks[0];
+                if (track && track.baseUrl) {
+                  const subRes = await fetch(track.baseUrl);
+                  const subXml = await subRes.text();
+                  transcriptText = subXml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                }
+              }
+            } catch (e) {
+              console.warn('Transcript error:', e);
+            }
+
+            if (!transcriptText) continue;
+
+            if (geminiKey) {
+              const prompt = `Lee la transcripción de este video financiero: "${transcriptText.substring(0, 10000)}". 
+Resume la tesis cualitativa principal y extrae los tickers recomendados en formato JSON:
+{"sector": "Tecnología", "resumen": "Resumen cualitativo de 2 líneas.", "ticker_insights": [{"ticker": "NVDA", "action": "Comprar", "target_price": "N/A", "insight_summary": "Tesis sobre NVDA"}]}`;
+
+              const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+              });
+
+              if (gRes.ok) {
+                const gData = await gRes.json();
+                const textResp = gData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                const cleanJson = textResp.replace(/```json/gi, '').replace(/```/g, '').trim();
+                
+                let sector = 'Finanzas';
+                let summary = videoTitle;
+                let insights = [];
+                let tickers = 'N/A';
+
+                try {
+                  const p = JSON.parse(cleanJson);
+                  sector = p.sector || sector;
+                  summary = p.resumen || summary;
+                  insights = p.ticker_insights || [];
+                  if (insights.length > 0) tickers = insights.map(x => x.ticker).join(', ');
+                } catch(e) {}
+
+                await supabase.from('youtube_video_logs').insert([{
+                  video_id: videoId,
+                  channel_id: ch.channel_id,
+                  channel_name: ch.channel_name,
+                  video_title: videoTitle,
+                  tickers_mentioned: tickers,
+                  sector: sector,
+                  thesis_summary: summary,
+                  ticker_insights: insights,
+                  published_at: new Date().toISOString()
+                }]);
+
+                processed++;
+              }
+            }
+          } catch (channelErr) {
+            console.error(`Error procesando ${ch.channel_name}:`, channelErr);
+          }
+        }
+        setEtlStatusMessage(`¡Análisis completado! Se incorporaron ${processed} nuevos videos.`);
+      }
+
+      await fetchLogs();
+    } catch (err) {
+      setEtlStatusMessage(`Error durante el análisis: ${err.message}`);
+    } finally {
+      setIsEtlRunning(false);
+      setTimeout(() => {
+        setEtlStatusMessage('');
+      }, 6000);
+    }
+  };
 
   const getFormattedDateKey = (dateString) => {
     if (!dateString) return 'Fecha Desconocida';
@@ -279,6 +419,24 @@ export default function MarketInsights() {
           />
 
           <button 
+            onClick={handleRunEtl}
+            disabled={isEtlRunning}
+            className="btn btn-primary" 
+            style={{ 
+              fontSize: '12px', 
+              padding: '7px 14px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              opacity: isEtlRunning ? 0.7 : 1,
+              cursor: isEtlRunning ? 'not-allowed' : 'pointer'
+            }}
+            title="Analiza los últimos videos de los canales de YouTube registrados con Gemini AI"
+          >
+            {isEtlRunning ? '🔄 Escaneando Canales...' : '▶️ Actualizar Insights (Ejecutar ETL)'}
+          </button>
+
+          <button 
             onClick={expandAll}
             className="btn" 
             style={{ fontSize: '12px', padding: '6px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)' }}
@@ -294,6 +452,34 @@ export default function MarketInsights() {
           </button>
         </div>
       </div>
+
+      {/* Banner de Estado de ETL */}
+      {etlStatusMessage && (
+        <div style={{ 
+          marginBottom: '15px', 
+          padding: '12px 16px', 
+          borderRadius: '8px', 
+          background: 'rgba(99, 102, 241, 0.15)', 
+          border: '1px dashed #6366f1', 
+          color: '#a5b4fc', 
+          fontSize: '13px',
+          display: 'flex', 
+          alignItems: 'center', 
+          justify: 'space-between',
+          flexWrap: 'wrap',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '16px' }}>{isEtlRunning ? '⏳' : '✅'}</span>
+            <span><b>ETL YouTube:</b> {etlStatusMessage}</span>
+          </div>
+          {etlProgress.total > 0 && isEtlRunning && (
+            <span style={{ fontWeight: 'bold', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '4px' }}>
+              {etlProgress.current} / {etlProgress.total}
+            </span>
+          )}
+        </div>
+      )}
 
       {loading && <div className="empty-state" style={{ padding: '40px' }}>Cargando análisis de canales...</div>}
       {error && <div className="empty-state" style={{ color: 'var(--negative)', padding: '40px' }}>{error}</div>}

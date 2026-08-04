@@ -11,6 +11,12 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api\/market/, '')
+      },
+      '/api/yt-feed': {
+        target: 'https://www.youtube.com/feeds/videos.xml',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api\/yt-feed/, '')
       }
     }
   }

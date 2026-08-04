@@ -1,18 +1,18 @@
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
-import ytSearch from 'yt-search';
 import { YoutubeTranscript } from 'youtube-transcript';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import fs from 'fs';
 import path from 'path';
 
-const DEBUG_MODE = true; // Cambiar a false en producción si no quieres guardar logs
+const DEBUG_MODE = true;
 const LOGS_DIR = path.join(process.cwd(), 'logs');
 
 if (DEBUG_MODE && !fs.existsSync(LOGS_DIR)) {
   fs.mkdirSync(LOGS_DIR, { recursive: true });
 }
-// Configurar Supabase
+
+// Supabase
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 
@@ -23,7 +23,7 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Configurar Gemini
+// Gemini
 const geminiApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 if (!geminiApiKey) {
   console.error("Falta la variable de entorno GEMINI_API_KEY o VITE_GEMINI_API_KEY.");
@@ -50,8 +50,8 @@ async function logApiUsageToSupabase(service_name, feature, endpoint_model, toke
   }
 }
 
-// Función auxiliar para reintentar llamadas a Gemini en caso de error 503 o 429
-async function generateContentWithRetry(prompt, retries = 10, delay = 5000) {
+// Función auxiliar para reintentar llamadas a Gemini
+async function generateContentWithRetry(prompt, retries = 5, delay = 4000) {
   for (let i = 0; i < retries; i++) {
     try {
       const result = await model.generateContent(prompt);
@@ -66,20 +66,19 @@ async function generateContentWithRetry(prompt, retries = 10, delay = 5000) {
       const isDailyLimit = errMsg.includes('GenerateRequestsPerDay') || errMsg.includes('RequestsPerDay') || errMsg.includes('limit: 20');
       
       if (isDailyLimit) {
-        // Si es límite diario, no tiene sentido reintentar. Lanzamos el error inmediatamente.
-        console.error("\n[Gemini API] Límite diario de peticiones alcanzado (20/día).");
-        await logApiUsageToSupabase('Gemini', 'youtube_etl', 'gemini-2.5-flash', 0, 0, 'rate_limit', 'Daily Limit 20/day reached');
+        console.error("\n[Gemini API] Límite diario de peticiones alcanzado.");
+        await logApiUsageToSupabase('Gemini', 'youtube_etl', 'gemini-2.5-flash', 0, 0, 'rate_limit', 'Daily Limit reached');
         throw err;
       }
 
       const isTemporary = err.status === 503 || err.status === 429 || 
-                          err.message?.includes('503') || err.message?.includes('429') ||
-                          err.message?.includes('Service Unavailable') || err.message?.includes('Too Many Requests');
+                          errMsg.includes('503') || errMsg.includes('429') ||
+                          errMsg.includes('Service Unavailable') || errMsg.includes('Too Many Requests');
       
       if (isTemporary && i < retries - 1) {
-        console.warn(`[Gemini API] Ocupado o límite de cuota (Intento ${i + 1}/${retries}). Reintentando en ${delay / 1000}s...`);
+        console.warn(`[Gemini API] Ocupado/Cuota (Intento ${i + 1}/${retries}). Esperando ${delay / 1000}s...`);
         await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 1.5; // Backoff exponencial
+        delay *= 1.5;
         continue;
       }
       
@@ -89,84 +88,78 @@ async function generateContentWithRetry(prompt, retries = 10, delay = 5000) {
   }
 }
 
+// Helper para obtener el último video de un canal usando su RSS feed oficial de YouTube
+async function getLatestVideoFromRSS(channelId) {
+  const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+  const res = await fetch(feedUrl);
+  if (!res.ok) throw new Error(`HTTP error ${res.status} al consultar RSS feed para canal ${channelId}`);
+  const xmlText = await res.text();
 
-async function runETL() {
-  console.log("Iniciando ETL de YouTube Insights...");
+  const titleMatch = xmlText.match(/<entry>[\s\S]*?<title>(.*?)<\/title>/);
+  const videoIdMatch = xmlText.match(/<entry>[\s\S]*?<yt:videoId>(.*?)<\/yt:videoId>/);
 
-  // 1. Leer los canales
+  if (!videoIdMatch || !videoIdMatch[1]) {
+    return null;
+  }
+
+  return {
+    videoId: videoIdMatch[1],
+    title: titleMatch ? titleMatch[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'") : 'Sin Título'
+  };
+}
+
+export async function runETL(onProgress) {
+  console.log("Iniciando ETL de YouTube Insights para todos los canales...");
+
+  // 1. Leer TODOS los canales registrados en Supabase
   const { data: channels, error: channelsError } = await supabase
     .from('tracked_channels')
     .select('*');
 
   if (channelsError) {
     console.error("Error obteniendo canales:", channelsError);
-    return;
+    return { success: false, error: channelsError.message };
   }
 
   if (!channels || channels.length === 0) {
     console.log("No hay canales para procesar.");
-    return;
+    return { success: true, processed: 0, skipped: 0 };
   }
 
-  // Lista de canales habilitados para pruebas parciales (fácilmente editable/reversible)
-  const ALLOWED_CHANNELS = [
-    "Inversión Sin Filtros",
-    "Gabriel Martin",
-    "Ser Emprendedor"
-  ];
+  console.log(`Canales a procesar (${channels.length}):`, channels.map(c => c.channel_name));
 
-  // Filtrar los canales de la DB según la lista permitida (coincidencia por nombre parcial o id)
-  const targetChannels = channels.filter(c => 
-    ALLOWED_CHANNELS.some(allowed => 
-      c.channel_name.toLowerCase().includes(allowed.toLowerCase()) ||
-      allowed.toLowerCase().includes(c.channel_name.toLowerCase())
-    )
-  );
+  let processedCount = 0;
+  let skippedCount = 0;
+  let errorCount = 0;
 
-  console.log(`Canales filtrados para la prueba (${targetChannels.length}/${channels.length}):`, targetChannels.map(c => c.channel_name));
+  for (let i = 0; i < channels.length; i++) {
+    const channel = channels[i];
+    const statusMsg = `Procesando canal (${i + 1}/${channels.length}): ${channel.channel_name}`;
+    console.log(`\n${statusMsg}`);
+    if (onProgress) onProgress(statusMsg, i + 1, channels.length);
 
-  const unanalyzedChannels = [];
-  let quotaExceededAborted = false;
-
-  for (let i = 0; i < targetChannels.length; i++) {
-    const channel = targetChannels[i];
-    
-    if (quotaExceededAborted) {
-      unanalyzedChannels.push(channel.channel_name);
-      continue;
-    }
-
-    console.log(`\nProcesando canal (${i + 1}/${targetChannels.length}): ${channel.channel_name} (${channel.channel_id})`);
     try {
-      // 2. Obtener videos buscando el nombre del canal
-      const searchResult = await ytSearch(channel.channel_name);
-      await logApiUsageToSupabase('YouTube', 'youtube_etl_search', 'yt-search', 0, 0, 'success', null);
-      
-      // Filtramos para asegurarnos de que el video sea realmente del canal
-      const channelVideos = searchResult.videos.filter(v => 
-        v.author.name.toLowerCase().includes(channel.channel_name.toLowerCase()) ||
-        channel.channel_name.toLowerCase().includes(v.author.name.toLowerCase())
-      );
-
-      if (channelVideos.length === 0) {
-        console.log("No se encontraron videos recientes para este canal en la búsqueda.");
+      // 2. Obtener el último video del canal vía RSS feed
+      const latestVideo = await getLatestVideoFromRSS(channel.channel_id);
+      if (!latestVideo) {
+        console.log(`⚠️ No se encontraron videos en el feed RSS del canal ${channel.channel_name}.`);
+        skippedCount++;
         continue;
       }
 
-      // Tomamos el último video (yt-search los ordena por relevancia/fecha generalmente)
-      const latestVideo = channelVideos[0];
       const videoId = latestVideo.videoId;
-      console.log(`Último video: ${latestVideo.title} (ID: ${videoId})`);
+      console.log(`Último video detectado: "${latestVideo.title}" (ID: ${videoId})`);
 
       // 3. Verificar si el video ya existe en la DB
-      const { data: existingVideo, error: existingError } = await supabase
+      const { data: existingVideo } = await supabase
         .from('youtube_video_logs')
         .select('video_id')
         .eq('video_id', videoId)
         .single();
 
       if (existingVideo) {
-        console.log("El video ya fue procesado anteriormente. Haciendo skip.");
+        console.log(`⏩ El video ${videoId} ya fue analizado previamente. Haciendo skip.`);
+        skippedCount++;
         continue;
       }
 
@@ -178,24 +171,20 @@ async function runETL() {
         transcriptText = transcript.map(t => t.text).join(' ');
         await logApiUsageToSupabase('YouTube', 'youtube_etl_transcript', 'youtube-transcript', 0, 0, 'success', null);
       } catch (e) {
-        console.error("Error obteniendo la transcripción, es posible que el video no tenga subtítulos:", e.message);
+        console.error("⚠️ No se pudo obtener la transcripción (video sin subtítulos):", e.message);
         await logApiUsageToSupabase('YouTube', 'youtube_etl_transcript', 'youtube-transcript', 0, 0, 'error', e.message);
-        continue; // Si no hay subs, saltamos
+        skippedCount++;
+        continue;
       }
 
       if (!transcriptText || transcriptText.trim().length === 0) {
-         console.log("La transcripción está vacía.");
-         continue;
+        console.log("La transcripción está vacía.");
+        skippedCount++;
+        continue;
       }
 
-      if (DEBUG_MODE) {
-        const transcriptPath = path.join(LOGS_DIR, `${videoId}_1_transcript_raw.txt`);
-        fs.writeFileSync(transcriptPath, transcriptText, 'utf-8');
-        console.log(`[DEBUG] Transcripción cruda guardada en: ${transcriptPath}`);
-      }
-
-      // 5. Enviar al LLM
-      console.log("Llamando a Gemini para resumir...");
+      // 5. Enviar a Gemini
+      console.log("Llamando a Gemini AI para generar resumen e insights...");
       const prompt = `Lee la transcripción de este video financiero. 
 Extrae el sector principal del que hablan y escribe un resumen cualitativo general de 2 a 3 líneas con la tesis u opinión principal del autor sobre el mercado o el tema central.
 Luego, para cada ticker (acción o empresa) mencionado en el video, extrae:
@@ -218,63 +207,38 @@ Devuelve tu respuesta ÚNICAMENTE como un texto JSON válido con esta estructura
   ]
 }
 Si no se mencionan tickers, devuelve un arreglo vacío [].
-Transcripción: ${transcriptText}`;
+Transcripción: ${transcriptText.substring(0, 15000)}`;
 
       let textResponse = "";
-      let rawResponse = "";
       try {
-         rawResponse = await generateContentWithRetry(prompt);
-         textResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const rawResponse = await generateContentWithRetry(prompt);
+        textResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
       } catch (geminiErr) {
-         console.error(`Error definitivo de Gemini al procesar el canal ${channel.channel_name}:`, geminiErr.message);
-         
-         // Si el error es específicamente por cuota excedida (429), abortamos la cola
-         if (geminiErr.status === 429 || geminiErr.message?.includes('429') || geminiErr.message?.includes('Quota exceeded')) {
-            console.error("\n[CRÍTICO] Se ha excedido la cuota diaria o de minutos de la API de Gemini.");
-            console.error("Deteniendo el proceso ETL para evitar bloqueos adicionales...");
-            quotaExceededAborted = true;
-            unanalyzedChannels.push(channel.channel_name);
-            continue;
-         }
-         
-         continue; // Si es otro error, saltamos al siguiente
-      }
-      
-      console.log("Respuesta de Gemini recibida.");
-
-      if (DEBUG_MODE) {
-        const geminiRawPath = path.join(LOGS_DIR, `${videoId}_2_gemini_raw.json`);
-        fs.writeFileSync(geminiRawPath, rawResponse, 'utf-8');
-        console.log(`[DEBUG] Respuesta cruda de Gemini guardada en: ${geminiRawPath}`);
+        console.error(`Error de Gemini al procesar el canal ${channel.channel_name}:`, geminiErr.message);
+        errorCount++;
+        continue;
       }
 
-      let sector = "N/A";
+      let sector = "Finanzas";
       let summary = "No se pudo extraer el resumen.";
       let tickerInsights = [];
       let tickersMentioned = "N/A";
 
       try {
-         const parsed = JSON.parse(textResponse);
-         sector = parsed.sector || "N/A";
-         summary = parsed.resumen || "N/A";
-         tickerInsights = Array.isArray(parsed.ticker_insights) ? parsed.ticker_insights : [];
-         
-         if (tickerInsights.length > 0) {
-            tickersMentioned = tickerInsights.map(t => t.ticker).join(", ");
-         }
+        const parsed = JSON.parse(textResponse);
+        sector = parsed.sector || "Finanzas";
+        summary = parsed.resumen || textResponse;
+        tickerInsights = Array.isArray(parsed.ticker_insights) ? parsed.ticker_insights : [];
+        if (tickerInsights.length > 0) {
+          tickersMentioned = tickerInsights.map(t => t.ticker).join(", ");
+        }
       } catch (err) {
-         console.error("Error parseando el JSON de Gemini:", err);
-         summary = textResponse; // Fallback
+        console.error("Error parseando el JSON de Gemini:", err);
+        summary = textResponse;
       }
 
-      if (DEBUG_MODE) {
-        const parsedPath = path.join(LOGS_DIR, `${videoId}_3_parsed_final.json`);
-        fs.writeFileSync(parsedPath, JSON.stringify({ sector, summary, tickerInsights, tickersMentioned }, null, 2), 'utf-8');
-        console.log(`[DEBUG] JSON final estructurado guardado en: ${parsedPath}`);
-      }
-
-      // 6. Insertar en la BD
-      console.log("Guardando en la base de datos...");
+      // 6. Guardar en Supabase
+      console.log("Guardando resumen en Supabase (youtube_video_logs)...");
       const { error: insertError } = await supabase
         .from('youtube_video_logs')
         .insert([{
@@ -286,34 +250,36 @@ Transcripción: ${transcriptText}`;
           sector: sector,
           thesis_summary: summary,
           ticker_insights: tickerInsights,
-          published_at: new Date().toISOString() // yt-search no provee fecha exacta ISO, usamos la actual
+          published_at: new Date().toISOString()
         }]);
 
       if (insertError) {
-         console.error("Error insertando en base de datos:", insertError);
+        console.error("Error insertando en la base de datos:", insertError.message);
+        errorCount++;
       } else {
-         console.log("Procesamiento completado con éxito para el video.");
+        console.log(`✅ ¡Éxito! Procesado "${latestVideo.title}" de ${channel.channel_name}`);
+        processedCount++;
       }
 
-      // Agregamos un delay de 6 segundos entre canales para no superar el límite de 15 Requests Per Minute (RPM) de la API gratuita
+      // Delay de cortesía de 3s
       if (i < channels.length - 1) {
-         console.log("Esperando 6 segundos antes del siguiente canal para respetar la cuota RPM...");
-         await new Promise(resolve => setTimeout(resolve, 6000));
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
 
     } catch (err) {
-       console.error(`Error procesando el canal ${channel.channel_name}:`, err);
+      console.error(`Error procesando el canal ${channel.channel_name}:`, err.message);
+      errorCount++;
     }
   }
 
-  if (quotaExceededAborted) {
-     console.log("\n=======================================================");
-     console.log("[ETL ABORTADO POR CUOTA] Canales que NO se analizaron:");
-     unanalyzedChannels.forEach(c => console.log(`- ${c}`));
-     console.log("=======================================================");
-  }
+  console.log(`\n================================================-------`);
+  console.log(`[ETL FINALIZADO] Procesados: ${processedCount} | Skipped: ${skippedCount} | Errores: ${errorCount}`);
+  console.log(`=======================================================\n`);
 
-  console.log("\nProceso ETL finalizado.");
+  return { success: true, processed: processedCount, skipped: skippedCount, errors: errorCount };
 }
 
-runETL();
+// Si se ejecuta directamente desde Node CLI
+if (process.argv[1] && process.argv[1].includes('etl_youtube_insights.js')) {
+  runETL();
+}
