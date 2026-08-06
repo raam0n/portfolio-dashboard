@@ -135,10 +135,10 @@ const SEED_TICKER_CATALOG = {
   'DIS': { ticker: 'DIS', nombre: 'The Walt Disney Company', tipo: 'cedear', mercado: 'BCBA', sector: 'Entretenimiento', subsector: 'Medios', pais: 'USA' },
   'NFLX': { ticker: 'NFLX', nombre: 'Netflix Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Entretenimiento', subsector: 'Medios', pais: 'USA' },
 
-  // Efectivo / Liquidez
-  'ARS': { ticker: 'ARS', nombre: 'Pesos Argentinos', tipo: 'efectivo', mercado: 'BCBA', sector: 'Efectivo / Liquidez', subsector: 'Pesos Argentinos', pais: 'Argentina' },
-  'AR$': { ticker: 'AR$', nombre: 'Pesos Argentinos', tipo: 'efectivo', mercado: 'BCBA', sector: 'Efectivo / Liquidez', subsector: 'Pesos Argentinos', pais: 'Argentina' },
-  'USD': { ticker: 'USD', nombre: 'Dólares Estadounidenses', tipo: 'efectivo', mercado: 'NYSE', sector: 'Efectivo / Liquidez', subsector: 'Dólares', pais: 'USA' }
+  // Efectivo
+  'ARS': { ticker: 'ARS', nombre: 'Pesos Argentinos', tipo: 'efectivo', mercado: 'BCBA', sector: 'Efectivo', subsector: 'Pesos Argentinos', pais: 'Argentina' },
+  'AR$': { ticker: 'AR$', nombre: 'Pesos Argentinos', tipo: 'efectivo', mercado: 'BCBA', sector: 'Efectivo', subsector: 'Pesos Argentinos', pais: 'Argentina' },
+  'USD': { ticker: 'USD', nombre: 'Dólares Estadounidenses', tipo: 'efectivo', mercado: 'NYSE', sector: 'Efectivo', subsector: 'Dólares', pais: 'USA' }
 };
 
 const ASSET_SECTOR_FALLBACK_MAP = {
@@ -264,9 +264,9 @@ const ASSET_SECTOR_FALLBACK_MAP = {
   'ETH-USD': { sector: 'Crypto', subsector: 'Criptomoneda' },
 
   // Cash / Liquidez
-  'ARS': { sector: 'Efectivo / Liquidez', subsector: 'Pesos Argentinos' },
-  'AR$': { sector: 'Efectivo / Liquidez', subsector: 'Pesos Argentinos' },
-  'USD': { sector: 'Efectivo / Liquidez', subsector: 'Dólares' }
+  'ARS': { sector: 'Efectivo', subsector: 'Pesos Argentinos' },
+  'AR$': { sector: 'Efectivo', subsector: 'Pesos Argentinos' },
+  'USD': { sector: 'Efectivo', subsector: 'Dólares' }
 };
 
 export function getAssetSectorAndSubsector(ticker, tipo, catalogInfo = {}) {
@@ -284,7 +284,7 @@ export function getAssetSectorAndSubsector(ticker, tipo, catalogInfo = {}) {
   // 2. Cash / Liquidez
   if (tipo === 'efectivo' || norm === 'ARS' || norm === 'USD' || norm === 'AR$') {
     return {
-      sector: 'Efectivo / Liquidez',
+      sector: 'Efectivo',
       subsector: norm === 'USD' ? 'Dólares' : 'Pesos Argentinos'
     };
   }
@@ -2920,10 +2920,10 @@ function App() {
                 <table>
                   <thead>
                     <tr>
-                      <th onClick={() => setHoldingsSort('alpha')} style={{cursor: 'pointer'}} title="Ordenar Alfabéticamente">Activo {holdingsSort === 'alpha' ? '↓' : ''}</th>
+                      <th onClick={() => setHoldingsSort('alpha')} style={{cursor: 'pointer', maxWidth: '140px'}} title="Ordenar Alfabéticamente">Activo {holdingsSort === 'alpha' ? '↓' : ''}</th>
                       <th onClick={() => setHoldingsSort('default')} style={{cursor: 'pointer'}} title="Ordenar por Tipo">Tipo {holdingsSort === 'default' ? '↓' : ''}</th>
-                      <th onClick={() => setHoldingsSort('sector')} style={{cursor: 'pointer'}} title="Ordenar por Sector">Sector {holdingsSort === 'sector' ? '↓' : ''}</th>
-                      <th onClick={() => setHoldingsSort('subsector')} style={{cursor: 'pointer'}} title="Ordenar por Subsector">Subsector {holdingsSort === 'subsector' ? '↓' : ''}</th>
+                      <th onClick={() => setHoldingsSort('sector')} style={{cursor: 'pointer', maxWidth: '120px'}} title="Ordenar por Sector">Sector {holdingsSort === 'sector' ? '↓' : ''}</th>
+                      <th onClick={() => setHoldingsSort('subsector')} style={{cursor: 'pointer', maxWidth: '135px'}} title="Ordenar por Subsector">Subsector {holdingsSort === 'subsector' ? '↓' : ''}</th>
                       <th onClick={() => setHoldingsSort('pct')} style={{cursor: 'pointer'}} title="Ordenar por % de Cartera">% {holdingsSort === 'pct' ? '↓' : ''}</th>
                       <th>Cant.</th>
                       <th>P. Compra</th>
@@ -2976,13 +2976,57 @@ function App() {
                         return (
                           <React.Fragment key={h.ticker}>
                             <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === h.ticker ? null : h.ticker)}>
-                              <td>
+                              <td style={{ maxWidth: '140px' }}>
                                 <div className="ticker-name">{h.ticker}</div>
-                                {h.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{h.nombre}</div>}
+                                {h.nombre && (
+                                  <div style={{
+                                    fontSize: '11px',
+                                    color: 'var(--text-muted)',
+                                    maxWidth: '135px',
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    lineHeight: '1.2'
+                                  }}>
+                                    {h.nombre}
+                                  </div>
+                                )}
                               </td>
                               <td><span className={`badge badge-${h.tipo}`}>{h.tipo}</span></td>
-                              <td><span className="badge badge-neutral" style={{ fontSize: '11px', fontWeight: 600 }}>{sector}</span></td>
-                              <td><span style={{ fontSize: '11px', opacity: 0.85 }}>{subsector}</span></td>
+                              <td style={{ maxWidth: '120px' }}>
+                                <span className="badge badge-neutral" style={{
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  whiteSpace: 'normal',
+                                  textAlign: 'center',
+                                  lineHeight: '1.2',
+                                  maxWidth: '115px',
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis'
+                                }}>
+                                  {sector}
+                                </span>
+                              </td>
+                              <td style={{ maxWidth: '135px' }}>
+                                <span style={{
+                                  fontSize: '11px',
+                                  opacity: 0.85,
+                                  maxWidth: '130px',
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  lineHeight: '1.2'
+                                }}>
+                                  {subsector}
+                                </span>
+                              </td>
                               <td><span className="badge badge-neutral" style={{fontSize: '11px', padding: '2px 4px'}}>{fmtPct(pct)}</span></td>
                               <td>{fmt(h.cantidad, 0)}</td>
                               <td>${fmt(h.precioEntrada)}</td>
