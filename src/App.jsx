@@ -327,7 +327,7 @@ const fmtPct = (n) => {
 
 
 
-function PieChart({ data, title, twoColumns = false }) {
+function PieChart({ data, title, twoColumns = false, forceSingleColumn = false }) {
   const [hovered, setHovered] = React.useState(null);
 
   const total = data.reduce((s, d) => s + d.value, 0);
@@ -340,7 +340,7 @@ function PieChart({ data, title, twoColumns = false }) {
     );
   }
 
-  const is2ColLegend = twoColumns || data.length > 6;
+  const is2ColLegend = !forceSingleColumn && (twoColumns || data.length > 6);
   const svgSize = is2ColLegend ? 180 : 160;
   const cx = svgSize / 2;
   const cy = svgSize / 2;
@@ -2922,12 +2922,13 @@ function App() {
                     <tr>
                       <th onClick={() => setHoldingsSort('alpha')} style={{cursor: 'pointer'}} title="Ordenar Alfabéticamente">Activo {holdingsSort === 'alpha' ? '↓' : ''}</th>
                       <th onClick={() => setHoldingsSort('default')} style={{cursor: 'pointer'}} title="Ordenar por Tipo">Tipo {holdingsSort === 'default' ? '↓' : ''}</th>
-                      <th>Mercado</th>
+                      <th onClick={() => setHoldingsSort('sector')} style={{cursor: 'pointer'}} title="Ordenar por Sector">Sector {holdingsSort === 'sector' ? '↓' : ''}</th>
+                      <th onClick={() => setHoldingsSort('subsector')} style={{cursor: 'pointer'}} title="Ordenar por Subsector">Subsector {holdingsSort === 'subsector' ? '↓' : ''}</th>
                       <th onClick={() => setHoldingsSort('pct')} style={{cursor: 'pointer'}} title="Ordenar por % de Cartera">% {holdingsSort === 'pct' ? '↓' : ''}</th>
                       <th>Cant.</th>
                       <th>P. Compra</th>
                       <th>P. Actual</th>
-                      <th>Últ. Actualización</th>
+                      <th>Últ. Act.</th>
                       <th>Valor ($)</th>
                       <th onClick={() => setHoldingsSort('pnlA')} style={{cursor: 'pointer'}} title="Ordenar por P&L $">P&L $ {holdingsSort === 'pnlA' ? '↓' : ''}</th>
                       <th onClick={() => setHoldingsSort('pnlP')} style={{cursor: 'pointer'}} title="Ordenar por P&L %">P&L % {holdingsSort === 'pnlP' ? '↓' : ''}</th>
@@ -2951,18 +2952,24 @@ function App() {
                         const valARS = valor !== null ? (isUsdAsset ? valor * mepToday : valor) : (isUsdAsset ? costo * mepToday : costo);
                         const pct = (valARS > 0 && totalValor > 0) ? (valARS / totalValor) * 100 : 0;
                         
-                        return { h, yt, pc, stats, valor, costo, pnlA, pnlP, pct, isEfectivo };
+                        const rawTicker = (h.ticker || '').toUpperCase();
+                        const info = tickerCatalog[rawTicker] || {};
+                        const { sector, subsector } = getAssetSectorAndSubsector(h.ticker, h.tipo, info);
+
+                        return { h, yt, pc, stats, valor, costo, pnlA, pnlP, pct, isEfectivo, sector, subsector };
                       });
                       
                       enriched.sort((a, b) => {
                         if (holdingsSort === 'alpha') return a.h.ticker.localeCompare(b.h.ticker);
+                        if (holdingsSort === 'sector') return a.sector.localeCompare(b.sector);
+                        if (holdingsSort === 'subsector') return a.subsector.localeCompare(b.subsector);
                         if (holdingsSort === 'pct') return b.pct - a.pct;
                         if (holdingsSort === 'pnlA') return (b.pnlA || -Infinity) - (a.pnlA || -Infinity);
                         if (holdingsSort === 'pnlP') return (b.pnlP || -Infinity) - (a.pnlP || -Infinity);
                         return sortUnified(a.h, b.h);
                       });
                       
-                      return enriched.map(({ h, yt, pc, stats, valor, costo, pnlA, pnlP, pct, isEfectivo }) => {
+                      return enriched.map(({ h, yt, pc, stats, valor, costo, pnlA, pnlP, pct, isEfectivo, sector, subsector }) => {
                         const cssPnl = pnlA == null ? 'neutral' : (pnlA >= 0 ? 'positive' : 'negative');
                         const sign = pnlA >= 0 ? '+' : '';
                         
@@ -2974,7 +2981,8 @@ function App() {
                                 {h.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{h.nombre}</div>}
                               </td>
                               <td><span className={`badge badge-${h.tipo}`}>{h.tipo}</span></td>
-                              <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{h.mercado || (h.tipo === 'stock' ? 'NYSE/NASDAQ' : (h.tipo === 'bono' ? 'OTC' : 'BCBA'))}</span></td>
+                              <td><span className="badge badge-neutral" style={{ fontSize: '11px', fontWeight: 600 }}>{sector}</span></td>
+                              <td><span style={{ fontSize: '11px', opacity: 0.85 }}>{subsector}</span></td>
                               <td><span className="badge badge-neutral" style={{fontSize: '11px', padding: '2px 4px'}}>{fmtPct(pct)}</span></td>
                               <td>{fmt(h.cantidad, 0)}</td>
                               <td>${fmt(h.precioEntrada)}</td>
@@ -3009,7 +3017,7 @@ function App() {
                             </tr>
                             {expandedTicker === h.ticker && (
                               <tr className="expanded-panel-row">
-                                <td colSpan="12">
+                                <td colSpan="13">
                                   <HistoricalChart data={stats} ticker={h.ticker} name={h.nombre} />
                                 </td>
                               </tr>
@@ -3082,9 +3090,9 @@ function App() {
                   <PieChart data={toData(bySector)} title="% por Sector" />
                 </div>
 
-                {/* Columna 3: % por Subsector */}
+                {/* Columna 3: % por Subsector (forzando 1 columna de leyenda) */}
                 <div className="portfolio-chart-col">
-                  <PieChart data={toData(bySubsector)} title="% por Subsector" />
+                  <PieChart data={toData(bySubsector)} title="% por Subsector" forceSingleColumn={true} />
                 </div>
               </div>
             );
