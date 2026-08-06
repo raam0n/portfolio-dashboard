@@ -141,6 +141,179 @@ const SEED_TICKER_CATALOG = {
   'USD': { ticker: 'USD', nombre: 'Dólares Estadounidenses', tipo: 'efectivo', mercado: 'NYSE', sector: 'Efectivo / Liquidez', subsector: 'Dólares', pais: 'USA' }
 };
 
+const ASSET_SECTOR_FALLBACK_MAP = {
+  // Tech / Semiconductores
+  'NVDA': { sector: 'Tech', subsector: 'Semiconductores' },
+  'MU': { sector: 'Tech', subsector: 'Semiconductores' },
+  'AMD': { sector: 'Tech', subsector: 'Semiconductores' },
+  'ASML': { sector: 'Tech', subsector: 'Semiconductores' },
+  'MRVL': { sector: 'Tech', subsector: 'Semiconductores' },
+  'TSM': { sector: 'Tech', subsector: 'Semiconductores' },
+  'AVGO': { sector: 'Tech', subsector: 'Semiconductores' },
+  'SMH': { sector: 'Tech', subsector: 'Semiconductores' },
+  'LRCX': { sector: 'Tech', subsector: 'Semiconductores' },
+  'INTC': { sector: 'Tech', subsector: 'Semiconductores' },
+  'ARM': { sector: 'Tech', subsector: 'Semiconductores' },
+  'QCOM': { sector: 'Tech', subsector: 'Semiconductores' },
+
+  // Tech / Memorias & Hardware
+  'SNDK': { sector: 'Tech', subsector: 'Memorias' },
+  'SKHY': { sector: 'Tech', subsector: 'Memorias' },
+  'DELL': { sector: 'Tech', subsector: 'Hardware' },
+  'HPE': { sector: 'Tech', subsector: 'Infraestructura' },
+  'GLW': { sector: 'Tech', subsector: 'Infraestructura' },
+  'IBM': { sector: 'Tech', subsector: 'Hardware' },
+  'AAPL': { sector: 'Tech', subsector: 'Hardware' },
+
+  // Tech / Software & Cloud
+  'MSFT': { sector: 'Tech', subsector: 'Software' },
+  'ORCL': { sector: 'Tech', subsector: 'Software' },
+  'PLTR': { sector: 'Tech', subsector: 'Software' },
+  'SNOW': { sector: 'Tech', subsector: 'Software' },
+  'NOW': { sector: 'Tech', subsector: 'Software' },
+  'CRM': { sector: 'Tech', subsector: 'Software' },
+  'ADBE': { sector: 'Tech', subsector: 'Software' },
+  'GLOB': { sector: 'Servicios IT', subsector: 'Software' },
+  'SHOP': { sector: 'Tech', subsector: 'Software' },
+  'CRWD': { sector: 'Tech', subsector: 'Cyberseguridad' },
+  'PANW': { sector: 'Tech', subsector: 'Cyberseguridad' },
+  'FTNT': { sector: 'Tech', subsector: 'Cyberseguridad' },
+
+  // Tech / Internet & E-commerce
+  'AMZN': { sector: 'Tech', subsector: 'E-commerce' },
+  'MELI': { sector: 'Servicios IT', subsector: 'E-commerce' },
+  'GOOGL': { sector: 'Tech', subsector: 'Internet' },
+  'GOOG': { sector: 'Tech', subsector: 'Internet' },
+  'META': { sector: 'Tech', subsector: 'Internet' },
+  'TSLA': { sector: 'Tech', subsector: 'Automotriz' },
+
+  // Energía
+  'OKLO': { sector: 'Energía', subsector: 'Nuclear' },
+  'CEG': { sector: 'Energía', subsector: 'Eléctrica' },
+  'VST': { sector: 'Energía', subsector: 'Electricidad' },
+  'VIST': { sector: 'Energía', subsector: 'Petróleo y Gas' },
+  'YPFD': { sector: 'Energía', subsector: 'Petróleo y Gas' },
+  'YPF': { sector: 'Energía', subsector: 'Petróleo y Gas' },
+  'PAMP': { sector: 'Energía', subsector: 'Energía Integrada' },
+  'PAM': { sector: 'Energía', subsector: 'Energía Integrada' },
+  'XOM': { sector: 'Energía', subsector: 'Petróleo y Gas' },
+  'CVX': { sector: 'Energía', subsector: 'Petróleo y Gas' },
+  'PBR': { sector: 'Energía', subsector: 'Petróleo y Gas' },
+  'GPRK': { sector: 'Energía', subsector: 'Petróleo y Gas' },
+  'ICLN': { sector: 'Energía', subsector: 'Renovable' },
+  'NEE': { sector: 'Energía', subsector: 'Renovable' },
+  'XLE': { sector: 'Energía', subsector: 'Energía' },
+  'URA': { sector: 'Energía', subsector: 'Uranio' },
+  'XLU': { sector: 'Energía', subsector: 'Utilities' },
+
+  // Banking & Financials
+  'BMA': { sector: 'Banking', subsector: 'Bancos' },
+  'GGAL': { sector: 'Banking', subsector: 'Bancos' },
+  'BBAR': { sector: 'Banking', subsector: 'Bancos' },
+  'SUPV': { sector: 'Banking', subsector: 'Bancos' },
+  'JPM': { sector: 'Banking', subsector: 'Bancos' },
+  'BAC': { sector: 'Banking', subsector: 'Bancos' },
+  'C': { sector: 'Banking', subsector: 'Bancos' },
+  'WFC': { sector: 'Banking', subsector: 'Bancos' },
+  'ITUB': { sector: 'Banking', subsector: 'Bancos' },
+  'BBD': { sector: 'Banking', subsector: 'Bancos' },
+  'NU': { sector: 'Banking', subsector: 'Fintech' },
+  'SOFI': { sector: 'Banking', subsector: 'Fintech' },
+  'CHYM': { sector: 'Banking', subsector: 'Fintech' },
+  'PYPL': { sector: 'Tech', subsector: 'Fintech' },
+  'HOOD': { sector: 'Financial', subsector: 'Banca de Inversión' },
+  'MS': { sector: 'Financial', subsector: 'Banca de Inversión' },
+  'GS': { sector: 'Financial', subsector: 'Banca de Inversión' },
+  'BRKB': { sector: 'Financial', subsector: 'Holding' },
+  'BRK-B': { sector: 'Financial', subsector: 'Holding' },
+
+  // Minería & Materiales
+  'MP': { sector: 'Minería', subsector: 'Tierras Raras' },
+  'FCX': { sector: 'Minería', subsector: 'Metales' },
+  'COPX': { sector: 'Minería', subsector: 'Cobre' },
+  'ALUA': { sector: 'Minería', subsector: 'Aluminio' },
+  'TXAR': { sector: 'Minería', subsector: 'Acero' },
+  'RIO': { sector: 'Minería', subsector: 'Aluminio' },
+  'VALE': { sector: 'Minería', subsector: 'Metales' },
+  'LAC': { sector: 'Minería', subsector: 'Litio' },
+  'CCJ': { sector: 'Minería', subsector: 'Uranio' },
+
+  // Index Fund / ETFs
+  'EWY': { sector: 'Index Fund', subsector: 'ETF Internacional' },
+  'SPY': { sector: 'Index Fund', subsector: 'ETF US' },
+  'QQQ': { sector: 'Index Fund', subsector: 'ETF US' },
+  'IWM': { sector: 'Index Fund', subsector: 'ETF US' },
+  'EEM': { sector: 'Index Fund', subsector: 'ETF US' },
+
+  // Consumo & Entretenimiento
+  'DAL': { sector: 'Consumo', subsector: 'Aerolíneas' },
+  'ARCO': { sector: 'Consumo', subsector: 'Alimentos' },
+  'KO': { sector: 'Consumo', subsector: 'Alimentos' },
+  'PEP': { sector: 'Consumo', subsector: 'Alimentos' },
+  'MCD': { sector: 'Consumo', subsector: 'Alimentos' },
+  'JNJ': { sector: 'Consumo', subsector: 'Farmacia' },
+  'PFE': { sector: 'Consumo', subsector: 'Farmacia' },
+  'LLY': { sector: 'Consumo', subsector: 'Farmacia' },
+  'DIS': { sector: 'Entretenimiento', subsector: 'Medios' },
+  'NFLX': { sector: 'Entretenimiento', subsector: 'Medios' },
+
+  // Crypto
+  'IBIT': { sector: 'Crypto', subsector: 'Bitcoin' },
+  'MSTR': { sector: 'Crypto', subsector: 'Bitcoin' },
+  'BTC-USD': { sector: 'Crypto', subsector: 'Bitcoin' },
+  'ETH-USD': { sector: 'Crypto', subsector: 'Criptomoneda' },
+
+  // Cash / Liquidez
+  'ARS': { sector: 'Efectivo / Liquidez', subsector: 'Pesos Argentinos' },
+  'AR$': { sector: 'Efectivo / Liquidez', subsector: 'Pesos Argentinos' },
+  'USD': { sector: 'Efectivo / Liquidez', subsector: 'Dólares' }
+};
+
+export function getAssetSectorAndSubsector(ticker, tipo, catalogInfo = {}) {
+  const raw = (ticker || '').toUpperCase().trim();
+  const norm = raw === 'AR$' ? 'ARS' : raw === 'BRK-B' ? 'BRKB' : raw;
+
+  // 1. Check catalogInfo explicit sector (if valid and not 'Otros')
+  if (catalogInfo.sector && catalogInfo.sector.trim() !== '' && catalogInfo.sector !== 'Otros') {
+    return {
+      sector: catalogInfo.sector,
+      subsector: catalogInfo.subsector || catalogInfo.sector
+    };
+  }
+
+  // 2. Cash / Liquidez
+  if (tipo === 'efectivo' || norm === 'ARS' || norm === 'USD' || norm === 'AR$') {
+    return {
+      sector: 'Efectivo / Liquidez',
+      subsector: norm === 'USD' ? 'Dólares' : 'Pesos Argentinos'
+    };
+  }
+
+  // 3. Fallback dictionary map
+  if (ASSET_SECTOR_FALLBACK_MAP[norm]) {
+    return ASSET_SECTOR_FALLBACK_MAP[norm];
+  }
+  if (ASSET_SECTOR_FALLBACK_MAP[raw]) {
+    return ASSET_SECTOR_FALLBACK_MAP[raw];
+  }
+
+  // 4. Bonds / Renta Fija
+  if (tipo === 'bono' || norm.startsWith('AL') || norm.startsWith('GD') || norm.startsWith('AE') || norm.startsWith('T2X') || norm.startsWith('TX') || norm.startsWith('S3') || norm.startsWith('S2') || norm.startsWith('T3') || norm.startsWith('TV')) {
+    if (norm.startsWith('AL') || norm.startsWith('AE')) return { sector: 'Renta Fija Soberana', subsector: 'Bonos USD Ley Argentina' };
+    if (norm.startsWith('GD')) return { sector: 'Renta Fija Soberana', subsector: 'Bonos Globales USD Ley NY' };
+    if (norm.startsWith('T2X') || norm.startsWith('TX')) return { sector: 'Renta Fija Soberana', subsector: 'Bonos CER / Inflación' };
+    if (norm.startsWith('S3') || norm.startsWith('S2') || norm.startsWith('T3')) return { sector: 'Renta Fija Soberana', subsector: 'Bonos Pesos / LECAPs' };
+    if (norm.startsWith('TV') || norm.startsWith('T2V')) return { sector: 'Renta Fija Soberana', subsector: 'Bonos Dólar Linked' };
+    if (norm.endsWith('O') || norm.startsWith('BP')) return { sector: 'Renta Fija Corporativa', subsector: 'Obligaciones Negociables' };
+    return { sector: 'Renta Fija Soberana', subsector: 'Bonos Soberanos' };
+  }
+
+  return {
+    sector: 'Otros',
+    subsector: 'Otros'
+  };
+}
+
 const fmt = (n, dec = 2) => {
   if (n == null || isNaN(n)) return '—';
   return new Intl.NumberFormat('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
@@ -910,72 +1083,43 @@ function App() {
   const tickerCatalog = useMemo(() => {
     const catalog = { ...SEED_TICKER_CATALOG };
 
+    const mergeItem = (rawT, item) => {
+      if (!rawT || !item) return;
+      const key = rawT.trim().toUpperCase();
+      const existing = catalog[key] || {};
+      const fallback = getAssetSectorAndSubsector(key, item.tipo || existing.tipo, item);
+      catalog[key] = {
+        ticker: key,
+        nombre: item.nombre || existing.nombre || '',
+        tipo: item.tipo || existing.tipo || 'accion',
+        mercado: item.mercado || existing.mercado || 'BCBA',
+        sector: item.sector && item.sector.trim() !== '' && item.sector !== 'Otros' ? item.sector : (existing.sector || fallback.sector),
+        subsector: item.subsector && item.subsector.trim() !== '' && item.subsector !== 'Otros' ? item.subsector : (existing.subsector || fallback.subsector),
+        pais: item.pais || existing.pais || ''
+      };
+    };
+
     // Merge holdings
     Object.values(allHoldings).forEach(holdingsList => {
       if (Array.isArray(holdingsList)) {
-        holdingsList.forEach(h => {
-          if (h && h.ticker) {
-            const t = h.ticker.toUpperCase();
-            catalog[t] = {
-              ticker: t,
-              nombre: h.nombre || (catalog[t] && catalog[t].nombre) || '',
-              tipo: h.tipo || (catalog[t] && catalog[t].tipo) || 'accion',
-              mercado: h.mercado || (catalog[t] && catalog[t].mercado) || 'BCBA',
-              sector: (catalog[t] && catalog[t].sector) || '',
-              subsector: (catalog[t] && catalog[t].subsector) || '',
-              pais: (catalog[t] && catalog[t].pais) || ''
-            };
-          }
-        });
+        holdingsList.forEach(h => h && mergeItem(h.ticker, h));
       }
     });
 
     // Merge watchlist
     if (Array.isArray(watchlist)) {
-      watchlist.forEach(w => {
-        if (w && w.ticker) {
-          const t = w.ticker.toUpperCase();
-          catalog[t] = {
-            ticker: t,
-            nombre: w.nombre || (catalog[t] && catalog[t].nombre) || '',
-            tipo: w.tipo || (catalog[t] && catalog[t].tipo) || 'accion',
-            mercado: w.mercado || (catalog[t] && catalog[t].mercado) || 'BCBA',
-            sector: w.sector || (catalog[t] && catalog[t].sector) || '',
-            subsector: w.subsector || (catalog[t] && catalog[t].subsector) || '',
-            pais: w.pais || (catalog[t] && catalog[t].pais) || ''
-          };
-        }
-      });
+      watchlist.forEach(w => w && mergeItem(w.ticker, w));
     }
 
     // Merge operations
     Object.values(allOperaciones).forEach(opList => {
       if (Array.isArray(opList)) {
-        opList.forEach(op => {
-          if (op && op.ticker) {
-            const t = op.ticker.toUpperCase();
-            if (!catalog[t]) {
-              catalog[t] = {
-                ticker: t,
-                nombre: '',
-                tipo: op.assetTipo || 'accion',
-                mercado: 'BCBA'
-              };
-            }
-          }
-        });
+        opList.forEach(op => op && mergeItem(op.ticker, { tipo: op.assetTipo }));
       }
     });
 
     // Merge custom tickers
-    Object.keys(customTickers).forEach(t => {
-      const item = customTickers[t];
-      catalog[t] = {
-        ...(catalog[t] || {}),
-        ...item,
-        ticker: t
-      };
-    });
+    Object.keys(customTickers).forEach(t => mergeItem(t, customTickers[t]));
 
     return catalog;
   }, [allHoldings, watchlist, allOperaciones, customTickers]);
@@ -2893,27 +3037,16 @@ function App() {
               const tipoLabel = h.tipo === 'accion' ? 'Acción AR' : h.tipo === 'stock' ? 'Stock US' : h.tipo === 'cedear' ? 'CEDEAR' : h.tipo === 'efectivo' ? 'Efectivo' : 'Bono';
               byTipo[tipoLabel] = (byTipo[tipoLabel] || 0) + valor;
 
-              // 3. By Sector & Subsector (lookup in tickerCatalog, with fallbacks)
+              // 3. By Sector & Subsector
               const rawTicker = (h.ticker || '').toUpperCase();
-              const normTicker = rawTicker === 'AR$' ? 'ARS' : rawTicker === 'BRK-B' ? 'BRKB' : rawTicker;
-              const info = tickerCatalog[rawTicker] || tickerCatalog[normTicker] || {};
+              const info = tickerCatalog[rawTicker] || {};
+              const { sector, subsector } = getAssetSectorAndSubsector(h.ticker, h.tipo, info);
 
-              let sectorLabel = info.sector;
-              let subsectorLabel = info.subsector;
-
-              if (h.tipo === 'efectivo' || rawTicker === 'ARS' || rawTicker === 'USD' || rawTicker === 'AR$') {
-                sectorLabel = sectorLabel || 'Efectivo / Liquidez';
-                subsectorLabel = subsectorLabel || (rawTicker === 'USD' ? 'Dólares' : 'Pesos Argentinos');
-              } else {
-                sectorLabel = sectorLabel || 'Otros';
-                subsectorLabel = subsectorLabel || (sectorLabel !== 'Otros' ? sectorLabel : 'Otros');
-              }
-
-              bySector[sectorLabel] = (bySector[sectorLabel] || 0) + valor;
-              bySubsector[subsectorLabel] = (bySubsector[subsectorLabel] || 0) + valor;
+              bySector[sector] = (bySector[sector] || 0) + valor;
+              bySubsector[subsector] = (bySubsector[subsector] || 0) + valor;
             });
 
-            // Group <1% assets into 'Otros'
+            // Group <1% assets into 'Otros' for % por Activo
             const threshold = totalValor * 0.01;
             const byAssetGrouped = {};
             let otrosAssetValue = 0;
@@ -2931,11 +3064,22 @@ function App() {
             const toData = obj => Object.entries(obj).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
 
             return (
-              <div className="pie-charts-row pie-charts-row--4col">
-                <PieChart data={toData(byAssetGrouped)} title="% por Activo" />
-                <PieChart data={toData(byTipo)} title="% por Tipo de Activo" />
-                <PieChart data={toData(bySector)} title="% por Sector" />
-                <PieChart data={toData(bySubsector)} title="% por Subsector" />
+              <div className="portfolio-charts-container">
+                {/* Columna 1: % por Activo (más ancha para leyendas largas) */}
+                <div className="portfolio-chart-col portfolio-chart-col--wide">
+                  <PieChart data={toData(byAssetGrouped)} title="% por Activo" />
+                </div>
+
+                {/* Columna 2: % por Tipo de Activo + % por Sector (apilados) */}
+                <div className="portfolio-chart-col">
+                  <PieChart data={toData(byTipo)} title="% por Tipo de Activo" />
+                  <PieChart data={toData(bySector)} title="% por Sector" />
+                </div>
+
+                {/* Columna 3: % por Subsector */}
+                <div className="portfolio-chart-col">
+                  <PieChart data={toData(bySubsector)} title="% por Subsector" />
+                </div>
               </div>
             );
           })()}

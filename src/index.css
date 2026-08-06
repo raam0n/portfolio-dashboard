@@ -459,6 +459,37 @@ textarea:focus {
 }
 
 /* ── Pie Charts ──────────────────────────────────────────────────────────── */
+.portfolio-charts-container {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+  align-items: start;
+}
+
+.portfolio-chart-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.portfolio-chart-col--wide {
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .portfolio-charts-container {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .portfolio-charts-container {
+    grid-template-columns: 1fr;
+  }
+}
+
 .pie-charts-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
