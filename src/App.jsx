@@ -45,57 +45,100 @@ const GLOBAL_INDICES = [
 
 const SEED_TICKER_CATALOG = {
   // Acciones Argentina (BCBA)
-  'GGAL': { ticker: 'GGAL', nombre: 'Grupo Financiero Galicia', tipo: 'accion', mercado: 'BCBA', sector: 'Financials', subsector: 'Banking', pais: 'Argentina' },
-  'YPFD': { ticker: 'YPFD', nombre: 'YPF S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Energy', subsector: 'Oil & Gas', pais: 'Argentina' },
-  'BMA': { ticker: 'BMA', nombre: 'Banco Macro S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Financials', subsector: 'Banking', pais: 'Argentina' },
-  'BBAR': { ticker: 'BBAR', nombre: 'BBVA Argentina', tipo: 'accion', mercado: 'BCBA', sector: 'Financials', subsector: 'Banking', pais: 'Argentina' },
-  'PAMP': { ticker: 'PAMP', nombre: 'Pampa Energía S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Utilities', subsector: 'Electricity', pais: 'Argentina' },
-  'ALUA': { ticker: 'ALUA', nombre: 'Aluar Aluminio Argentino', tipo: 'accion', mercado: 'BCBA', sector: 'Basic Materials', subsector: 'Aluminum', pais: 'Argentina' },
-  'TXAR': { ticker: 'TXAR', nombre: 'Ternium Argentina S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Basic Materials', subsector: 'Steel', pais: 'Argentina' },
-  'TGSU2': { ticker: 'TGSU2', nombre: 'Transportadora de Gas del Sur', tipo: 'accion', mercado: 'BCBA', sector: 'Utilities', subsector: 'Gas Utility', pais: 'Argentina' },
-  'EDN': { ticker: 'EDN', nombre: 'Edenor S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Utilities', subsector: 'Electricity Distribution', pais: 'Argentina' },
-  'CEPU': { ticker: 'CEPU', nombre: 'Central Puerto S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Utilities', subsector: 'Power Generation', pais: 'Argentina' },
-  'CRES': { ticker: 'CRES', nombre: 'Cresud S.A.C.I.F. y A.', tipo: 'accion', mercado: 'BCBA', sector: 'Real Estate', subsector: 'Agriculture & Real Estate', pais: 'Argentina' },
-  'SUPV': { ticker: 'SUPV', nombre: 'Grupo Supervielle S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Financials', subsector: 'Banking', pais: 'Argentina' },
-  'MIRG': { ticker: 'MIRG', nombre: 'Mirgor S.A.C.I.F.I.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Consumer Cyclical', subsector: 'Electronics', pais: 'Argentina' },
-  'COME': { ticker: 'COME', nombre: 'Sociedad Comercial del Plata', tipo: 'accion', mercado: 'BCBA', sector: 'Industrials', subsector: 'Conglomerates', pais: 'Argentina' },
+  'GGAL': { ticker: 'GGAL', nombre: 'Grupo Financiero Galicia', tipo: 'accion', mercado: 'BCBA', sector: 'Banking', subsector: 'Bancos', pais: 'Argentina' },
+  'YPFD': { ticker: 'YPFD', nombre: 'YPF S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Energía', subsector: 'Petróleo y Gas', pais: 'Argentina' },
+  'BMA': { ticker: 'BMA', nombre: 'Banco Macro S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Banking', subsector: 'Bancos', pais: 'Argentina' },
+  'BBAR': { ticker: 'BBAR', nombre: 'BBVA Argentina', tipo: 'accion', mercado: 'BCBA', sector: 'Banking', subsector: 'Bancos', pais: 'Argentina' },
+  'PAMP': { ticker: 'PAMP', nombre: 'Pampa Energía S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Energía', subsector: 'Energía Integrada', pais: 'Argentina' },
+  'ALUA': { ticker: 'ALUA', nombre: 'Aluar Aluminio Argentino', tipo: 'accion', mercado: 'BCBA', sector: 'Minería', subsector: 'Aluminio', pais: 'Argentina' },
+  'TXAR': { ticker: 'TXAR', nombre: 'Ternium Argentina S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Minería', subsector: 'Acero', pais: 'Argentina' },
+  'TGSU2': { ticker: 'TGSU2', nombre: 'Transportadora de Gas del Sur', tipo: 'accion', mercado: 'BCBA', sector: 'Energía', subsector: 'Gas Utility', pais: 'Argentina' },
+  'EDN': { ticker: 'EDN', nombre: 'Edenor S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Energía', subsector: 'Distribución Eléctrica', pais: 'Argentina' },
+  'CEPU': { ticker: 'CEPU', nombre: 'Central Puerto S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Energía', subsector: 'Generación Eléctrica', pais: 'Argentina' },
+  'CRES': { ticker: 'CRES', nombre: 'Cresud S.A.C.I.F. y A.', tipo: 'accion', mercado: 'BCBA', sector: 'Bienes Raíces', subsector: 'Agro & Real Estate', pais: 'Argentina' },
+  'SUPV': { ticker: 'SUPV', nombre: 'Grupo Supervielle S.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Banking', subsector: 'Bancos', pais: 'Argentina' },
+  'MIRG': { ticker: 'MIRG', nombre: 'Mirgor S.A.C.I.F.I.A.', tipo: 'accion', mercado: 'BCBA', sector: 'Tech', subsector: 'Electrónica', pais: 'Argentina' },
+  'COME': { ticker: 'COME', nombre: 'Sociedad Comercial del Plata', tipo: 'accion', mercado: 'BCBA', sector: 'Industrial', subsector: 'Holding', pais: 'Argentina' },
 
-  // Bonos Argentina
-  'AL30': { ticker: 'AL30', nombre: 'Bono República Argentina 2030 (AL30)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley Arg', pais: 'Argentina' },
-  'GD30': { ticker: 'GD30', nombre: 'Bono Global Argentina 2030 (GD30)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley NY', pais: 'Argentina' },
-  'AL29': { ticker: 'AL29', nombre: 'Bono República Argentina 2029 (AL29)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley Arg', pais: 'Argentina' },
-  'GD29': { ticker: 'GD29', nombre: 'Bono Global Argentina 2029 (GD29)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley NY', pais: 'Argentina' },
-  'AL35': { ticker: 'AL35', nombre: 'Bono República Argentina 2035 (AL35)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley Arg', pais: 'Argentina' },
-  'GD35': { ticker: 'GD35', nombre: 'Bono Global Argentina 2035 (GD35)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley NY', pais: 'Argentina' },
-  'AE38': { ticker: 'AE38', nombre: 'Bono República Argentina 2038 (AE38)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley Arg', pais: 'Argentina' },
-  'GD38': { ticker: 'GD38', nombre: 'Bono Global Argentina 2038 (GD38)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley NY', pais: 'Argentina' },
-  'AL41': { ticker: 'AL41', nombre: 'Bono República Argentina 2041 (AL41)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley Arg', pais: 'Argentina' },
-  'GD41': { ticker: 'GD41', nombre: 'Bono Global Argentina 2041 (GD41)', tipo: 'bono', mercado: 'BCBA', sector: 'Sovereign Debt', subsector: 'Bono Ley NY', pais: 'Argentina' },
+  // Bonos Soberanos USD (Ley Argentina)
+  'AL30': { ticker: 'AL30', nombre: 'Bono República Argentina 2030 (AL30)', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos USD Ley Argentina', pais: 'Argentina' },
+  'AL29': { ticker: 'AL29', nombre: 'Bono República Argentina 2029 (AL29)', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos USD Ley Argentina', pais: 'Argentina' },
+  'AL35': { ticker: 'AL35', nombre: 'Bono República Argentina 2035 (AL35)', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos USD Ley Argentina', pais: 'Argentina' },
+  'AE38': { ticker: 'AE38', nombre: 'Bono República Argentina 2038 (AE38)', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos USD Ley Argentina', pais: 'Argentina' },
+  'AL41': { ticker: 'AL41', nombre: 'Bono República Argentina 2041 (AL41)', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos USD Ley Argentina', pais: 'Argentina' },
 
-  // CEDEARs / US Stocks
-  'AAPL': { ticker: 'AAPL', nombre: 'Apple Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Technology', subsector: 'Consumer Electronics', pais: 'USA' },
-  'MSFT': { ticker: 'MSFT', nombre: 'Microsoft Corporation', tipo: 'cedear', mercado: 'BCBA', sector: 'Technology', subsector: 'Software', pais: 'USA' },
-  'NVDA': { ticker: 'NVDA', nombre: 'NVIDIA Corporation', tipo: 'cedear', mercado: 'BCBA', sector: 'Technology', subsector: 'Semiconductors', pais: 'USA' },
-  'AMZN': { ticker: 'AMZN', nombre: 'Amazon.com Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumer Cyclical', subsector: 'Internet Retail', pais: 'USA' },
-  'GOOGL': { ticker: 'GOOGL', nombre: 'Alphabet Inc. (Google)', tipo: 'cedear', mercado: 'BCBA', sector: 'Communication Services', subsector: 'Internet Services', pais: 'USA' },
-  'META': { ticker: 'META', nombre: 'Meta Platforms Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Communication Services', subsector: 'Social Media', pais: 'USA' },
-  'TSLA': { ticker: 'TSLA', nombre: 'Tesla Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumer Cyclical', subsector: 'Auto Manufacturers', pais: 'USA' },
-  'MELI': { ticker: 'MELI', nombre: 'MercadoLibre Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumer Cyclical', subsector: 'Internet Retail', pais: 'Uruguay' },
+  // Bonos Soberanos USD (Ley NY / Globales)
+  'GD30': { ticker: 'GD30', nombre: 'Bono Global Argentina 2030 (GD30)', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos Globales USD Ley NY', pais: 'Argentina' },
+  'GD29': { ticker: 'GD29', nombre: 'Bono Global Argentina 2029 (GD29)', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos Globales USD Ley NY', pais: 'Argentina' },
+  'GD35': { ticker: 'GD35', nombre: 'Bono Global Argentina 2035 (GD35)', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos Globales USD Ley NY', pais: 'Argentina' },
+  'GD38': { ticker: 'GD38', nombre: 'Bono Global Argentina 2038 (GD38)', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos Globales USD Ley NY', pais: 'Argentina' },
+  'GD41': { ticker: 'GD41', nombre: 'Bono Global Argentina 2041 (GD41)', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos Globales USD Ley NY', pais: 'Argentina' },
+
+  // Bonos Pesos / CER / LECAPs / Tasa Fija / Dólar Linked
+  'T2X4': { ticker: 'T2X4', nombre: 'Bono CER 2024 (T2X4)', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos CER / Inflación', pais: 'Argentina' },
+  'T2X5': { ticker: 'T2X5', nombre: 'Bono CER 2025 (T2X5)', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos CER / Inflación', pais: 'Argentina' },
+  'TX26': { ticker: 'TX26', nombre: 'Bono CER 2026 (TX26)', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos CER / Inflación', pais: 'Argentina' },
+  'TX28': { ticker: 'TX28', nombre: 'Bono CER 2028 (TX28)', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos CER / Inflación', pais: 'Argentina' },
+  'T30J7': { ticker: 'T30J7', nombre: 'Bono Tesoro Nacional Cap. 30/06/27', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos Pesos / LECAPs', pais: 'Argentina' },
+  'S31O4': { ticker: 'S31O4', nombre: 'Lecap Vto Octubre 2024', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos Pesos / LECAPs', pais: 'Argentina' },
+  'S28F5': { ticker: 'S28F5', nombre: 'Lecap Vto Febrero 2025', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos Pesos / LECAPs', pais: 'Argentina' },
+  'TV24': { ticker: 'TV24', nombre: 'Bono Dólar Linked 2024', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos Dólar Linked', pais: 'Argentina' },
+  'T2V4': { ticker: 'T2V4', nombre: 'Bono Dólar Linked Nov 2024', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Soberana', subsector: 'Bonos Dólar Linked', pais: 'Argentina' },
+  'BP21': { ticker: 'BP21', nombre: 'Bono Provincia de Bs.As.', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Subsoberana', subsector: 'Bonos Subsoberanos', pais: 'Argentina' },
+
+  // Obligaciones Negociables (ONs)
+  'YCA6O': { ticker: 'YCA6O', nombre: 'ON YPF Clase 16 2026', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Corporativa', subsector: 'Obligaciones Negociables', pais: 'Argentina' },
+  'MGC2O': { ticker: 'MGC2O', nombre: 'ON Pampa Energía 2026', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Corporativa', subsector: 'Obligaciones Negociables', pais: 'Argentina' },
+  'IRCFO': { ticker: 'IRCFO', nombre: 'ON IRSA 2028', tipo: 'bono', mercado: 'BCBA', sector: 'Renta Fija Corporativa', subsector: 'Obligaciones Negociables', pais: 'Argentina' },
+
+  // CEDEARs / US Stocks / ETFs
+  'AAPL': { ticker: 'AAPL', nombre: 'Apple Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Hardware', pais: 'USA' },
+  'MSFT': { ticker: 'MSFT', nombre: 'Microsoft Corporation', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Software', pais: 'USA' },
+  'NVDA': { ticker: 'NVDA', nombre: 'NVIDIA Corporation', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Semiconductores', pais: 'USA' },
+  'AMD': { ticker: 'AMD', nombre: 'Advanced Micro Devices', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Semiconductores', pais: 'USA' },
+  'ASML': { ticker: 'ASML', nombre: 'ASML Holding', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Semiconductores', pais: 'Países Bajos' },
+  'AVGO': { ticker: 'AVGO', nombre: 'Broadcom Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Semiconductores', pais: 'USA' },
+  'MU': { ticker: 'MU', nombre: 'Micron Technology', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Semiconductores', pais: 'USA' },
+  'MRVL': { ticker: 'MRVL', nombre: 'Marvell Technology', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Semiconductores', pais: 'USA' },
+  'SMH': { ticker: 'SMH', nombre: 'VanEck Semiconductor ETF', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Semiconductores', pais: 'USA' },
+  'SNDK': { ticker: 'SNDK', nombre: 'Sandisk Corporation', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Memorias', pais: 'USA' },
+  'NOW': { ticker: 'NOW', nombre: 'ServiceNow Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Software', pais: 'USA' },
+  'ORCL': { ticker: 'ORCL', nombre: 'Oracle Corporation', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Software', pais: 'USA' },
+  'PLTR': { ticker: 'PLTR', nombre: 'Palantir Technologies', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Software', pais: 'USA' },
+  'SNOW': { ticker: 'SNOW', nombre: 'Snowflake Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Software', pais: 'USA' },
+  'OKLO': { ticker: 'OKLO', nombre: 'Oklo Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Energía', subsector: 'Nuclear', pais: 'USA' },
+  'MP': { ticker: 'MP', nombre: 'MP Materials', tipo: 'cedear', mercado: 'BCBA', sector: 'Minería', subsector: 'Tierras Raras', pais: 'USA' },
+  'FCX': { ticker: 'FCX', nombre: 'Freeport-McMoRan', tipo: 'cedear', mercado: 'BCBA', sector: 'Minería', subsector: 'Cobre / Metales', pais: 'USA' },
+  'ARCO': { ticker: 'ARCO', nombre: 'Arcos Dorados Holdings', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumo', subsector: 'Alimentos', pais: 'Uruguay' },
+  'BRKB': { ticker: 'BRKB', nombre: 'Berkshire Hathaway Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Financial', subsector: 'Holding', pais: 'USA' },
+  'BRK-B': { ticker: 'BRK-B', nombre: 'Berkshire Hathaway Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Financial', subsector: 'Holding', pais: 'USA' },
+  'DAL': { ticker: 'DAL', nombre: 'Delta Air Lines', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumo', subsector: 'Aerolíneas', pais: 'USA' },
+  'EWY': { ticker: 'EWY', nombre: 'iShares MSCI South Korea ETF', tipo: 'cedear', mercado: 'BCBA', sector: 'Index Fund', subsector: 'ETF Internacional', pais: 'Corea del Sur' },
+  'AMZN': { ticker: 'AMZN', nombre: 'Amazon.com Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'E-commerce', pais: 'USA' },
+  'GOOGL': { ticker: 'GOOGL', nombre: 'Alphabet Inc. (Google)', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Internet', pais: 'USA' },
+  'META': { ticker: 'META', nombre: 'Meta Platforms Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Internet', pais: 'USA' },
+  'TSLA': { ticker: 'TSLA', nombre: 'Tesla Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Automotriz', pais: 'USA' },
+  'MELI': { ticker: 'MELI', nombre: 'MercadoLibre Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Servicios IT', subsector: 'E-commerce', pais: 'Uruguay' },
   'SPY': { ticker: 'SPY', nombre: 'SPDR S&P 500 ETF Trust', tipo: 'cedear', mercado: 'BCBA', sector: 'Index Fund', subsector: 'ETF US', pais: 'USA' },
   'QQQ': { ticker: 'QQQ', nombre: 'Invesco QQQ Trust (Nasdaq-100)', tipo: 'cedear', mercado: 'BCBA', sector: 'Index Fund', subsector: 'ETF US', pais: 'USA' },
   'IWM': { ticker: 'IWM', nombre: 'iShares Russell 2000 ETF', tipo: 'cedear', mercado: 'BCBA', sector: 'Index Fund', subsector: 'ETF US', pais: 'USA' },
   'EEM': { ticker: 'EEM', nombre: 'iShares MSCI Emerging Markets ETF', tipo: 'cedear', mercado: 'BCBA', sector: 'Index Fund', subsector: 'ETF US', pais: 'Global' },
-  'KO': { ticker: 'KO', nombre: 'The Coca-Cola Company', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumer Defensive', subsector: 'Beverages', pais: 'USA' },
-  'PEP': { ticker: 'PEP', nombre: 'PepsiCo Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumer Defensive', subsector: 'Beverages & Snacks', pais: 'USA' },
-  'JNJ': { ticker: 'JNJ', nombre: 'Johnson & Johnson', tipo: 'cedear', mercado: 'BCBA', sector: 'Healthcare', subsector: 'Pharmaceuticals', pais: 'USA' },
-  'PFE': { ticker: 'PFE', nombre: 'Pfizer Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Healthcare', subsector: 'Pharmaceuticals', pais: 'USA' },
-  'XOM': { ticker: 'XOM', nombre: 'Exxon Mobil Corporation', tipo: 'cedear', mercado: 'BCBA', sector: 'Energy', subsector: 'Oil & Gas Integrated', pais: 'USA' },
-  'CVX': { ticker: 'CVX', nombre: 'Chevron Corporation', tipo: 'cedear', mercado: 'BCBA', sector: 'Energy', subsector: 'Oil & Gas Integrated', pais: 'USA' },
-  'JPM': { ticker: 'JPM', nombre: 'JPMorgan Chase & Co.', tipo: 'cedear', mercado: 'BCBA', sector: 'Financials', subsector: 'Diversified Banking', pais: 'USA' },
-  'C': { ticker: 'C', nombre: 'Citigroup Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Financials', subsector: 'Diversified Banking', pais: 'USA' },
-  'BAC': { ticker: 'BAC', nombre: 'Bank of America Corp.', tipo: 'cedear', mercado: 'BCBA', sector: 'Financials', subsector: 'Diversified Banking', pais: 'USA' },
-  'DIS': { ticker: 'DIS', nombre: 'The Walt Disney Company', tipo: 'cedear', mercado: 'BCBA', sector: 'Communication Services', subsector: 'Entertainment', pais: 'USA' },
-  'NFLX': { ticker: 'NFLX', nombre: 'Netflix Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Communication Services', subsector: 'Entertainment', pais: 'USA' }
+  'KO': { ticker: 'KO', nombre: 'The Coca-Cola Company', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumo', subsector: 'Alimentos', pais: 'USA' },
+  'PEP': { ticker: 'PEP', nombre: 'PepsiCo Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumo', subsector: 'Alimentos', pais: 'USA' },
+  'JNJ': { ticker: 'JNJ', nombre: 'Johnson & Johnson', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumo', subsector: 'Farmacia', pais: 'USA' },
+  'PFE': { ticker: 'PFE', nombre: 'Pfizer Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumo', subsector: 'Farmacia', pais: 'USA' },
+  'XOM': { ticker: 'XOM', nombre: 'Exxon Mobil Corporation', tipo: 'cedear', mercado: 'BCBA', sector: 'Energía', subsector: 'Petróleo y Gas', pais: 'USA' },
+  'CVX': { ticker: 'CVX', nombre: 'Chevron Corporation', tipo: 'cedear', mercado: 'BCBA', sector: 'Energía', subsector: 'Petróleo y Gas', pais: 'USA' },
+  'JPM': { ticker: 'JPM', nombre: 'JPMorgan Chase & Co.', tipo: 'cedear', mercado: 'BCBA', sector: 'Banking', subsector: 'Bancos', pais: 'USA' },
+  'C': { ticker: 'C', nombre: 'Citigroup Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Banking', subsector: 'Bancos', pais: 'USA' },
+  'BAC': { ticker: 'BAC', nombre: 'Bank of America Corp.', tipo: 'cedear', mercado: 'BCBA', sector: 'Banking', subsector: 'Bancos', pais: 'USA' },
+  'DIS': { ticker: 'DIS', nombre: 'The Walt Disney Company', tipo: 'cedear', mercado: 'BCBA', sector: 'Entretenimiento', subsector: 'Medios', pais: 'USA' },
+  'NFLX': { ticker: 'NFLX', nombre: 'Netflix Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Entretenimiento', subsector: 'Medios', pais: 'USA' },
+
+  // Efectivo / Liquidez
+  'ARS': { ticker: 'ARS', nombre: 'Pesos Argentinos', tipo: 'efectivo', mercado: 'BCBA', sector: 'Efectivo / Liquidez', subsector: 'Pesos Argentinos', pais: 'Argentina' },
+  'AR$': { ticker: 'AR$', nombre: 'Pesos Argentinos', tipo: 'efectivo', mercado: 'BCBA', sector: 'Efectivo / Liquidez', subsector: 'Pesos Argentinos', pais: 'Argentina' },
+  'USD': { ticker: 'USD', nombre: 'Dólares Estadounidenses', tipo: 'efectivo', mercado: 'NYSE', sector: 'Efectivo / Liquidez', subsector: 'Dólares', pais: 'USA' }
 };
 
 const fmt = (n, dec = 2) => {
@@ -2836,9 +2879,7 @@ function App() {
             const byAsset = {};
             const byTipo = {};
             const bySector = {};
-
-            // Map ticker to category from watchlist for sector chart
-            const sectorMap = Object.fromEntries(watchlist.map(w => [w.ticker, w.sector]));
+            const bySubsector = {};
 
             holdings.forEach(h => {
               const yt = getYahooTicker(h) || h.ticker;
@@ -2852,9 +2893,24 @@ function App() {
               const tipoLabel = h.tipo === 'accion' ? 'Acción AR' : h.tipo === 'stock' ? 'Stock US' : h.tipo === 'cedear' ? 'CEDEAR' : h.tipo === 'efectivo' ? 'Efectivo' : 'Bono';
               byTipo[tipoLabel] = (byTipo[tipoLabel] || 0) + valor;
 
-              // 3. By Sector (from Watchlist Category)
-              const sectorLabel = sectorMap[h.ticker] || 'Otros';
+              // 3. By Sector & Subsector (lookup in tickerCatalog, with fallbacks)
+              const rawTicker = (h.ticker || '').toUpperCase();
+              const normTicker = rawTicker === 'AR$' ? 'ARS' : rawTicker === 'BRK-B' ? 'BRKB' : rawTicker;
+              const info = tickerCatalog[rawTicker] || tickerCatalog[normTicker] || {};
+
+              let sectorLabel = info.sector;
+              let subsectorLabel = info.subsector;
+
+              if (h.tipo === 'efectivo' || rawTicker === 'ARS' || rawTicker === 'USD' || rawTicker === 'AR$') {
+                sectorLabel = sectorLabel || 'Efectivo / Liquidez';
+                subsectorLabel = subsectorLabel || (rawTicker === 'USD' ? 'Dólares' : 'Pesos Argentinos');
+              } else {
+                sectorLabel = sectorLabel || 'Otros';
+                subsectorLabel = subsectorLabel || (sectorLabel !== 'Otros' ? sectorLabel : 'Otros');
+              }
+
               bySector[sectorLabel] = (bySector[sectorLabel] || 0) + valor;
+              bySubsector[subsectorLabel] = (bySubsector[subsectorLabel] || 0) + valor;
             });
 
             // Group <1% assets into 'Otros'
@@ -2875,10 +2931,11 @@ function App() {
             const toData = obj => Object.entries(obj).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
 
             return (
-              <div className="pie-charts-row">
+              <div className="pie-charts-row pie-charts-row--4col">
                 <PieChart data={toData(byAssetGrouped)} title="% por Activo" />
                 <PieChart data={toData(byTipo)} title="% por Tipo de Activo" />
                 <PieChart data={toData(bySector)} title="% por Sector" />
+                <PieChart data={toData(bySubsector)} title="% por Subsector" />
               </div>
             );
           })()}

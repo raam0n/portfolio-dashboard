@@ -476,8 +476,19 @@ textarea:focus {
   grid-template-columns: repeat(2, 1fr);
 }
 
+.pie-charts-row--4col {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 1200px) {
+  .pie-charts-row--4col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 600px) {
-  .pie-charts-row--2col {
+  .pie-charts-row--2col,
+  .pie-charts-row--4col {
     grid-template-columns: 1fr;
   }
 }

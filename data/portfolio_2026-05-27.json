@@ -2970,6 +2970,78 @@
       "sector": "Tech",
       "subsector": "Memorias",
       "pais": "Corea del Sur"
+    },
+    {
+      "ticker": "GD41",
+      "tipo": "bono",
+      "mercado": "BCBA",
+      "nombre": "BONOS REP. ARG. U$S STEP UP V.09/07/41",
+      "sector": "Renta Fija Soberana",
+      "subsector": "Bonos Globales USD Ley NY",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "AL30",
+      "tipo": "bono",
+      "mercado": "BCBA",
+      "nombre": "Bono República Argentina 2030",
+      "sector": "Renta Fija Soberana",
+      "subsector": "Bonos USD Ley Argentina",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "GD30",
+      "tipo": "bono",
+      "mercado": "BCBA",
+      "nombre": "Bono Global Argentina 2030",
+      "sector": "Renta Fija Soberana",
+      "subsector": "Bonos Globales USD Ley NY",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "T30J7",
+      "tipo": "bono",
+      "mercado": "BCBA",
+      "nombre": "BONO TESORO NACIONAL CAPITALIZABLE 30/06/27",
+      "sector": "Renta Fija Soberana",
+      "subsector": "Bonos Pesos / LECAPs",
+      "pais": "Argentina"
+    },
+    {
+      "ticker": "EWY",
+      "tipo": "cedear",
+      "mercado": "BCBA",
+      "nombre": "iShares MSCI South Korea ETF",
+      "sector": "Index Fund",
+      "subsector": "ETF Internacional",
+      "pais": "Corea del Sur"
+    },
+    {
+      "ticker": "BRKB",
+      "tipo": "cedear",
+      "mercado": "BCBA",
+      "nombre": "Berkshire Hathaway Inc.",
+      "sector": "Financial",
+      "subsector": "Holding",
+      "pais": "USA"
+    },
+    {
+      "ticker": "DAL",
+      "tipo": "cedear",
+      "mercado": "BCBA",
+      "nombre": "Delta Air Lines",
+      "sector": "Consumo",
+      "subsector": "Aerolíneas",
+      "pais": "USA"
+    },
+    {
+      "ticker": "SNOW",
+      "tipo": "cedear",
+      "mercado": "BCBA",
+      "nombre": "Snowflake Inc.",
+      "sector": "Tech",
+      "subsector": "Software",
+      "pais": "USA"
     }
   ]
 }
