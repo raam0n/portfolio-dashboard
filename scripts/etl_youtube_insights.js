@@ -88,26 +88,31 @@ async function generateContentWithRetry(prompt, retries = 5, delay = 4000) {
   }
 }
 
-// Helper para obtener el último video de un canal usando su RSS feed oficial de YouTube
-async function getLatestVideoFromRSS(channelId) {
+// Helper para obtener los videos recientes de un canal usando su RSS feed oficial de YouTube
+async function getRecentVideosFromRSS(channelId, maxVideos = 5) {
   const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
   const res = await fetch(feedUrl);
   if (!res.ok) throw new Error(`HTTP error ${res.status} al consultar RSS feed para canal ${channelId}`);
   const xmlText = await res.text();
 
-  const titleMatch = xmlText.match(/<entry>[\s\S]*?<title>(.*?)<\/title>/);
-  const videoIdMatch = xmlText.match(/<entry>[\s\S]*?<yt:videoId>(.*?)<\/yt:videoId>/);
-  const publishedMatch = xmlText.match(/<entry>[\s\S]*?<published>(.*?)<\/published>/);
+  const entries = xmlText.split('<entry>').slice(1, maxVideos + 1);
+  const videos = [];
 
-  if (!videoIdMatch || !videoIdMatch[1]) {
-    return null;
+  for (const entry of entries) {
+    const titleMatch = entry.match(/<title>(.*?)<\/title>/);
+    const videoIdMatch = entry.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
+    const publishedMatch = entry.match(/<published>(.*?)<\/published>/);
+
+    if (videoIdMatch && videoIdMatch[1]) {
+      videos.push({
+        videoId: videoIdMatch[1],
+        title: titleMatch ? titleMatch[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'") : 'Sin Título',
+        publishedAt: publishedMatch && publishedMatch[1] ? publishedMatch[1] : new Date().toISOString()
+      });
+    }
   }
 
-  return {
-    videoId: videoIdMatch[1],
-    title: titleMatch ? titleMatch[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'") : 'Sin Título',
-    publishedAt: publishedMatch && publishedMatch[1] ? publishedMatch[1] : new Date().toISOString()
-  };
+  return videos;
 }
 
 export async function runETL(onProgress) {
@@ -141,53 +146,50 @@ export async function runETL(onProgress) {
     if (onProgress) onProgress(statusMsg, i + 1, channels.length);
 
     try {
-      // 2. Obtener el último video del canal vía RSS feed
-      const latestVideo = await getLatestVideoFromRSS(channel.channel_id);
-      if (!latestVideo) {
+      // 2. Obtener los videos recientes del canal vía RSS feed
+      const recentVideos = await getRecentVideosFromRSS(channel.channel_id, 5);
+      if (!recentVideos || recentVideos.length === 0) {
         console.log(`⚠️ No se encontraron videos en el feed RSS del canal ${channel.channel_name}.`);
         skippedCount++;
         continue;
       }
 
-      const videoId = latestVideo.videoId;
-      console.log(`Último video detectado: "${latestVideo.title}" (ID: ${videoId})`);
+      for (const video of recentVideos) {
+        const videoId = video.videoId;
+        console.log(`Video detectado: "${video.title}" (ID: ${videoId}, Fecha: ${video.publishedAt})`);
 
-      // 3. Verificar si el video ya existe en la DB
-      const { data: existingVideo } = await supabase
-        .from('youtube_video_logs')
-        .select('video_id')
-        .eq('video_id', videoId)
-        .single();
+        // 3. Verificar si el video ya existe en la DB
+        const { data: existingVideo } = await supabase
+          .from('youtube_video_logs')
+          .select('video_id')
+          .eq('video_id', videoId)
+          .single();
 
-      if (existingVideo) {
-        console.log(`⏩ El video ${videoId} ya fue analizado previamente. Haciendo skip.`);
-        skippedCount++;
-        continue;
-      }
+        if (existingVideo) {
+          console.log(`⏩ El video ${videoId} ya fue analizado previamente. Skip.`);
+          skippedCount++;
+          continue;
+        }
 
-      // 4. Obtener transcripción
-      console.log("Obteniendo transcripción...");
-      let transcriptText = "";
-      try {
-        const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-        transcriptText = transcript.map(t => t.text).join(' ');
-        await logApiUsageToSupabase('YouTube', 'youtube_etl_transcript', 'youtube-transcript', 0, 0, 'success', null);
-      } catch (e) {
-        console.error("⚠️ No se pudo obtener la transcripción (video sin subtítulos):", e.message);
-        await logApiUsageToSupabase('YouTube', 'youtube_etl_transcript', 'youtube-transcript', 0, 0, 'error', e.message);
-        skippedCount++;
-        continue;
-      }
+        // 4. Obtener transcripción
+        console.log("Obteniendo transcripción...");
+        let transcriptText = "";
+        try {
+          const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+          transcriptText = transcript.map(t => t.text).join(' ');
+          await logApiUsageToSupabase('YouTube', 'youtube_etl_transcript', 'youtube-transcript', 0, 0, 'success', null);
+        } catch (e) {
+          console.warn("⚠️ Sin transcripción directa (se usará el título para análisis):", e.message);
+          await logApiUsageToSupabase('YouTube', 'youtube_etl_transcript', 'youtube-transcript', 0, 0, 'fallback_title', e.message);
+        }
 
-      if (!transcriptText || transcriptText.trim().length === 0) {
-        console.log("La transcripción está vacía.");
-        skippedCount++;
-        continue;
-      }
+        const contentToAnalyze = transcriptText && transcriptText.trim().length > 50 
+          ? transcriptText 
+          : `Título del Video Financiero: "${video.title}"`;
 
-      // 5. Enviar a Gemini
-      console.log("Llamando a Gemini AI para generar resumen e insights...");
-      const prompt = `Lee la transcripción de este video financiero. 
+        // 5. Enviar a Gemini
+        console.log("Llamando a Gemini AI para generar resumen e insights...");
+        const prompt = `Lee el siguiente contenido de un video financiero. 
 Extrae el sector principal del que hablan y escribe un resumen cualitativo general de 2 a 3 líneas con la tesis u opinión principal del autor sobre el mercado o el tema central.
 Luego, para cada ticker (acción o empresa) mencionado en el video, extrae:
 1. El símbolo del ticker (ej. NVDA).
@@ -209,71 +211,70 @@ Devuelve tu respuesta ÚNICAMENTE como un texto JSON válido con esta estructura
   ]
 }
 Si no se mencionan tickers, devuelve un arreglo vacío [].
-Transcripción: ${transcriptText.substring(0, 15000)}`;
+Contenido: ${contentToAnalyze.substring(0, 15000)}`;
 
-      let textResponse = "";
-      try {
-        const rawResponse = await generateContentWithRetry(prompt);
-        textResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
-      } catch (geminiErr) {
-        console.error(`Error de Gemini al procesar el canal ${channel.channel_name}:`, geminiErr.message);
-        errorCount++;
-        continue;
-      }
-
-      let sector = "Finanzas";
-      let summary = "No se pudo extraer el resumen.";
-      let tickerInsights = [];
-      let tickersMentioned = "N/A";
-
-      try {
-        let cleanedText = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
-        let parsed = null;
+        let textResponse = "";
         try {
-          parsed = JSON.parse(cleanedText);
-        } catch (e1) {
-          cleanedText = cleanedText.replace(/[\r\n]+/g, ' ');
-          parsed = JSON.parse(cleanedText);
+          const rawResponse = await generateContentWithRetry(prompt);
+          textResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+        } catch (geminiErr) {
+          console.error(`Error de Gemini al procesar el video ${video.title}:`, geminiErr.message);
+          errorCount++;
+          continue;
         }
 
-        sector = parsed.sector || "Finanzas";
-        summary = parsed.resumen || textResponse;
-        tickerInsights = Array.isArray(parsed.ticker_insights) ? parsed.ticker_insights : [];
-        if (tickerInsights.length > 0) {
-          tickersMentioned = tickerInsights.map(t => t.ticker).join(", ");
+        let sector = "Finanzas";
+        let summary = video.title;
+        let tickerInsights = [];
+        let tickersMentioned = "N/A";
+
+        try {
+          let cleanedText = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+          let parsed = null;
+          try {
+            parsed = JSON.parse(cleanedText);
+          } catch (e1) {
+            cleanedText = cleanedText.replace(/[\r\n]+/g, ' ');
+            parsed = JSON.parse(cleanedText);
+          }
+
+          sector = parsed.sector || "Finanzas";
+          summary = parsed.resumen || video.title;
+          tickerInsights = Array.isArray(parsed.ticker_insights) ? parsed.ticker_insights : [];
+          if (tickerInsights.length > 0) {
+            tickersMentioned = tickerInsights.map(t => t.ticker).join(", ");
+          }
+        } catch (err) {
+          console.error("Error parseando el JSON de Gemini:", err.message);
+          summary = video.title;
         }
-      } catch (err) {
-        console.error("Error parseando el JSON de Gemini:", err.message);
-        summary = textResponse;
-      }
 
-      // 6. Guardar en Supabase
-      console.log("Guardando resumen en Supabase (youtube_video_logs)...");
-      const { error: insertError } = await supabase
-        .from('youtube_video_logs')
-        .insert([{
-          video_id: videoId,
-          channel_id: channel.channel_id,
-          channel_name: channel.channel_name,
-          video_title: latestVideo.title,
-          tickers_mentioned: tickersMentioned,
-          sector: sector,
-          thesis_summary: summary,
-          ticker_insights: tickerInsights,
-          published_at: latestVideo.publishedAt || new Date().toISOString()
-        }]);
+        // 6. Guardar en Supabase
+        console.log("Guardando resumen en Supabase (youtube_video_logs)...");
+        const { error: insertError } = await supabase
+          .from('youtube_video_logs')
+          .insert([{
+            video_id: videoId,
+            channel_id: channel.channel_id,
+            channel_name: channel.channel_name,
+            video_title: video.title,
+            tickers_mentioned: tickersMentioned,
+            sector: sector,
+            thesis_summary: summary,
+            ticker_insights: tickerInsights,
+            published_at: video.publishedAt || new Date().toISOString()
+          }]);
 
-      if (insertError) {
-        console.error("Error insertando en la base de datos:", insertError.message);
-        errorCount++;
-      } else {
-        console.log(`✅ ¡Éxito! Procesado "${latestVideo.title}" de ${channel.channel_name}`);
-        processedCount++;
-      }
+        if (insertError) {
+          console.error("Error insertando en la base de datos:", insertError.message);
+          errorCount++;
+        } else {
+          console.log(`✅ ¡Éxito! Procesado "${video.title}" de ${channel.channel_name}`);
+          processedCount++;
+        }
 
-      // Delay de cortesía de 3s
-      if (i < channels.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // Delay de cortesía de 2.5s entre videos
+        await new Promise(resolve => setTimeout(resolve, 2500));
       }
 
     } catch (err) {
