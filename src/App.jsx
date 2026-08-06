@@ -1414,6 +1414,7 @@ function App() {
 
   const TAB_LABELS = {
     portfolio: 'Mi Portfolio',
+    'multi-portfolio': 'Resumen Portfolios',
     flujos: 'Flujos de Caja',
     operaciones: 'Histórico de Operaciones',
     watchlist: 'Watchlist',
@@ -1423,6 +1424,8 @@ function App() {
     trades: 'Trades',
     'api-dashboard': 'API Dashboard'
   };
+
+  const [editingFlujoId, setEditingFlujoId] = useState(null);
 
   const refreshData = async (scope = 'all') => {
     setStatus('loading');
@@ -1840,6 +1843,17 @@ function App() {
 
 
   // --- FLUJOS BUSINESS LOGIC ---
+  const cargarEdicionFlujo = (f) => {
+    setEditingFlujoId(f.id);
+    setFlujoFecha(f.fecha);
+    setFlujoTipo(f.tipo);
+    setFlujoMoneda(f.moneda);
+    setFlujoMonto(f.monto.toString());
+    setFlujoCotizacion(f.cotizacion ? f.cotizacion.toString() : (dolarMep ? dolarMep.toString() : ''));
+    setFlujoNota(f.nota || '');
+    setShowAddFlujo(true);
+  };
+
   const agregarFlujo = () => {
     const fMonto = parseFloat(flujoMonto);
     if (isNaN(fMonto) || fMonto <= 0) return alert('Ingresá un monto válido.');
@@ -1850,17 +1864,30 @@ function App() {
       if (isNaN(cotiz) || cotiz <= 0) return alert('Para ARS necesitás indicar el tipo de cambio histórico o usar el actual.');
     }
 
-    const f = { 
-      id: Date.now().toString(), 
-      fecha: flujoFecha, 
-      tipo: flujoTipo, 
-      monto: fMonto, 
-      moneda: flujoMoneda, 
-      cotizacion: cotiz, 
-      nota: flujoNota.trim() 
-    };
+    if (editingFlujoId) {
+      setFlujos(flujos.map(f => f.id === editingFlujoId ? {
+        ...f,
+        fecha: flujoFecha,
+        tipo: flujoTipo,
+        monto: fMonto,
+        moneda: flujoMoneda,
+        cotizacion: cotiz,
+        nota: flujoNota.trim()
+      } : f));
+      setEditingFlujoId(null);
+    } else {
+      const f = { 
+        id: Date.now().toString(), 
+        fecha: flujoFecha, 
+        tipo: flujoTipo, 
+        monto: fMonto, 
+        moneda: flujoMoneda, 
+        cotizacion: cotiz, 
+        nota: flujoNota.trim() 
+      };
+      setFlujos([...flujos, f]);
+    }
 
-    setFlujos([...flujos, f]);
     setFlujoMonto('');
     setFlujoCotizacion('');
     setFlujoNota('');
@@ -2570,6 +2597,7 @@ function App() {
       <nav className="tabs-nav">
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           <button className={`tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`} onClick={() => setActiveTab('portfolio')}>Mi Portfolio</button>
+          <button className={`tab-btn ${activeTab === 'multi-portfolio' ? 'active' : ''}`} onClick={() => setActiveTab('multi-portfolio')}>Resumen Portfolios</button>
           <button className={`tab-btn ${activeTab === 'flujos' ? 'active' : ''}`} onClick={() => setActiveTab('flujos')}>Flujos de Caja</button>
           <button className={`tab-btn ${activeTab === 'honorarios' ? 'active' : ''}`} onClick={() => setActiveTab('honorarios')}>Honorarios / Asesoría</button>
           <button className={`tab-btn ${activeTab === 'operaciones' ? 'active' : ''}`} onClick={() => setActiveTab('operaciones')}>Histórico</button>
@@ -3145,7 +3173,208 @@ function App() {
         </>
       )}
 
-      {/* --- TAB 2: OPERACIONES --- */}
+      {/* --- TAB 2: RESUMEN PORTFOLIOS (MULTI-PORTFOLIO) --- */}
+      {activeTab === 'multi-portfolio' && (() => {
+        const portfolioStats = portfolios.map(p => {
+          const pHoldings = allHoldings[p.id] || [];
+          let totalValARS = 0;
+          let totalValUSD = 0;
+          let totalDailyARS = 0;
+          let totalDailyUSD = 0;
+          let totalCostARS = 0;
+          let totalCostUSD = 0;
+
+          pHoldings.forEach(h => {
+            const isEfectivo = h.tipo === 'efectivo';
+            const yt = getYahooTicker(h) || h.ticker;
+            const pc = isEfectivo ? 1 : (prices[yt] ?? null);
+            const stats = isEfectivo ? { change: 0, changePct: 0 } : (dailyStats[yt] ?? null);
+
+            const isUsdAsset = h.tipo === 'stock' || (isEfectivo && h.ticker === 'USD');
+            const mepToday = dolarMep || 1;
+
+            const unitVal = pc !== null ? pc : h.precioEntrada;
+            const itemVal = unitVal * h.cantidad;
+            const itemCost = h.precioEntrada * h.cantidad;
+            const dailyChg = stats && stats.change ? stats.change * h.cantidad : 0;
+
+            if (isUsdAsset) {
+              totalValUSD += itemVal;
+              totalCostUSD += itemCost;
+              totalDailyUSD += dailyChg;
+
+              totalValARS += itemVal * mepToday;
+              totalCostARS += itemCost * mepToday;
+              totalDailyARS += dailyChg * mepToday;
+            } else {
+              totalValARS += itemVal;
+              totalCostARS += itemCost;
+              totalDailyARS += dailyChg;
+
+              totalValUSD += itemVal / mepToday;
+              totalCostUSD += itemCost / mepToday;
+              totalDailyUSD += dailyChg / mepToday;
+            }
+          });
+
+          const pnlARS = totalValARS - totalCostARS;
+          const pnlUSD = totalValUSD - totalCostUSD;
+          const pnlPct = totalCostUSD > 0 ? (pnlUSD / totalCostUSD) * 100 : 0;
+
+          const prevValUSD = totalValUSD - totalDailyUSD;
+          const dailyPct = prevValUSD > 0 ? (totalDailyUSD / prevValUSD) * 100 : 0;
+
+          return {
+            id: p.id,
+            name: p.name || p.id,
+            activosCount: pHoldings.length,
+            valARS: totalValARS,
+            valUSD: totalValUSD,
+            dailyARS: totalDailyARS,
+            dailyUSD: totalDailyUSD,
+            dailyPct,
+            pnlARS,
+            pnlUSD,
+            pnlPct
+          };
+        });
+
+        return (
+          <div className="tab-pane active">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2 className="section-title" style={{ margin: 0 }}>Resumen Comparativo de Portfolios</h2>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Vista resumida e individualizada de cada cartera de clientes
+                </div>
+              </div>
+              <div style={{ display: 'flex', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px', overflow: 'hidden' }}>
+                <button className={`btn btn-sm ${currencyMode === 'ARS' ? 'active' : ''}`} style={{ border: 'none', borderRadius: 0, background: currencyMode === 'ARS' ? 'var(--accent)' : 'transparent', color: currencyMode === 'ARS' ? '#fff' : 'var(--text-muted)' }} onClick={() => setCurrencyMode('ARS')}>ARS</button>
+                <button className={`btn btn-sm ${currencyMode === 'USD' ? 'active' : ''}`} style={{ border: 'none', borderRadius: 0, background: currencyMode === 'USD' ? 'var(--accent)' : 'transparent', color: currencyMode === 'USD' ? '#fff' : 'var(--text-muted)' }} onClick={() => setCurrencyMode('USD')}>USD</button>
+              </div>
+            </div>
+
+            {/* Tabla Comparativa Multi-Portfolio */}
+            <div className="table-container" style={{ marginBottom: '2rem' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Portfolio (Asesorado)</th>
+                    <th>Tenencias</th>
+                    <th>Valor Total ({currencyMode})</th>
+                    <th>Variación Diaria ($)</th>
+                    <th>Variación Diaria (%)</th>
+                    <th>P&L Total ($)</th>
+                    <th>P&L Total (%)</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {portfolioStats.map(ps => {
+                    const isSelected = ps.id === currentPortfolioId;
+                    const displayVal = currencyMode === 'ARS' ? ps.valARS : ps.valUSD;
+                    const displayDaily = currencyMode === 'ARS' ? ps.dailyARS : ps.dailyUSD;
+                    const displayPnl = currencyMode === 'ARS' ? ps.pnlARS : ps.pnlUSD;
+
+                    const cssDaily = ps.activosCount === 0 ? '' : (displayDaily >= 0 ? 'positive' : 'negative');
+                    const cssPnl = ps.activosCount === 0 ? '' : (displayPnl >= 0 ? 'positive' : 'negative');
+
+                    return (
+                      <tr key={ps.id} style={{ background: isSelected ? 'rgba(99, 102, 241, 0.08)' : 'transparent' }}>
+                        <td>
+                          <div style={{ fontWeight: '600', color: '#fff', fontSize: '14px' }}>
+                            {ps.name} {isSelected && <span style={{ fontSize: '10px', color: 'var(--accent)', marginLeft: '6px' }}>(Activo)</span>}
+                          </div>
+                        </td>
+                        <td><span className="badge badge-neutral">{ps.activosCount} activos</span></td>
+                        <td><strong>{ps.activosCount > 0 ? (currencyMode === 'ARS' ? `$${fmt(displayVal)}` : `US$ ${fmt(displayVal)}`) : '—'}</strong></td>
+                        <td className={cssDaily}>{ps.activosCount > 0 ? `${displayDaily >= 0 ? '+' : ''}${currencyMode === 'ARS' ? `$${fmt(displayDaily)}` : `US$ ${fmt(displayDaily)}`}` : '—'}</td>
+                        <td>{ps.activosCount > 0 ? <span className={`badge ${displayDaily >= 0 ? 'badge-compra' : 'badge-venta'}`}>{fmtPct(ps.dailyPct)}</span> : '—'}</td>
+                        <td className={cssPnl}>{ps.activosCount > 0 ? `${displayPnl >= 0 ? '+' : ''}${currencyMode === 'ARS' ? `$${fmt(displayPnl)}` : `US$ ${fmt(displayPnl)}`}` : '—'}</td>
+                        <td>{ps.activosCount > 0 ? <span className={`badge ${displayPnl >= 0 ? 'badge-compra' : 'badge-venta'}`}>{fmtPct(ps.pnlPct)}</span> : '—'}</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => {
+                              setCurrentPortfolioId(ps.id);
+                              setActiveTab('portfolio');
+                            }}
+                          >
+                            Ver Detalle 👁️
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Gráficos Comparativos Multi-Portfolio */}
+            <div className="dashboard-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                <div className="panel-title" style={{ fontSize: '13px', marginBottom: '1rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  📊 Rendimiento Histórico (P&L %) por Portfolio
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {portfolioStats.map(ps => (
+                    <div key={ps.id}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: '600' }}>{ps.name}</span>
+                        <span className={ps.pnlPct >= 0 ? 'positive' : 'negative'} style={{ fontWeight: '700' }}>
+                          {ps.activosCount > 0 ? fmtPct(ps.pnlPct) : 'Sin activos'}
+                        </span>
+                      </div>
+                      <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            width: ps.activosCount > 0 ? `${Math.min(Math.max(Math.abs(ps.pnlPct) * 2, 6), 100)}%` : '0%',
+                            height: '100%',
+                            background: ps.pnlPct >= 0 ? '#10b981' : '#ef4444',
+                            borderRadius: '4px',
+                            transition: 'width 0.3s'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                <div className="panel-title" style={{ fontSize: '13px', marginBottom: '1rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  ⚡ Variación del Día (%) por Portfolio
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {portfolioStats.map(ps => (
+                    <div key={ps.id}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: '600' }}>{ps.name}</span>
+                        <span className={ps.dailyPct >= 0 ? 'positive' : 'negative'} style={{ fontWeight: '700' }}>
+                          {ps.activosCount > 0 ? fmtPct(ps.dailyPct) : 'Sin activos'}
+                        </span>
+                      </div>
+                      <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            width: ps.activosCount > 0 ? `${Math.min(Math.max(Math.abs(ps.dailyPct) * 10, 6), 100)}%` : '0%',
+                            height: '100%',
+                            background: ps.dailyPct >= 0 ? '#10b981' : '#ef4444',
+                            borderRadius: '4px',
+                            transition: 'width 0.3s'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* --- TAB: OPERACIONES --- */}
       {activeTab === 'operaciones' && (
         <div className="glass-panel">
           <div className="panel-header">
@@ -3590,7 +3819,9 @@ function App() {
 
           {showAddFlujo && (
             <div className="glass-panel" style={{ marginBottom: '20px', padding: '20px' }}>
-              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Nuevo Movimiento de Caja</div>
+              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>
+                {editingFlujoId ? '✏️ Editar Movimiento de Caja' : 'Nuevo Movimiento de Caja'}
+              </div>
               <div className="form-row">
                 <div>
                   <label>Fecha</label>
@@ -3629,8 +3860,14 @@ function App() {
                 </div>
               </div>
               <div style={{ marginTop: '15px' }}>
-                <button className="btn btn-primary" onClick={agregarFlujo}>Guardar Movimiento</button>
-                <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddFlujo(false)}>Cancelar</button>
+                <button className="btn btn-primary" onClick={agregarFlujo}>{editingFlujoId ? 'Guardar Cambios' : 'Guardar Movimiento'}</button>
+                <button className="btn" style={{ marginLeft: '8px' }} onClick={() => {
+                  setEditingFlujoId(null);
+                  setFlujoMonto('');
+                  setFlujoCotizacion('');
+                  setFlujoNota('');
+                  setShowAddFlujo(false);
+                }}>Cancelar</button>
               </div>
             </div>
           )}
@@ -3670,7 +3907,12 @@ function App() {
                         <td style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{cotiz}</td>
                         <td className={f.tipo === 'ingreso' ? 'positive' : 'negative'}>US${fmt(usdVal)}</td>
                         <td style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{f.nota}</td>
-                        <td><button className="btn btn-sm btn-danger" onClick={() => eliminarFlujo(f.id)}>✕</button></td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <button className="btn btn-sm" title="Editar registro" onClick={() => cargarEdicionFlujo(f)}>✏️</button>
+                            <button className="btn btn-sm btn-danger" title="Eliminar registro" onClick={() => eliminarFlujo(f.id)}>✕</button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })
