@@ -327,7 +327,7 @@ const fmtPct = (n) => {
 
 
 
-function PieChart({ data, title }) {
+function PieChart({ data, title, twoColumns = false }) {
   const [hovered, setHovered] = React.useState(null);
 
   const total = data.reduce((s, d) => s + d.value, 0);
@@ -340,7 +340,13 @@ function PieChart({ data, title }) {
     );
   }
 
-  const cx = 80, cy = 80, r = 68;
+  const is2ColLegend = twoColumns || data.length > 6;
+  const svgSize = is2ColLegend ? 180 : 160;
+  const cx = svgSize / 2;
+  const cy = svgSize / 2;
+  const r = is2ColLegend ? 76 : 68;
+  const innerR = is2ColLegend ? 40 : 36;
+
   let cumAngle = -Math.PI / 2;
   const slices = data.map((d, i) => {
     const angle = (d.value / total) * 2 * Math.PI;
@@ -359,10 +365,10 @@ function PieChart({ data, title }) {
   const hov = hovered !== null ? slices[hovered] : null;
 
   return (
-    <div className="pie-chart-wrapper">
+    <div className={`pie-chart-wrapper ${is2ColLegend ? 'pie-chart-wrapper--wide' : ''}`}>
       <div className="pie-chart-title">{title}</div>
-      <div className="pie-chart-body">
-        <svg viewBox="0 0 160 160" width="160" height="160" style={{ flexShrink: 0 }}>
+      <div className={`pie-chart-body ${is2ColLegend ? 'pie-chart-body--2col' : ''}`}>
+        <svg viewBox={`0 0 ${svgSize} ${svgSize}`} width={svgSize} height={svgSize} style={{ flexShrink: 0 }}>
           <circle cx={cx} cy={cy} r={r} fill="rgba(0,0,0,0.2)" />
           {slices.map((s, i) => (
             <path
@@ -373,13 +379,13 @@ function PieChart({ data, title }) {
               stroke="rgba(15,17,25,0.8)"
               strokeWidth="1.5"
               style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
-              transform={hovered === i ? `translate(${Math.cos(s.midAngle) * 4},${Math.sin(s.midAngle) * 4})` : ''}
+              transform={hovered === i ? `translate(${Math.cos(s.midAngle) * 5},${Math.sin(s.midAngle) * 5})` : ''}
               onMouseEnter={() => setHovered(i)}
               onMouseLeave={() => setHovered(null)}
             />
           ))}
           {/* Inner hole */}
-          <circle cx={cx} cy={cy} r={36} fill="rgba(15,17,25,0.9)" style={{ pointerEvents: 'none' }} />
+          <circle cx={cx} cy={cy} r={innerR} fill="rgba(15,17,25,0.9)" style={{ pointerEvents: 'none' }} />
           {/* Center label */}
           {hov ? (
             <>
@@ -390,7 +396,7 @@ function PieChart({ data, title }) {
             <text x={cx} y={cy + 4} textAnchor="middle" fill="#888" fontSize="10">{data.length} items</text>
           )}
         </svg>
-        <ul className="pie-legend">
+        <ul className={`pie-legend ${is2ColLegend ? 'pie-legend--2col' : ''}`}>
           {slices.map((s, i) => (
             <li
               key={i}
