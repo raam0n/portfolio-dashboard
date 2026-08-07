@@ -3319,6 +3319,9 @@ function App() {
             activosCount: pHoldings.length,
             valARS: totalValARS,
             valUSD: totalValUSD,
+            fondeoARS: hasPFlujos ? flujoData.netFondeoARS : totalCostARS,
+            fondeoUSD: hasPFlujos ? flujoData.netFondeoUSD : totalCostUSD,
+            hasPFlujos,
             dailyARS: totalDailyARS,
             dailyUSD: totalDailyUSD,
             dailyPct,
@@ -3351,13 +3354,13 @@ function App() {
               <table>
                 <thead>
                   <tr>
-                    <th>Portfolio (Asesorado)</th>
-                    <th>Tenencias</th>
+                    <th>Portfolio</th>
                     <th>Valor Total ({currencyMode})</th>
+                    <th>Fondeo ({currencyMode})</th>
+                    <th>P&L Total (Fondeo)</th>
+                    <th>P&L Posición</th>
                     <th>Variación Diaria ($)</th>
                     <th>Variación Diaria (%)</th>
-                    <th>P&L Total (Fondeo)</th>
-                    <th>P&L Posición (Tenencias)</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -3365,12 +3368,13 @@ function App() {
                   {portfolioStats.map(ps => {
                     const isSelected = ps.id === currentPortfolioId;
                     const displayVal = currencyMode === 'ARS' ? ps.valARS : ps.valUSD;
+                    const displayFondeo = currencyMode === 'ARS' ? ps.fondeoARS : ps.fondeoUSD;
                     const displayDaily = currencyMode === 'ARS' ? ps.dailyARS : ps.dailyUSD;
                     const displayPnlTotal = currencyMode === 'ARS' ? ps.pnlTotalARS : ps.pnlTotalUSD;
                     const displayPnlPos = currencyMode === 'ARS' ? ps.pnlPosicionARS : ps.pnlPosicionUSD;
 
                     const cssDaily = ps.activosCount === 0 ? '' : (displayDaily >= 0 ? 'positive' : 'negative');
-                    const cssPnlTotal = ps.activosCount === 0 ? '' : (displayPnlTotal >= 0 ? 'positive' : 'negative');
+                    const cssPnlTotal = (ps.activosCount === 0 && !ps.hasPFlujos) ? '' : (displayPnlTotal >= 0 ? 'positive' : 'negative');
                     const cssPnlPos = ps.activosCount === 0 ? '' : (displayPnlPos >= 0 ? 'positive' : 'negative');
 
                     return (
@@ -3380,12 +3384,10 @@ function App() {
                             {ps.name} {isSelected && <span style={{ fontSize: '10px', color: 'var(--accent)', marginLeft: '6px' }}>(Activo)</span>}
                           </div>
                         </td>
-                        <td><span className="badge badge-neutral">{ps.activosCount} activos</span></td>
                         <td><strong>{ps.activosCount > 0 ? (currencyMode === 'ARS' ? `$${fmt(displayVal)}` : `US$ ${fmt(displayVal)}`) : '—'}</strong></td>
-                        <td className={cssDaily}>{ps.activosCount > 0 ? `${displayDaily >= 0 ? '+' : ''}${currencyMode === 'ARS' ? `$${fmt(displayDaily)}` : `US$ ${fmt(displayDaily)}`}` : '—'}</td>
-                        <td>{ps.activosCount > 0 ? <span className={`badge ${displayDaily >= 0 ? 'badge-compra' : 'badge-venta'}`}>{fmtPct(ps.dailyPct)}</span> : '—'}</td>
+                        <td><span style={{ color: 'var(--text-muted)', fontWeight: '500' }}>{ps.activosCount > 0 || ps.hasPFlujos ? (currencyMode === 'ARS' ? `$${fmt(displayFondeo)}` : `US$ ${fmt(displayFondeo)}`) : '—'}</span></td>
                         <td className={cssPnlTotal}>
-                          {ps.activosCount > 0 ? (
+                          {ps.activosCount > 0 || ps.hasPFlujos ? (
                             <div>
                               <div>{displayPnlTotal >= 0 ? '+' : ''}{currencyMode === 'ARS' ? `$${fmt(displayPnlTotal)}` : `US$ ${fmt(displayPnlTotal)}`}</div>
                               <span className={`badge ${displayPnlTotal >= 0 ? 'badge-compra' : 'badge-venta'}`} style={{ fontSize: '11px', marginTop: '2px' }}>{fmtPct(ps.pnlTotalPct)}</span>
@@ -3400,6 +3402,8 @@ function App() {
                             </div>
                           ) : '—'}
                         </td>
+                        <td className={cssDaily}>{ps.activosCount > 0 ? `${displayDaily >= 0 ? '+' : ''}${currencyMode === 'ARS' ? `$${fmt(displayDaily)}` : `US$ ${fmt(displayDaily)}`}` : '—'}</td>
+                        <td>{ps.activosCount > 0 ? <span className={`badge ${displayDaily >= 0 ? 'badge-compra' : 'badge-venta'}`}>{fmtPct(ps.dailyPct)}</span> : '—'}</td>
                         <td>
                           <button
                             className="btn btn-sm btn-primary"
