@@ -1011,7 +1011,7 @@ function App() {
   });
   const rawEvals = allEvals[currentPortfolioId] || [];
   const evals = useMemo(() => {
-    return rawEvals.map(ev => {
+    const list = rawEvals.map(ev => {
       if (Array.isArray(ev.opIds)) return ev;
       return {
         id: ev.id || Date.now().toString(),
@@ -1021,6 +1021,14 @@ function App() {
         opIds: ev.opId ? [ev.opId] : (ev.id ? [ev.id] : []),
         excluded: !!ev.excluded
       };
+    });
+    return list.sort((a, b) => {
+      const dateA = a.fecha || '';
+      const dateB = b.fecha || '';
+      if (dateA !== dateB) {
+        return dateB.localeCompare(dateA);
+      }
+      return String(b.id || '').localeCompare(String(a.id || ''));
     });
   }, [rawEvals]);
   const setEvals = (val) => setAllEvals(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
@@ -1065,6 +1073,7 @@ function App() {
   const [tradeCompraId, setTradeCompraId] = useState('');
   const [tradeVentaId, setTradeVentaId] = useState('');
   const [evalNombre, setEvalNombre] = useState('');
+  const [evalFecha, setEvalFecha] = useState('');
   const [evalNotas, setEvalNotas] = useState('');
   const [evalSelectedOpIds, setEvalSelectedOpIds] = useState([]);
   const [editingGroupId, setEditingGroupId] = useState(null);
@@ -2038,6 +2047,7 @@ function App() {
   const abrirNuevaEvalModal = () => {
     setEditingGroupId(null);
     setEvalNombre('');
+    setEvalFecha(new Date().toISOString().split('T')[0]);
     setEvalNotas('');
     setEvalSelectedOpIds([]);
     setEvalOpSearch('');
@@ -2047,6 +2057,7 @@ function App() {
   const abrirEditarEvalModal = (group) => {
     setEditingGroupId(group.id);
     setEvalNombre(group.nombre || '');
+    setEvalFecha(group.fecha || new Date().toISOString().split('T')[0]);
     setEvalNotas(group.notas || '');
     setEvalSelectedOpIds(group.opIds || []);
     setEvalOpSearch('');
@@ -2058,10 +2069,13 @@ function App() {
     if (!nombreClean) return alert('Ingresá un nombre para la evaluación de rotación.');
     if (evalSelectedOpIds.length === 0) return alert('Seleccioná al menos una operación para evaluar en este grupo.');
 
+    const fechaClean = evalFecha.trim() || new Date().toISOString().split('T')[0];
+
     if (editingGroupId) {
       setEvals(evals.map(g => g.id === editingGroupId ? {
         ...g,
         nombre: nombreClean,
+        fecha: fechaClean,
         notas: evalNotas.trim(),
         opIds: [...evalSelectedOpIds]
       } : g));
@@ -2069,7 +2083,7 @@ function App() {
       const newGroup = {
         id: Date.now().toString(),
         nombre: nombreClean,
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: fechaClean,
         notas: evalNotas.trim(),
         opIds: [...evalSelectedOpIds],
         excluded: false
@@ -2078,6 +2092,7 @@ function App() {
     }
 
     setEvalNombre('');
+    setEvalFecha('');
     setEvalNotas('');
     setEvalSelectedOpIds([]);
     setEditingGroupId(null);
@@ -4393,7 +4408,7 @@ function App() {
                 {editingGroupId ? '✏️ Editar Evaluación / Rotación' : '➕ Crear Nueva Evaluación / Rotación'}
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: '600' }}>Nombre / Título de la Rotación</label>
                   <input 
@@ -4402,6 +4417,16 @@ function App() {
                     placeholder="Ej: Rotación Bancos -> Cedears Tech (Julio 2026)" 
                     value={evalNombre} 
                     onChange={e => setEvalNombre(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600' }}>Fecha</label>
+                  <input 
+                    type="date"
+                    className="form-control"
+                    value={evalFecha} 
+                    onChange={e => setEvalFecha(e.target.value)}
                     style={{ width: '100%', padding: '8px 12px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff' }}
                   />
                 </div>
@@ -4465,7 +4490,7 @@ function App() {
                                 style={{ cursor: 'pointer' }}
                               />
                               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{o.fecha}</span>
-                              <strong style={{ fontSize: '13px', color: '#fff', minWidth: '60px' }}>{o.ticker}</strong>
+                              <strong style={{ fontSize: '13px', color: '#fff', minWidth: '60px' }}>{o.ticker.replace(/\.BA$/i, '')}</strong>
                               <span className={`badge badge-${o.tipo}`} style={{ fontSize: '10px', padding: '2px 6px' }}>{o.tipo.toUpperCase()}</span>
                               <span style={{ fontSize: '11px', marginLeft: 'auto', fontWeight: '500' }}>
                                 {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
@@ -4613,6 +4638,7 @@ function App() {
                           <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
                             <thead>
                               <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'left' }}>
+                                <th style={{ padding: '4px' }}>Fecha</th>
                                 <th style={{ padding: '4px' }}>Ticker</th>
                                 <th style={{ padding: '4px', textAlign: 'right' }}>Cant. @ Precio</th>
                                 <th style={{ padding: '4px', textAlign: 'right' }}>Total Operado</th>
@@ -4632,7 +4658,8 @@ function App() {
 
                                 return (
                                   <tr key={op.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                                    <td style={{ padding: '4px 0', fontWeight: '600' }}>{op.ticker}</td>
+                                    <td style={{ padding: '4px', color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>{op.fecha}</td>
+                                    <td style={{ padding: '4px 0', fontWeight: '600' }}>{op.ticker.replace(/\.BA$/i, '')}</td>
                                     <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(op.cantidad, 0)} @ ${fmt(op.precio)}</td>
                                     <td style={{ padding: '4px', textAlign: 'right', fontWeight: '600' }}>${fmt(opTotal)}</td>
                                     <td style={{ padding: '4px', textAlign: 'right' }}>{curPrice !== null ? `$${fmt(curPrice)}` : '—'}</td>
@@ -4645,7 +4672,7 @@ function App() {
                             </tbody>
                             <tfoot style={{ borderTop: '1px solid rgba(255,255,255,0.15)', fontWeight: '700' }}>
                               <tr>
-                                <td style={{ padding: '6px 0', color: '#fff' }}>TOTAL COMPRAS</td>
+                                <td colSpan={2} style={{ padding: '6px 0', color: '#fff' }}>TOTAL COMPRAS</td>
                                 <td style={{ padding: '6px', textAlign: 'right', color: 'var(--text-muted)' }}>—</td>
                                 <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupBuyCost)}</td>
                                 <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupBuyValue)}</td>
@@ -4668,6 +4695,7 @@ function App() {
                           <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
                             <thead>
                               <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'left' }}>
+                                <th style={{ padding: '4px' }}>Fecha</th>
                                 <th style={{ padding: '4px' }}>Ticker</th>
                                 <th style={{ padding: '4px', textAlign: 'right' }}>Cant. @ Venta</th>
                                 <th style={{ padding: '4px', textAlign: 'right' }}>Total Operado</th>
@@ -4687,7 +4715,8 @@ function App() {
 
                                 return (
                                   <tr key={op.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                                    <td style={{ padding: '4px 0', fontWeight: '600' }}>{op.ticker}</td>
+                                    <td style={{ padding: '4px', color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>{op.fecha}</td>
+                                    <td style={{ padding: '4px 0', fontWeight: '600' }}>{op.ticker.replace(/\.BA$/i, '')}</td>
                                     <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(op.cantidad, 0)} @ ${fmt(op.precio)}</td>
                                     <td style={{ padding: '4px', textAlign: 'right', fontWeight: '600' }}>${fmt(opTotal)}</td>
                                     <td style={{ padding: '4px', textAlign: 'right' }}>{curPrice !== null ? `$${fmt(curPrice)}` : '—'}</td>
@@ -4700,7 +4729,7 @@ function App() {
                             </tbody>
                             <tfoot style={{ borderTop: '1px solid rgba(255,255,255,0.15)', fontWeight: '700' }}>
                               <tr>
-                                <td style={{ padding: '6px 0', color: '#fff' }}>TOTAL VENTAS</td>
+                                <td colSpan={2} style={{ padding: '6px 0', color: '#fff' }}>TOTAL VENTAS</td>
                                 <td style={{ padding: '6px', textAlign: 'right', color: 'var(--text-muted)' }}>—</td>
                                 <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupSellProceeds)}</td>
                                 <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupSellValue)}</td>

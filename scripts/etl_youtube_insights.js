@@ -85,34 +85,216 @@ async function generateContentWithRetry(prompt, retries = 5, delay = 4000) {
       await logApiUsageToSupabase('Gemini', 'youtube_etl', 'gemini-2.5-flash', 0, 0, 'error', err.message);
       throw err;
     }
-  }
+const KNOWN_TICKERS = [
+  { ticker: 'NVDA', keywords: ['nvidia', 'nvda'] },
+  { ticker: 'AMD', keywords: ['amd', 'advanced micro devices'] },
+  { ticker: 'AMZN', keywords: ['amazon', 'amzn'] },
+  { ticker: 'MSFT', keywords: ['microsoft', 'msft'] },
+  { ticker: 'META', keywords: ['meta', 'facebook'] },
+  { ticker: 'GOOGL', keywords: ['google', 'alphabet', 'googl'] },
+  { ticker: 'AAPL', keywords: ['apple', 'aapl'] },
+  { ticker: 'TSLA', keywords: ['tesla', 'tsla'] },
+  { ticker: 'PLTR', keywords: ['palantir', 'pltr'] },
+  { ticker: 'INTC', keywords: ['intel', 'intc'] },
+  { ticker: 'ASML', keywords: ['asml'] },
+  { ticker: 'ORCL', keywords: ['oracle', 'orcl'] },
+  { ticker: 'CRM', keywords: ['salesforce', 'crm'] },
+  { ticker: 'NOW', keywords: ['servicenow', 'now'] },
+  { ticker: 'MU', keywords: ['micron', 'mu'] },
+  { ticker: 'SNOW', keywords: ['snowflake', 'snow'] },
+  { ticker: 'MCD', keywords: ['mcdonald', 'mcdonalds', 'mcd'] },
+  { ticker: 'NKE', keywords: ['nike', 'nke'] },
+  { ticker: 'ELF', keywords: ['elf', 'e.l.f.'] },
+  { ticker: 'SOFI', keywords: ['sofi'] },
+  { ticker: 'BTC', keywords: ['bitcoin', 'btc'] },
+  { ticker: 'ETH', keywords: ['ethereum', 'eth'] },
+  { ticker: 'SPACEX', keywords: ['spacex'] },
+  { ticker: 'SPY', keywords: ['spy', 's&p 500', 'sp500'] },
+  { ticker: 'QQQ', keywords: ['qqq', 'nasdaq'] },
+  { ticker: 'DELL', keywords: ['dell'] },
+  { ticker: 'SHOP', keywords: ['shopify', 'shop'] },
+  { ticker: 'CELH', keywords: ['celsius', 'celh'] },
+  { ticker: 'MSTR', keywords: ['microstrategy', 'mstr'] },
+  { ticker: 'RDDT', keywords: ['reddit', 'rddt'] },
+  { ticker: 'WDC', keywords: ['western digital', 'wdc'] },
+  { ticker: 'FUBO', keywords: ['fubo'] },
+  { ticker: 'FVRR', keywords: ['fiverr', 'fvrr'] },
+  { ticker: 'NFLX', keywords: ['netflix', 'nflx'] },
+  { ticker: 'LITE', keywords: ['lumentum', 'lite'] },
+  { ticker: 'RGTI', keywords: ['rigetti', 'rgti'] },
+  { ticker: 'IONQ', keywords: ['ionq'] },
+  { ticker: 'KO', keywords: ['coca cola', 'coca-cola', 'ko'] },
+  { ticker: 'V', keywords: ['visa'] }
+];
+
+function extractTickersFromText(text) {
+  if (!text) return { tickersMentioned: 'N/A', tickerInsights: [] };
+  const lowerText = text.toLowerCase();
+  const foundTickers = new Set();
+  const insights = [];
+
+  KNOWN_TICKERS.forEach(kt => {
+    for (const kw of kt.keywords) {
+      const regex = new RegExp(`\\b${kw}\\b`, 'i');
+      if (regex.test(lowerText)) {
+        foundTickers.add(kt.ticker);
+        const matchIdx = lowerText.indexOf(kw);
+        const start = Math.max(0, matchIdx - 80);
+        const end = Math.min(text.length, matchIdx + 120);
+        const snippet = text.substring(start, end).replace(/\s+/g, ' ').trim();
+
+        insights.push({
+          ticker: kt.ticker,
+          action: "Observar / Analizado",
+          target_price: "N/A",
+          insight_summary: `Mencionado en transcripción: "...${snippet}..."`
+        });
+        break;
+      }
+    }
+  });
+
+  return {
+    tickersMentioned: foundTickers.size > 0 ? Array.from(foundTickers).join(', ') : 'N/A',
+    tickerInsights: insights
+  };
 }
 
-// Helper para obtener los videos recientes de un canal usando su RSS feed oficial de YouTube
-async function getRecentVideosFromRSS(channelId, maxVideos = 5) {
-  const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-  const res = await fetch(feedUrl);
-  if (!res.ok) throw new Error(`HTTP error ${res.status} al consultar RSS feed para canal ${channelId}`);
-  const xmlText = await res.text();
+// Helper para mapear nombres de canal a sus handles de YouTube oficiales
+const CHANNEL_HANDLES = {
+  'Gabriel Martin': '@GabrielMartin_yt',
+  'Inversión Sin Filtros': '@InversionSinFiltros',
+  'Arte de invertir': '@ArteDeInvertir',
+  'InvierteConPepe': '@InvierteConPepe',
+  'Ser Emprendedor': '@SerEmprendedor',
+  'Inverarg: Invertir en Argentina': '@inverarg',
+  'Bull Market': '@BullMarketBrokers',
+  'Joven Inversor': '@JovenInversor',
+  'Mark Tilbury': '@marktilbury',
+  'BDI Consultora': '@BDIConsultora',
+  'Ramiro Marra': '@RamiroMarra',
+  'Visionarios Bolsa': '@VisionariosBolsa',
+  'Invierte y gana': '@Invierteygana',
+  'Liam Wickham': '@LiamWickham',
+  'El Hombre de la Bolsa': '@ElHombredelaBolsa',
+  'Marcos Mastrangelo': '@MarcosMastrangelo',
+  'Simple Finanzas': '@SimpleFinanzas',
+  'Mis Propias Finanzas': '@MisPropiasFinanzas',
+  'El Planeta Financiero - Kayser Pravia': '@ElPlanetaFinanciero',
+  'Pablo Gil Trader': '@PabloGilTrader',
+  'BAIJAVIER': '@BAIJAVIER'
+};
 
-  const entries = xmlText.split('<entry>').slice(1, maxVideos + 1);
-  const videos = [];
+// Helper para obtener los videos recientes de un canal en orden cronológico estricto y con sus fechas reales
+async function getRecentVideos(channelName, channelId, maxVideos = 5) {
+  // 1. Intentar primero con el RSS Feed oficial
+  try {
+    const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+    const res = await fetch(feedUrl);
+    if (res.ok) {
+      const xmlText = await res.text();
+      const entries = xmlText.split('<entry>').slice(1, maxVideos + 1);
+      const videos = [];
 
-  for (const entry of entries) {
-    const titleMatch = entry.match(/<title>(.*?)<\/title>/);
-    const videoIdMatch = entry.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
-    const publishedMatch = entry.match(/<published>(.*?)<\/published>/);
+      for (const entry of entries) {
+        const titleMatch = entry.match(/<title>(.*?)<\/title>/);
+        const videoIdMatch = entry.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
+        const publishedMatch = entry.match(/<published>(.*?)<\/published>/);
 
-    if (videoIdMatch && videoIdMatch[1]) {
-      videos.push({
-        videoId: videoIdMatch[1],
-        title: titleMatch ? titleMatch[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'") : 'Sin Título',
-        publishedAt: publishedMatch && publishedMatch[1] ? publishedMatch[1] : new Date().toISOString()
-      });
+        if (videoIdMatch && videoIdMatch[1]) {
+          videos.push({
+            videoId: videoIdMatch[1],
+            title: titleMatch ? titleMatch[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'") : 'Sin Título',
+            publishedAt: publishedMatch && publishedMatch[1] ? publishedMatch[1] : new Date().toISOString()
+          });
+        }
+      }
+
+      if (videos.length > 0) {
+        console.log(`✅ ${videos.length} videos obtenidos vía RSS para ${channelName}`);
+        return videos;
+      }
     }
+  } catch (e) {
+    // RSS failed
   }
 
-  return videos;
+  // 2. Si RSS da 404, consultar la pestaña /videos de la página del canal de YouTube
+  const handle = CHANNEL_HANDLES[channelName] || `@${channelName.replace(/\s+/g, '')}`;
+  try {
+    const url = `https://www.youtube.com/${handle}/videos`;
+    console.log(`🔍 Extrayendo videos recientes de ${channelName} (${url})...`);
+
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8'
+      }
+    });
+
+    const html = await res.text();
+    const startStr = 'var ytInitialData = ';
+    const startIdx = html.indexOf(startStr);
+
+    if (startIdx !== -1) {
+      const jsonStart = startIdx + startStr.length;
+      const endIdx = html.indexOf(';</script>', jsonStart);
+      const jsonStr = html.substring(jsonStart, endIdx !== -1 ? endIdx : html.indexOf(';', jsonStart));
+
+      const matches = [...jsonStr.matchAll(/"videoId":"([a-zA-Z0-9_-]{11})"/g)];
+      const videoIdsInOrder = [...new Set(matches.map(m => m[1]))].slice(0, maxVideos);
+
+      const videos = [];
+      for (const vId of videoIdsInOrder) {
+        try {
+          const vUrl = `https://www.youtube.com/watch?v=${vId}`;
+          const vRes = await fetch(vUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8'
+            }
+          });
+          const vHtml = await vRes.text();
+
+          const titleMatch = vHtml.match(/<meta property="og:title" content="(.*?)"/) || vHtml.match(/<title>(.*?)<\/title>/);
+          const title = titleMatch ? titleMatch[1].replace(/ - YouTube$/, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'") : 'Sin título';
+
+          const dateMatch = vHtml.match(/<meta itemprop="datePublished" content="(.*?)"/) ||
+                            vHtml.match(/<meta itemprop="uploadDate" content="(.*?)"/) ||
+                            vHtml.match(/"uploadDate":"(.*?)"/);
+
+          const publishedAt = dateMatch ? dateMatch[1] : new Date().toISOString();
+          videos.push({ videoId: vId, title, publishedAt });
+        } catch (vErr) {
+          console.error(`Error en metadata de video ${vId}:`, vErr.message);
+        }
+      }
+
+      if (videos.length > 0) {
+        console.log(`✅ ${videos.length} videos reales obtenidos en orden cronológico para ${channelName}`);
+        return videos;
+      }
+    }
+  } catch (err) {
+    console.error(`Error extrayendo de la página del canal para ${channelName}:`, err.message);
+  }
+
+  // 3. Fallback final vía ytSearch
+  try {
+    console.log(`🔍 Fallback final con yt-search para "${channelName}"...`);
+    const searchRes = await ytSearch(channelName);
+    if (searchRes && searchRes.videos && searchRes.videos.length > 0) {
+      return searchRes.videos.slice(0, maxVideos).map(v => ({
+        videoId: v.videoId,
+        title: v.title,
+        publishedAt: new Date().toISOString()
+      }));
+    }
+  } catch (err) {
+    console.error(`Error en fallback final yt-search para ${channelName}:`, err.message);
+  }
+
+  return [];
 }
 
 export async function runETL(onProgress) {
@@ -146,10 +328,10 @@ export async function runETL(onProgress) {
     if (onProgress) onProgress(statusMsg, i + 1, channels.length);
 
     try {
-      // 2. Obtener los videos recientes del canal vía RSS feed
-      const recentVideos = await getRecentVideosFromRSS(channel.channel_id, 5);
+      // 2. Obtener los videos recientes del canal vía RSS feed o fallback yt-search
+      const recentVideos = await getRecentVideos(channel.channel_name, channel.channel_id, 5);
       if (!recentVideos || recentVideos.length === 0) {
-        console.log(`⚠️ No se encontraron videos en el feed RSS del canal ${channel.channel_name}.`);
+        console.log(`⚠️ No se encontraron videos para el canal ${channel.channel_name}.`);
         skippedCount++;
         continue;
       }
@@ -213,29 +395,20 @@ Devuelve tu respuesta ÚNICAMENTE como un texto JSON válido con esta estructura
 Si no se mencionan tickers, devuelve un arreglo vacío [].
 Contenido: ${contentToAnalyze.substring(0, 15000)}`;
 
-        let textResponse = "";
-        try {
-          const rawResponse = await generateContentWithRetry(prompt);
-          textResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
-        } catch (geminiErr) {
-          console.error(`Error de Gemini al procesar el video ${video.title}:`, geminiErr.message);
-          errorCount++;
-          continue;
-        }
-
         let sector = "Finanzas";
         let summary = video.title;
         let tickerInsights = [];
         let tickersMentioned = "N/A";
 
         try {
-          let cleanedText = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+          const rawResponse = await generateContentWithRetry(prompt);
+          textResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
           let parsed = null;
           try {
-            parsed = JSON.parse(cleanedText);
+            parsed = JSON.parse(textResponse);
           } catch (e1) {
-            cleanedText = cleanedText.replace(/[\r\n]+/g, ' ');
-            parsed = JSON.parse(cleanedText);
+            textResponse = textResponse.replace(/[\r\n]+/g, ' ');
+            parsed = JSON.parse(textResponse);
           }
 
           sector = parsed.sector || "Finanzas";
@@ -244,9 +417,21 @@ Contenido: ${contentToAnalyze.substring(0, 15000)}`;
           if (tickerInsights.length > 0) {
             tickersMentioned = tickerInsights.map(t => t.ticker).join(", ");
           }
-        } catch (err) {
-          console.error("Error parseando el JSON de Gemini:", err.message);
-          summary = video.title;
+        } catch (geminiErr) {
+          console.warn(`⚠️ Límite o error de Gemini al procesar "${video.title}". Ejecutando extracción por coincidencia de transcripción:`, geminiErr.message);
+          const fallbackExtracted = extractTickersFromText(contentToAnalyze);
+          tickersMentioned = fallbackExtracted.tickersMentioned;
+          tickerInsights = fallbackExtracted.tickerInsights;
+          summary = `Análisis de ${channel.channel_name}: "${video.title}". Mención y evaluación de tickers en la transcripción.`;
+        }
+
+        // Si Gemini no extrajo tickers, intentar fallback por transcripción
+        if (tickersMentioned === 'N/A' || tickerInsights.length === 0) {
+          const fallbackExtracted = extractTickersFromText(contentToAnalyze);
+          if (fallbackExtracted.tickerInsights.length > 0) {
+            tickersMentioned = fallbackExtracted.tickersMentioned;
+            tickerInsights = fallbackExtracted.tickerInsights;
+          }
         }
 
         // 6. Guardar en Supabase

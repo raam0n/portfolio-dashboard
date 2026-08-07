@@ -89,8 +89,28 @@ export default function MarketInsights() {
         throw new Error('Error al obtener los insights: ' + error.message);
       }
 
-      const cleanData = (data || [])
-        .filter(log => log.video_id !== 'test_id_9999' && log.channel_name !== 'Test Channel' && log.video_id)
+      // Deduplicar logs por video base, priorizando aquellos con tickers válidos
+      const rawData = data || [];
+      const deduplicatedMap = new Map();
+
+      rawData.forEach(log => {
+        if (log.video_id === 'test_id_9999' || log.channel_name === 'Test Channel' || !log.video_id) return;
+
+        const baseId = log.video_id.replace('_v2', '');
+        const hasTickers = log.tickers_mentioned && log.tickers_mentioned !== 'N/A';
+
+        if (!deduplicatedMap.has(baseId)) {
+          deduplicatedMap.set(baseId, { ...log, video_id: baseId });
+        } else {
+          const existing = deduplicatedMap.get(baseId);
+          const existingHasTickers = existing.tickers_mentioned && existing.tickers_mentioned !== 'N/A';
+          if (hasTickers && !existingHasTickers) {
+            deduplicatedMap.set(baseId, { ...log, video_id: baseId });
+          }
+        }
+      });
+
+      const cleanData = Array.from(deduplicatedMap.values())
         .map(log => {
           const realPubDate = REAL_VIDEO_DATES[log.video_id] || log.published_at;
           let updatedLog = { ...log, published_at: realPubDate };

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { YoutubeTranscript } from 'youtube-transcript';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import ytSearch from 'yt-search';
 
 export default async function handler(req, res) {
   // CORS configuration
@@ -42,20 +43,48 @@ export default async function handler(req, res) {
 
     for (const channel of channels || []) {
       try {
+        let videoId = null;
+        let videoTitle = 'Sin Título';
+        let videoPublishedAt = new Date().toISOString();
+
+        // 1. Intentar RSS feed
         const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel.channel_id}`;
-        const feedRes = await fetch(feedUrl);
-        if (!feedRes.ok) continue;
-        const xmlText = await feedRes.text();
+        try {
+          const feedRes = await fetch(feedUrl);
+          if (feedRes.ok) {
+            const xmlText = await feedRes.text();
+            const titleMatch = xmlText.match(/<entry>[\s\S]*?<title>(.*?)<\/title>/);
+            const videoIdMatch = xmlText.match(/<entry>[\s\S]*?<yt:videoId>(.*?)<\/yt:videoId>/);
+            const publishedMatch = xmlText.match(/<entry>[\s\S]*?<published>(.*?)<\/published>/);
 
-        const titleMatch = xmlText.match(/<entry>[\s\S]*?<title>(.*?)<\/title>/);
-        const videoIdMatch = xmlText.match(/<entry>[\s\S]*?<yt:videoId>(.*?)<\/yt:videoId>/);
-        const publishedMatch = xmlText.match(/<entry>[\s\S]*?<published>(.*?)<\/published>/);
+            if (videoIdMatch && videoIdMatch[1]) {
+              videoId = videoIdMatch[1];
+              videoTitle = titleMatch ? titleMatch[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'") : 'Sin Título';
+              videoPublishedAt = publishedMatch && publishedMatch[1] ? publishedMatch[1] : new Date().toISOString();
+            }
+          }
+        } catch (e) {
+          // RSS failed
+        }
 
-        if (!videoIdMatch || !videoIdMatch[1]) continue;
+        // 2. Fallback con ytSearch si RSS falló
+        if (!videoId) {
+          try {
+            const searchRes = await ytSearch(channel.channel_name);
+            if (searchRes && searchRes.videos && searchRes.videos.length > 0) {
+              const topVid = searchRes.videos[0];
+              videoId = topVid.videoId;
+              videoTitle = topVid.title;
+            }
+          } catch (e) {
+            // ytSearch failed
+          }
+        }
 
-        const videoId = videoIdMatch[1];
-        const videoTitle = titleMatch ? titleMatch[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'") : 'Sin Título';
-        const videoPublishedAt = publishedMatch && publishedMatch[1] ? publishedMatch[1] : new Date().toISOString();
+        if (!videoId) {
+          skippedCount++;
+          continue;
+        }
 
         // Check if video already exists
         const { data: existingVideo } = await supabase
