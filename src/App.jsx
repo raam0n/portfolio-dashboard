@@ -865,6 +865,51 @@ function sanitizeStatsForStorage(statsObj) {
   return cleanObj;
 }
 
+function calculatePortfolioFlujos(flujosList, currentMep) {
+  let totalIngresosUSD = 0;
+  let totalExtraccionesUSD = 0;
+  let totalIngresosARS = 0;
+  let totalExtraccionesARS = 0;
+
+  const mep = currentMep || 1;
+
+  (flujosList || []).forEach(f => {
+    const fMonto = parseFloat(f.monto) || 0;
+    const fCotiz = parseFloat(f.cotizacion) || mep;
+
+    let usdVal = fMonto;
+    let arsVal = fMonto;
+
+    if (f.moneda === 'ARS') {
+      usdVal = fMonto / fCotiz;
+      arsVal = fMonto;
+    } else {
+      usdVal = fMonto;
+      arsVal = fMonto * fCotiz;
+    }
+
+    if (f.tipo === 'ingreso') {
+      totalIngresosUSD += usdVal;
+      totalIngresosARS += arsVal;
+    } else {
+      totalExtraccionesUSD += usdVal;
+      totalExtraccionesARS += arsVal;
+    }
+  });
+
+  const netFondeoUSD = totalIngresosUSD - totalExtraccionesUSD;
+  const netFondeoARS = totalIngresosARS - totalExtraccionesARS;
+
+  return {
+    totalIngresosUSD,
+    totalExtraccionesUSD,
+    netFondeoUSD,
+    totalIngresosARS,
+    totalExtraccionesARS,
+    netFondeoARS
+  };
+}
+
 // --- MIGRATION TO PORTFOLIO NAMES AS IDS ---
 function migratePortfoliosToNames() {
   try {
@@ -2385,11 +2430,30 @@ function App() {
   const totalCosto = totalCostoARS;
   const totalDailyChange = totalDailyChangeARS;
 
-  const pnlT = totalValor - totalCosto;
-  const pnlTP = totalCosto > 0 ? (pnlT / totalCosto) * 100 : 0;
+  // 1. P&L Posición (Resultado de tenencias abiertas respecto al costo)
+  const pnlPosicion = totalValor - totalCosto;
+  const pnlPosicionPct = totalCosto > 0 ? (pnlPosicion / totalCosto) * 100 : 0;
 
-  const pnlTUSD = totalValorUSD - totalCostoUSD;
-  const pnlTPUSD = totalCostoUSD > 0 ? (pnlTUSD / totalCostoUSD) * 100 : 0;
+  const pnlPosicionUSD = totalValorUSD - totalCostoUSD;
+  const pnlPosicionPctUSD = totalCostoUSD > 0 ? (pnlPosicionUSD / totalCostoUSD) * 100 : 0;
+
+  // 2. P&L Total (Resultado real considerando Flujos de Caja / Fondeo Neto)
+  const currentFlujosData = calculatePortfolioFlujos(flujos, dolarMep);
+  const hasFlujos = flujos && flujos.length > 0;
+
+  const pnlT = hasFlujos
+    ? (totalValorARS + currentFlujosData.totalExtraccionesARS - currentFlujosData.totalIngresosARS)
+    : pnlPosicion;
+  const pnlTP = hasFlujos && currentFlujosData.netFondeoARS > 0
+    ? (pnlT / currentFlujosData.netFondeoARS) * 100
+    : pnlPosicionPct;
+
+  const pnlTUSD = hasFlujos
+    ? (totalValorUSD + currentFlujosData.totalExtraccionesUSD - currentFlujosData.totalIngresosUSD)
+    : pnlPosicionUSD;
+  const pnlTPUSD = hasFlujos && currentFlujosData.netFondeoUSD > 0
+    ? (pnlTUSD / currentFlujosData.netFondeoUSD) * 100
+    : pnlPosicionPctUSD;
 
   const totalPreviousValor = totalValor - totalDailyChange;
   const totalDailyChangePct = (totalPreviousValor > 0 && totalValor > 0)
@@ -2797,19 +2861,25 @@ function App() {
               </div>
             </div>
             <div className="glass-panel metric-card">
-              <div className="metric-label">Ganancia/Pérdida Total</div>
+              <div className="metric-label">P&L Total (Fondeo Neto)</div>
               <div className="metric-value">
                 <span className={holdings.length === 0 ? '' : (pnlT >= 0 ? 'positive' : 'negative')}>
-                  {holdings.length > 0 ? `${pnlT >= 0 ? '+$' : '-$'}${fmt(Math.abs(pnlT))}` : '—'}
+                  {holdings.length > 0 ? (currencyMode === 'ARS' ? `${pnlT >= 0 ? '+$' : '-$'}${fmt(Math.abs(pnlT))}` : `${pnlTUSD >= 0 ? '+US$ ' : '-US$ '}${fmt(Math.abs(pnlTUSD))}`) : '—'}
                 </span>
                 {holdings.length > 0 && (
-                  <span className={pnlTP >= 0 ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '500', marginLeft: '4px' }}>
-                    ({fmtPct(pnlTP)})
+                  <span className={(currencyMode === 'ARS' ? pnlTP : pnlTPUSD) >= 0 ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '500', marginLeft: '4px' }}>
+                    ({fmtPct(currencyMode === 'ARS' ? pnlTP : pnlTPUSD)})
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 'auto' }}>
-                Rendimiento histórico acumulado
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div>
+                  P&L Posición Actual: <span className={(currencyMode === 'ARS' ? pnlPosicion : pnlPosicionUSD) >= 0 ? 'positive' : 'negative'} style={{ fontWeight: '600' }}>
+                    {currencyMode === 'ARS'
+                      ? `${pnlPosicion >= 0 ? '+$' : '-$'}${fmt(Math.abs(pnlPosicion))} (${fmtPct(pnlPosicionPct)})`
+                      : `${pnlPosicionUSD >= 0 ? '+US$ ' : '-US$ '}${fmt(Math.abs(pnlPosicionUSD))} (${fmtPct(pnlPosicionPctUSD)})`}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -3217,9 +3287,28 @@ function App() {
             }
           });
 
-          const pnlARS = totalValARS - totalCostARS;
-          const pnlUSD = totalValUSD - totalCostUSD;
-          const pnlPct = totalCostUSD > 0 ? (pnlUSD / totalCostUSD) * 100 : 0;
+          const pFlujos = allFlujos[p.id] || [];
+          const flujoData = calculatePortfolioFlujos(pFlujos, dolarMep);
+          const hasPFlujos = pFlujos.length > 0;
+
+          const pnlPosicionARS = totalValARS - totalCostARS;
+          const pnlPosicionUSD = totalValUSD - totalCostUSD;
+          const pnlPosicionPctARS = totalCostARS > 0 ? (pnlPosicionARS / totalCostARS) * 100 : 0;
+          const pnlPosicionPctUSD = totalCostUSD > 0 ? (pnlPosicionUSD / totalCostUSD) * 100 : 0;
+
+          const pnlTotalFlujosARS = hasPFlujos
+            ? (totalValARS + flujoData.totalExtraccionesARS - flujoData.totalIngresosARS)
+            : pnlPosicionARS;
+          const pnlTotalFlujosPctARS = hasPFlujos && flujoData.netFondeoARS > 0
+            ? (pnlTotalFlujosARS / flujoData.netFondeoARS) * 100
+            : pnlPosicionPctARS;
+
+          const pnlTotalFlujosUSD = hasPFlujos
+            ? (totalValUSD + flujoData.totalExtraccionesUSD - flujoData.totalIngresosUSD)
+            : pnlPosicionUSD;
+          const pnlTotalFlujosPctUSD = hasPFlujos && flujoData.netFondeoUSD > 0
+            ? (pnlTotalFlujosUSD / flujoData.netFondeoUSD) * 100
+            : pnlPosicionPctUSD;
 
           const prevValUSD = totalValUSD - totalDailyUSD;
           const dailyPct = prevValUSD > 0 ? (totalDailyUSD / prevValUSD) * 100 : 0;
@@ -3233,9 +3322,12 @@ function App() {
             dailyARS: totalDailyARS,
             dailyUSD: totalDailyUSD,
             dailyPct,
-            pnlARS,
-            pnlUSD,
-            pnlPct
+            pnlTotalARS: pnlTotalFlujosARS,
+            pnlTotalUSD: pnlTotalFlujosUSD,
+            pnlTotalPct: currencyMode === 'ARS' ? pnlTotalFlujosPctARS : pnlTotalFlujosPctUSD,
+            pnlPosicionARS,
+            pnlPosicionUSD,
+            pnlPosicionPct: currencyMode === 'ARS' ? pnlPosicionPctARS : pnlPosicionPctUSD
           };
         });
 
@@ -3264,8 +3356,8 @@ function App() {
                     <th>Valor Total ({currencyMode})</th>
                     <th>Variación Diaria ($)</th>
                     <th>Variación Diaria (%)</th>
-                    <th>P&L Total ($)</th>
-                    <th>P&L Total (%)</th>
+                    <th>P&L Total (Fondeo)</th>
+                    <th>P&L Posición (Tenencias)</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -3274,10 +3366,12 @@ function App() {
                     const isSelected = ps.id === currentPortfolioId;
                     const displayVal = currencyMode === 'ARS' ? ps.valARS : ps.valUSD;
                     const displayDaily = currencyMode === 'ARS' ? ps.dailyARS : ps.dailyUSD;
-                    const displayPnl = currencyMode === 'ARS' ? ps.pnlARS : ps.pnlUSD;
+                    const displayPnlTotal = currencyMode === 'ARS' ? ps.pnlTotalARS : ps.pnlTotalUSD;
+                    const displayPnlPos = currencyMode === 'ARS' ? ps.pnlPosicionARS : ps.pnlPosicionUSD;
 
                     const cssDaily = ps.activosCount === 0 ? '' : (displayDaily >= 0 ? 'positive' : 'negative');
-                    const cssPnl = ps.activosCount === 0 ? '' : (displayPnl >= 0 ? 'positive' : 'negative');
+                    const cssPnlTotal = ps.activosCount === 0 ? '' : (displayPnlTotal >= 0 ? 'positive' : 'negative');
+                    const cssPnlPos = ps.activosCount === 0 ? '' : (displayPnlPos >= 0 ? 'positive' : 'negative');
 
                     return (
                       <tr key={ps.id} style={{ background: isSelected ? 'rgba(99, 102, 241, 0.08)' : 'transparent' }}>
@@ -3290,8 +3384,22 @@ function App() {
                         <td><strong>{ps.activosCount > 0 ? (currencyMode === 'ARS' ? `$${fmt(displayVal)}` : `US$ ${fmt(displayVal)}`) : '—'}</strong></td>
                         <td className={cssDaily}>{ps.activosCount > 0 ? `${displayDaily >= 0 ? '+' : ''}${currencyMode === 'ARS' ? `$${fmt(displayDaily)}` : `US$ ${fmt(displayDaily)}`}` : '—'}</td>
                         <td>{ps.activosCount > 0 ? <span className={`badge ${displayDaily >= 0 ? 'badge-compra' : 'badge-venta'}`}>{fmtPct(ps.dailyPct)}</span> : '—'}</td>
-                        <td className={cssPnl}>{ps.activosCount > 0 ? `${displayPnl >= 0 ? '+' : ''}${currencyMode === 'ARS' ? `$${fmt(displayPnl)}` : `US$ ${fmt(displayPnl)}`}` : '—'}</td>
-                        <td>{ps.activosCount > 0 ? <span className={`badge ${displayPnl >= 0 ? 'badge-compra' : 'badge-venta'}`}>{fmtPct(ps.pnlPct)}</span> : '—'}</td>
+                        <td className={cssPnlTotal}>
+                          {ps.activosCount > 0 ? (
+                            <div>
+                              <div>{displayPnlTotal >= 0 ? '+' : ''}{currencyMode === 'ARS' ? `$${fmt(displayPnlTotal)}` : `US$ ${fmt(displayPnlTotal)}`}</div>
+                              <span className={`badge ${displayPnlTotal >= 0 ? 'badge-compra' : 'badge-venta'}`} style={{ fontSize: '11px', marginTop: '2px' }}>{fmtPct(ps.pnlTotalPct)}</span>
+                            </div>
+                          ) : '—'}
+                        </td>
+                        <td className={cssPnlPos}>
+                          {ps.activosCount > 0 ? (
+                            <div>
+                              <div>{displayPnlPos >= 0 ? '+' : ''}{currencyMode === 'ARS' ? `$${fmt(displayPnlPos)}` : `US$ ${fmt(displayPnlPos)}`}</div>
+                              <span className={`badge ${displayPnlPos >= 0 ? 'badge-compra' : 'badge-venta'}`} style={{ fontSize: '11px', marginTop: '2px' }}>{fmtPct(ps.pnlPosicionPct)}</span>
+                            </div>
+                          ) : '—'}
+                        </td>
                         <td>
                           <button
                             className="btn btn-sm btn-primary"
@@ -3321,16 +3429,16 @@ function App() {
                     <div key={ps.id}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                         <span style={{ fontWeight: '600' }}>{ps.name}</span>
-                        <span className={ps.pnlPct >= 0 ? 'positive' : 'negative'} style={{ fontWeight: '700' }}>
-                          {ps.activosCount > 0 ? fmtPct(ps.pnlPct) : 'Sin activos'}
+                        <span className={ps.pnlTotalPct >= 0 ? 'positive' : 'negative'} style={{ fontWeight: '700' }}>
+                          {ps.activosCount > 0 ? fmtPct(ps.pnlTotalPct) : 'Sin activos'}
                         </span>
                       </div>
                       <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
                         <div
                           style={{
-                            width: ps.activosCount > 0 ? `${Math.min(Math.max(Math.abs(ps.pnlPct) * 2, 6), 100)}%` : '0%',
+                            width: ps.activosCount > 0 ? `${Math.min(Math.max(Math.abs(ps.pnlTotalPct) * 2, 6), 100)}%` : '0%',
                             height: '100%',
-                            background: ps.pnlPct >= 0 ? '#10b981' : '#ef4444',
+                            background: ps.pnlTotalPct >= 0 ? '#10b981' : '#ef4444',
                             borderRadius: '4px',
                             transition: 'width 0.3s'
                           }}
