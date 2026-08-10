@@ -1092,6 +1092,7 @@ function App() {
   const [searchCompraQuery, setSearchCompraQuery] = useState('');
   const [searchVentaQuery, setSearchVentaQuery] = useState('');
   const [searchTrades, setSearchTrades] = useState('');
+  const [tradesSortOrder, setTradesSortOrder] = useState('dateDesc');
   const [editingTradeId, setEditingTradeId] = useState(null);
   const [expandedTradeIds, setExpandedTradeIds] = useState([]);
   const [evalNombre, setEvalNombre] = useState('');
@@ -4383,30 +4384,48 @@ function App() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
               <div className="panel-title" style={{ margin: 0 }}>Operaciones Cerradas (Trades) ({trades.length})</div>
               {trades.length > 0 && (
-                <div style={{ position: 'relative', minWidth: '220px' }}>
-                  <input
-                    type="text"
-                    placeholder="🔍 Buscar trade por ticker o fecha..."
-                    value={searchTrades}
-                    onChange={e => setSearchTrades(e.target.value)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ position: 'relative', minWidth: '220px' }}>
+                    <input
+                      type="text"
+                      placeholder="🔍 Buscar trade por ticker o fecha..."
+                      value={searchTrades}
+                      onChange={e => setSearchTrades(e.target.value)}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        background: 'rgba(0,0,0,0.3)',
+                        border: '1px solid var(--glass-border)',
+                        borderRadius: '6px',
+                        color: '#fff',
+                        width: '100%'
+                      }}
+                    />
+                    {searchTrades && (
+                      <button
+                        onClick={() => setSearchTrades('')}
+                        style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '12px' }}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  <select
+                    value={tradesSortOrder}
+                    onChange={e => setTradesSortOrder(e.target.value)}
                     style={{
-                      padding: '6px 12px',
+                      padding: '6px 10px',
                       fontSize: '12px',
                       background: 'rgba(0,0,0,0.3)',
                       border: '1px solid var(--glass-border)',
                       borderRadius: '6px',
                       color: '#fff',
-                      width: '100%'
+                      cursor: 'pointer'
                     }}
-                  />
-                  {searchTrades && (
-                    <button
-                      onClick={() => setSearchTrades('')}
-                      style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '12px' }}
-                    >
-                      ✕
-                    </button>
-                  )}
+                  >
+                    <option value="dateDesc">📅 Ordenar: 1° Compra ➔ Últ. Venta (Más recientes primero)</option>
+                    <option value="dateAsc">📅 Ordenar: 1° Compra ➔ Últ. Venta (Más antiguos primero)</option>
+                  </select>
                 </div>
               )}
             </div>
@@ -4749,6 +4768,24 @@ function App() {
               const matchCompraFecha = (t.primeraCompraFecha || '').includes(q);
               const matchVentaFecha = (t.ultimaVentaFecha || '').includes(q);
               return matchTicker || matchCompraFecha || matchVentaFecha;
+            });
+
+            // Sort trades by Criterion 1: primeraCompraFecha, Criterion 2: ultimaVentaFecha
+            filteredTrades.sort((a, b) => {
+              const dateA1 = a.primeraCompraFecha || '';
+              const dateB1 = b.primeraCompraFecha || '';
+              const dateA2 = a.ultimaVentaFecha || '';
+              const dateB2 = b.ultimaVentaFecha || '';
+
+              if (tradesSortOrder === 'dateAsc') {
+                const comp1 = dateA1.localeCompare(dateB1);
+                if (comp1 !== 0) return comp1;
+                return dateA2.localeCompare(dateB2);
+              } else {
+                const comp1 = dateB1.localeCompare(dateA1);
+                if (comp1 !== 0) return comp1;
+                return dateB2.localeCompare(dateA2);
+              }
             });
 
             if (filteredTrades.length === 0 && searchTrades) {
