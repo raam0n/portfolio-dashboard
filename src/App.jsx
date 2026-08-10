@@ -42,6 +42,11 @@ const GLOBAL_INDICES = [
   { ticker: 'BTC-USD', name: 'Bitcoin', category: 'macro', desc: 'Referencia principal del mercado de criptoactivos.' },
 ];
 
+const cleanTickerSymbol = (t) => {
+  if (!t) return '';
+  return String(t).trim().toUpperCase().replace(/\.BA$/i, '');
+};
+
 
 const SEED_TICKER_CATALOG = {
   // Acciones Argentina (BCBA)
@@ -2059,7 +2064,15 @@ function App() {
       }
     }
 
-    const ticker = t.ticker || (compras[0] && compras[0].ticker) || t.compraTicker || (ventas[0] && ventas[0].ticker) || 'VARIOS';
+    const allCleanTickers = Array.from(new Set([
+      ...compras.map(c => cleanTickerSymbol(c.ticker)),
+      ...ventas.map(v => cleanTickerSymbol(v.ticker))
+    ])).filter(Boolean);
+
+    let ticker = t.ticker && t.ticker !== 'VARIOS' ? cleanTickerSymbol(t.ticker) : '';
+    if (!ticker) {
+      ticker = allCleanTickers.length === 1 ? allCleanTickers[0] : (allCleanTickers[0] || 'VARIOS');
+    }
 
     const totalCompraQty = compras.reduce((acc, c) => acc + Number(c.cantidad || 0), 0);
     const totalCompraMonto = compras.reduce((acc, c) => acc + (Number(c.cantidad || 0) * Number(c.precio || 0)), 0);
@@ -2180,18 +2193,23 @@ function App() {
       return alert('No se encontraron las operaciones seleccionadas.');
     }
 
-    const tickersInvolved = Array.from(new Set([
+    const rawTickersInvolved = Array.from(new Set([
       ...selectedCompras.map(c => c.ticker),
       ...selectedVentas.map(v => v.ticker)
     ]));
 
-    if (tickersInvolved.length > 1) {
-      if (!window.confirm(`Las operaciones seleccionadas corresponden a distintos activos (${tickersInvolved.join(', ')}). ¿Seguro que querés emparejarlas como un trade?`)) {
+    const cleanTickersInvolved = Array.from(new Set([
+      ...selectedCompras.map(c => cleanTickerSymbol(c.ticker)),
+      ...selectedVentas.map(v => cleanTickerSymbol(v.ticker))
+    ]));
+
+    if (cleanTickersInvolved.length > 1) {
+      if (!window.confirm(`Las operaciones seleccionadas corresponden a distintos activos (${rawTickersInvolved.join(', ')}). ¿Seguro que querés emparejarlas como un trade?`)) {
         return;
       }
     }
 
-    const tradeTicker = tickersInvolved.length === 1 ? tickersInvolved[0] : (tradeTickerFilter || 'VARIOS');
+    const tradeTicker = cleanTickersInvolved.length === 1 ? cleanTickersInvolved[0] : (tradeTickerFilter ? cleanTickerSymbol(tradeTickerFilter) : 'VARIOS');
 
     const tradeData = {
       id: editingTradeId || Date.now().toString(),
@@ -4458,15 +4476,15 @@ function App() {
             const allSellOps = operaciones.filter(o => o.tipo === 'venta').sort((a, b) => b.fecha.localeCompare(a.fecha));
 
             // Extract unique tickers from operations for quick filter
-            const availableTickers = Array.from(new Set(operaciones.map(o => o.ticker.replace(/\.BA$/i, '')))).sort();
+            const availableTickers = Array.from(new Set(operaciones.map(o => cleanTickerSymbol(o.ticker)))).sort();
 
             // Filter buy ops by ticker filter and search input
             const filteredBuyOps = allBuyOps.filter(o => {
-              const cleanTicker = o.ticker.replace(/\.BA$/i, '');
-              if (tradeTickerFilter && cleanTicker.toLowerCase() !== tradeTickerFilter.toLowerCase()) return false;
+              const cleanTicker = cleanTickerSymbol(o.ticker);
+              if (tradeTickerFilter && cleanTicker !== cleanTickerSymbol(tradeTickerFilter)) return false;
               if (searchCompraQuery) {
                 const q = searchCompraQuery.toLowerCase();
-                const matchTicker = cleanTicker.toLowerCase().includes(q);
+                const matchTicker = cleanTicker.toLowerCase().includes(q) || o.ticker.toLowerCase().includes(q);
                 const matchFecha = o.fecha.includes(q);
                 const matchPrecio = o.precio.toString().includes(q);
                 const matchCant = o.cantidad.toString().includes(q);
@@ -4477,11 +4495,11 @@ function App() {
 
             // Filter sell ops by ticker filter and search input
             const filteredSellOps = allSellOps.filter(o => {
-              const cleanTicker = o.ticker.replace(/\.BA$/i, '');
-              if (tradeTickerFilter && cleanTicker.toLowerCase() !== tradeTickerFilter.toLowerCase()) return false;
+              const cleanTicker = cleanTickerSymbol(o.ticker);
+              if (tradeTickerFilter && cleanTicker !== cleanTickerSymbol(tradeTickerFilter)) return false;
               if (searchVentaQuery) {
                 const q = searchVentaQuery.toLowerCase();
-                const matchTicker = cleanTicker.toLowerCase().includes(q);
+                const matchTicker = cleanTicker.toLowerCase().includes(q) || o.ticker.toLowerCase().includes(q);
                 const matchFecha = o.fecha.includes(q);
                 const matchPrecio = o.precio.toString().includes(q);
                 const matchCant = o.cantidad.toString().includes(q);
