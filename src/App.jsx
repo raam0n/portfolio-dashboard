@@ -1081,6 +1081,14 @@ function App() {
   // Trade & Evaluation form state
   const [tradeCompraId, setTradeCompraId] = useState('');
   const [tradeVentaId, setTradeVentaId] = useState('');
+  const [tradeSelectedCompraIds, setTradeSelectedCompraIds] = useState([]);
+  const [tradeSelectedVentaIds, setTradeSelectedVentaIds] = useState([]);
+  const [tradeTickerFilter, setTradeTickerFilter] = useState('');
+  const [searchCompraQuery, setSearchCompraQuery] = useState('');
+  const [searchVentaQuery, setSearchVentaQuery] = useState('');
+  const [searchTrades, setSearchTrades] = useState('');
+  const [editingTradeId, setEditingTradeId] = useState(null);
+  const [expandedTradeIds, setExpandedTradeIds] = useState([]);
   const [evalNombre, setEvalNombre] = useState('');
   const [evalFecha, setEvalFecha] = useState('');
   const [evalNotas, setEvalNotas] = useState('');
@@ -1513,7 +1521,7 @@ function App() {
       if (scope === 'all') {
         const allHoldingsList = Object.values(allHoldings || {}).flat().filter(Boolean);
         const allOpsList = Object.values(allOperaciones || {}).flat().filter(Boolean).map(op => ({ ticker: op.ticker, tipo: op.assetTipo || 'accion' }));
-        const allTradesList = Object.values(allTrades || {}).flat().filter(Boolean).map(t => ({ ticker: t.ticker, tipo: t.tipo || 'accion' }));
+        const allTradesList = Object.values(allTrades || {}).flat().filter(Boolean).map(t => ({ ticker: t.ticker || t.compraTicker, tipo: t.tipo || 'accion' }));
         trackedItems = [...allHoldingsList, ...watchlist, ...allOpsList, ...allTradesList];
       } else {
         if (activeTab === 'watchlist') {
@@ -1523,7 +1531,7 @@ function App() {
         } else if (activeTab === 'operaciones') {
           trackedItems = [...holdings, ...operaciones.map(op => ({ ticker: op.ticker, tipo: op.assetTipo || 'accion' }))];
         } else if (activeTab === 'trades') {
-          trackedItems = [...holdings, ...trades.map(t => ({ ticker: t.ticker, tipo: t.tipo || 'accion' }))];
+          trackedItems = [...holdings, ...trades.map(t => ({ ticker: t.ticker || t.compraTicker, tipo: t.tipo || 'accion' }))];
         } else {
           trackedItems = holdings;
         }
@@ -2021,38 +2029,203 @@ function App() {
   };
 
   // --- TRADES BUSINESS LOGIC ---
-  const agregarTrade = () => {
-    const opCompra = operaciones.find(o => o.id === tradeCompraId);
-    const opVenta = operaciones.find(o => o.id === tradeVentaId);
-    if (!opCompra || !opVenta) return alert('Seleccioná una operación de compra y una de venta.');
-    if (opCompra.ticker !== opVenta.ticker) {
-      if (!window.confirm('La compra y la venta son de activos distintos. ¿Seguro que querés emparejarlos como un trade?')) {
+  const normalizeTrade = (t) => {
+    if (!t) return null;
+
+    let compras = [];
+    let ventas = [];
+
+    if (Array.isArray(t.compras) && Array.isArray(t.ventas)) {
+      compras = t.compras;
+      ventas = t.ventas;
+    } else {
+      if (t.compraOpId || t.compraPrecio) {
+        compras.push({
+          id: t.compraOpId || 'legacy-compra',
+          ticker: t.compraTicker || t.ticker,
+          cantidad: Number(t.compraCantidad || 0),
+          precio: Number(t.compraPrecio || 0),
+          fecha: t.compraFecha
+        });
+      }
+      if (t.ventaOpId || t.ventaPrecio) {
+        ventas.push({
+          id: t.ventaOpId || 'legacy-venta',
+          ticker: t.ventaTicker || t.ticker || t.compraTicker,
+          cantidad: Number(t.ventaCantidad || 0),
+          precio: Number(t.ventaPrecio || 0),
+          fecha: t.ventaFecha
+        });
+      }
+    }
+
+    const ticker = t.ticker || (compras[0] && compras[0].ticker) || t.compraTicker || (ventas[0] && ventas[0].ticker) || 'VARIOS';
+
+    const totalCompraQty = compras.reduce((acc, c) => acc + Number(c.cantidad || 0), 0);
+    const totalCompraMonto = compras.reduce((acc, c) => acc + (Number(c.cantidad || 0) * Number(c.precio || 0)), 0);
+    const avgCompraPrecio = totalCompraQty > 0 ? totalCompraMonto / totalCompraQty : 0;
+    const compraFechas = compras.map(c => c.fecha).filter(Boolean).sort();
+    const primeraCompraFecha = compraFechas[0] || t.compraFecha || '';
+
+    const totalVentaQty = ventas.reduce((acc, v) => acc + Number(v.cantidad || 0), 0);
+    const totalVentaMonto = ventas.reduce((acc, v) => acc + (Number(v.cantidad || 0) * Number(v.precio || 0)), 0);
+    const avgVentaPrecio = totalVentaQty > 0 ? totalVentaMonto / totalVentaQty : 0;
+    const ventaFechas = ventas.map(v => v.fecha).filter(Boolean).sort();
+    const ultimaVentaFecha = ventaFechas[ventaFechas.length - 1] || t.ventaFecha || '';
+
+    const matchedQty = Math.min(totalCompraQty, totalVentaQty);
+    const montoCompraOperado = avgCompraPrecio * matchedQty;
+    const montoVentaOperado = avgVentaPrecio * matchedQty;
+    const pnlNominal = montoVentaOperado - montoCompraOperado;
+    const pnlPct = montoCompraOperado > 0 ? (pnlNominal / montoCompraOperado) * 100 : 0;
+
+    return {
+      ...t,
+      id: t.id,
+      ticker,
+      compras,
+      ventas,
+      totalCompraQty,
+      totalCompraMonto,
+      avgCompraPrecio,
+      primeraCompraFecha,
+      totalVentaQty,
+      totalVentaMonto,
+      avgVentaPrecio,
+      ultimaVentaFecha,
+      matchedQty,
+      montoCompraOperado,
+      montoVentaOperado,
+      pnlNominal,
+      pnlPct,
+      compraFecha: primeraCompraFecha,
+      ventaFecha: ultimaVentaFecha,
+      compraTicker: ticker,
+      ventaTicker: ticker,
+      compraPrecio: avgCompraPrecio,
+      ventaPrecio: avgVentaPrecio,
+      compraCantidad: totalCompraQty,
+      ventaCantidad: totalVentaQty
+    };
+  };
+
+  const abrirNuevoTradeModal = () => {
+    setEditingTradeId(null);
+    setTradeSelectedCompraIds([]);
+    setTradeSelectedVentaIds([]);
+    setTradeTickerFilter('');
+    setSearchCompraQuery('');
+    setSearchVentaQuery('');
+    setShowAddTrade(true);
+  };
+
+  const editarTrade = (tradeId) => {
+    const rawTrade = trades.find(t => t.id === tradeId);
+    if (!rawTrade) return;
+    const t = normalizeTrade(rawTrade);
+    setEditingTradeId(t.id);
+    setTradeSelectedCompraIds(t.compras.map(c => c.id));
+    setTradeSelectedVentaIds(t.ventas.map(v => v.id));
+    setTradeTickerFilter(t.ticker !== 'VARIOS' ? t.ticker : '');
+    setSearchCompraQuery('');
+    setSearchVentaQuery('');
+    setShowAddTrade(true);
+  };
+
+  const toggleSelectCompraForTrade = (id) => {
+    setTradeSelectedCompraIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectVentaForTrade = (id) => {
+    setTradeSelectedVentaIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const guardarTrade = () => {
+    let finalCompraIds = [...tradeSelectedCompraIds];
+    let finalVentaIds = [...tradeSelectedVentaIds];
+    if (finalCompraIds.length === 0 && tradeCompraId) finalCompraIds.push(tradeCompraId);
+    if (finalVentaIds.length === 0 && tradeVentaId) finalVentaIds.push(tradeVentaId);
+
+    if (finalCompraIds.length === 0 || finalVentaIds.length === 0) {
+      return alert('Seleccioná al menos una operación de compra y una de venta.');
+    }
+
+    const selectedCompras = finalCompraIds
+      .map(id => operaciones.find(o => o.id === id))
+      .filter(Boolean)
+      .map(o => ({
+        id: o.id,
+        ticker: o.ticker,
+        cantidad: o.cantidad,
+        precio: o.precio,
+        fecha: o.fecha
+      }));
+
+    const selectedVentas = finalVentaIds
+      .map(id => operaciones.find(o => o.id === id))
+      .filter(Boolean)
+      .map(o => ({
+        id: o.id,
+        ticker: o.ticker,
+        cantidad: o.cantidad,
+        precio: o.precio,
+        fecha: o.fecha
+      }));
+
+    if (selectedCompras.length === 0 || selectedVentas.length === 0) {
+      return alert('No se encontraron las operaciones seleccionadas.');
+    }
+
+    const tickersInvolved = Array.from(new Set([
+      ...selectedCompras.map(c => c.ticker),
+      ...selectedVentas.map(v => v.ticker)
+    ]));
+
+    if (tickersInvolved.length > 1) {
+      if (!window.confirm(`Las operaciones seleccionadas corresponden a distintos activos (${tickersInvolved.join(', ')}). ¿Seguro que querés emparejarlas como un trade?`)) {
         return;
       }
     }
 
-    const trade = {
-      id: Date.now().toString(),
-      compraOpId: opCompra.id,
-      compraTicker: opCompra.ticker,
-      compraCantidad: opCompra.cantidad,
-      compraPrecio: opCompra.precio,
-      compraFecha: opCompra.fecha,
-      ventaOpId: opVenta.id,
-      ventaTicker: opVenta.ticker,
-      ventaCantidad: opVenta.cantidad,
-      ventaPrecio: opVenta.precio,
-      ventaFecha: opVenta.fecha,
+    const tradeTicker = tickersInvolved.length === 1 ? tickersInvolved[0] : (tradeTickerFilter || 'VARIOS');
+
+    const tradeData = {
+      id: editingTradeId || Date.now().toString(),
+      ticker: tradeTicker,
+      compras: selectedCompras,
+      ventas: selectedVentas,
+      createdAt: new Date().toISOString()
     };
-    setTrades([trade, ...trades]);
+
+    if (editingTradeId) {
+      setTrades(trades.map(t => t.id === editingTradeId ? tradeData : t));
+    } else {
+      setTrades([tradeData, ...trades]);
+    }
+
+    setShowAddTrade(false);
+    setEditingTradeId(null);
+    setTradeSelectedCompraIds([]);
+    setTradeSelectedVentaIds([]);
     setTradeCompraId('');
     setTradeVentaId('');
-    setShowAddTrade(false);
   };
+
+  const agregarTrade = guardarTrade;
 
   const eliminarTrade = (id) => {
     if (!window.confirm('¿Eliminar este trade cerrado?')) return;
     setTrades(trades.filter(t => t.id !== id));
+  };
+
+  const toggleExpandedTrade = (id) => {
+    setExpandedTradeIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   };
 
   // --- EVALUATIONS BUSINESS LOGIC (GROUPED ROTATIONS) ---
@@ -4188,9 +4361,38 @@ function App() {
       {/* --- TAB 4: TRADES --- */}
       {activeTab === 'trades' && (
         <div className="glass-panel">
-          <div className="panel-header">
-            <div className="panel-title">Operaciones Cerradas (Trades) ({trades.length})</div>
-            <button className="btn btn-primary btn-sm" onClick={() => setShowAddTrade(!showAddTrade)}>+ Agregar Trade</button>
+          <div className="panel-header" style={{ flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
+              <div className="panel-title" style={{ margin: 0 }}>Operaciones Cerradas (Trades) ({trades.length})</div>
+              {trades.length > 0 && (
+                <div style={{ position: 'relative', minWidth: '220px' }}>
+                  <input
+                    type="text"
+                    placeholder="🔍 Buscar trade por ticker o fecha..."
+                    value={searchTrades}
+                    onChange={e => setSearchTrades(e.target.value)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: '6px',
+                      color: '#fff',
+                      width: '100%'
+                    }}
+                  />
+                  {searchTrades && (
+                    <button
+                      onClick={() => setSearchTrades('')}
+                      style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '12px' }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={abrirNuevoTradeModal}>+ Registrar Trade Cerrado</button>
           </div>
 
           {/* Metrics Summary Bar */}
@@ -4200,13 +4402,13 @@ function App() {
             let wins = 0;
             let totalProfit = 0;
 
-            trades.forEach(t => {
-              const qty = Math.min(t.compraCantidad, t.ventaCantidad);
-              const diff = (t.ventaPrecio - t.compraPrecio) * qty;
-              totalProfit += diff;
-              if (diff >= 0) wins++;
+            const normalizedTrades = trades.map(t => normalizeTrade(t)).filter(Boolean);
 
-              const dur = getTradeDays(t.compraFecha, t.ventaFecha);
+            normalizedTrades.forEach(t => {
+              totalProfit += t.pnlNominal;
+              if (t.pnlNominal >= 0) wins++;
+
+              const dur = getTradeDays(t.primeraCompraFecha, t.ultimaVentaFecha);
               if (dur && dur.days >= 0) {
                 totalDays += dur.days;
                 validCount++;
@@ -4214,13 +4416,13 @@ function App() {
             });
 
             const avgDays = validCount > 0 ? Math.round(totalDays / validCount) : 0;
-            const winRate = ((wins / trades.length) * 100).toFixed(0);
+            const winRate = ((wins / normalizedTrades.length) * 100).toFixed(0);
 
             return (
               <div className="metrics-grid" style={{ marginBottom: '1.25rem', marginTop: '0.5rem' }}>
                 <div className="metric-card">
                   <div className="metric-label">Trades Cerrados</div>
-                  <div className="metric-value">{trades.length}</div>
+                  <div className="metric-value">{normalizedTrades.length}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Operaciones emparejadas</div>
                 </div>
                 <div className="metric-card">
@@ -4232,10 +4434,10 @@ function App() {
                 </div>
                 <div className="metric-card">
                   <div className="metric-label">Tasa de Acierto (Win Rate)</div>
-                  <div className="metric-value" style={{ color: winRate >= 50 ? 'var(--success)' : 'var(--danger)' }}>
+                  <div className="metric-value" style={{ color: Number(winRate) >= 50 ? 'var(--success)' : 'var(--danger)' }}>
                     {winRate}%
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{wins} ganadores de {trades.length}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{wins} ganadores de {normalizedTrades.length}</div>
                 </div>
                 <div className="metric-card">
                   <div className="metric-label">P&L Total Cerrado</div>
@@ -4250,152 +4452,445 @@ function App() {
             );
           })()}
 
-          {/* Add Trade Form */}
-          {showAddTrade && (
-            <div className="collapsible-content active">
-              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Registrar Trade Cerrado</div>
-              {operaciones.length < 2 ? (
-                <div className="empty-state" style={{ padding: '1rem' }}>
-                  Necesitás al menos dos operaciones registradas en el Histórico para crear un análisis.
-                </div>
-              ) : (
-                <>
-                  <div className="form-row">
-                    <div>
-                      <label>Operación de Compra (Entrada)</label>
-                      <select value={tradeCompraId} onChange={e => setTradeCompraId(e.target.value)}>
-                        <option value="">— Seleccioná una compra —</option>
-                        {operaciones.filter(o => o.tipo === 'compra').sort((a, b) => b.fecha.localeCompare(a.fecha)).map(o => (
-                          <option key={o.id} value={o.id}>
-                            {o.fecha} · {o.ticker} · Compra {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label>Operación de Venta (Salida)</label>
-                      <select value={tradeVentaId} onChange={e => setTradeVentaId(e.target.value)}>
-                        <option value="">— Seleccioná una venta —</option>
-                        {operaciones.filter(o => o.tipo === 'venta').sort((a, b) => b.fecha.localeCompare(a.fecha)).map(o => (
-                          <option key={o.id} value={o.id}>
-                            {o.fecha} · {o.ticker} · Venta {fmt(o.cantidad, 0)} @ ${fmt(o.precio)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+          {/* Add / Edit Trade Form */}
+          {showAddTrade && (() => {
+            const allBuyOps = operaciones.filter(o => o.tipo === 'compra').sort((a, b) => b.fecha.localeCompare(a.fecha));
+            const allSellOps = operaciones.filter(o => o.tipo === 'venta').sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+            // Extract unique tickers from operations for quick filter
+            const availableTickers = Array.from(new Set(operaciones.map(o => o.ticker.replace(/\.BA$/i, '')))).sort();
+
+            // Filter buy ops by ticker filter and search input
+            const filteredBuyOps = allBuyOps.filter(o => {
+              const cleanTicker = o.ticker.replace(/\.BA$/i, '');
+              if (tradeTickerFilter && cleanTicker.toLowerCase() !== tradeTickerFilter.toLowerCase()) return false;
+              if (searchCompraQuery) {
+                const q = searchCompraQuery.toLowerCase();
+                const matchTicker = cleanTicker.toLowerCase().includes(q);
+                const matchFecha = o.fecha.includes(q);
+                const matchPrecio = o.precio.toString().includes(q);
+                const matchCant = o.cantidad.toString().includes(q);
+                return matchTicker || matchFecha || matchPrecio || matchCant;
+              }
+              return true;
+            });
+
+            // Filter sell ops by ticker filter and search input
+            const filteredSellOps = allSellOps.filter(o => {
+              const cleanTicker = o.ticker.replace(/\.BA$/i, '');
+              if (tradeTickerFilter && cleanTicker.toLowerCase() !== tradeTickerFilter.toLowerCase()) return false;
+              if (searchVentaQuery) {
+                const q = searchVentaQuery.toLowerCase();
+                const matchTicker = cleanTicker.toLowerCase().includes(q);
+                const matchFecha = o.fecha.includes(q);
+                const matchPrecio = o.precio.toString().includes(q);
+                const matchCant = o.cantidad.toString().includes(q);
+                return matchTicker || matchFecha || matchPrecio || matchCant;
+              }
+              return true;
+            });
+
+            // Selected objects for calculations
+            const selectedBuyObjects = tradeSelectedCompraIds.map(id => operaciones.find(o => o.id === id)).filter(Boolean);
+            const selectedSellObjects = tradeSelectedVentaIds.map(id => operaciones.find(o => o.id === id)).filter(Boolean);
+
+            const totalBuyQty = selectedBuyObjects.reduce((acc, o) => acc + o.cantidad, 0);
+            const totalBuyMonto = selectedBuyObjects.reduce((acc, o) => acc + (o.cantidad * o.precio), 0);
+            const avgBuyPrice = totalBuyQty > 0 ? totalBuyMonto / totalBuyQty : 0;
+
+            const totalSellQty = selectedSellObjects.reduce((acc, o) => acc + o.cantidad, 0);
+            const totalSellMonto = selectedSellObjects.reduce((acc, o) => acc + (o.cantidad * o.precio), 0);
+            const avgSellPrice = totalSellQty > 0 ? totalSellMonto / totalSellQty : 0;
+
+            const previewMatchedQty = Math.min(totalBuyQty, totalSellQty);
+            const previewBuyMonto = avgBuyPrice * previewMatchedQty;
+            const previewSellMonto = avgSellPrice * previewMatchedQty;
+            const previewDiff = previewSellMonto - previewBuyMonto;
+            const previewPct = previewBuyMonto > 0 ? (previewDiff / previewBuyMonto) * 100 : 0;
+
+            return (
+              <div className="collapsible-content active" style={{ background: 'rgba(0,0,0,0.3)', padding: '1.25rem', borderRadius: '10px', border: '1px solid var(--glass-border)', marginTop: '0.5rem', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <div className="panel-title" style={{ fontSize: '15px', color: 'var(--accent)' }}>
+                    {editingTradeId ? '✏️ Editar Trade Cerrado' : '➕ Registrar Trade Cerrado (Multi-Compra / Multi-Venta)'}
                   </div>
-                  <button className="btn btn-primary" onClick={agregarTrade}>Guardar Trade</button>
-                  <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddTrade(false)}>Cancelar</button>
-                </>
-              )}
-            </div>
-          )}
+                  {/* Ticker Filter Selector */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '600', whiteSpace: 'nowrap' }}>Filtrar por Instrumento:</label>
+                    <select
+                      value={tradeTickerFilter}
+                      onChange={e => setTradeTickerFilter(e.target.value)}
+                      style={{ padding: '5px 10px', fontSize: '12px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff' }}
+                    >
+                      <option value="">— Todos los tickers —</option>
+                      {availableTickers.map(tk => (
+                        <option key={tk} value={tk}>{tk}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {operaciones.length < 2 ? (
+                  <div className="empty-state" style={{ padding: '1rem' }}>
+                    Necesitás al menos dos operaciones registradas en el Histórico para crear un trade.
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1rem' }}>
+                      
+                      {/* COMPRAS PANEL */}
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <label style={{ fontSize: '13px', fontWeight: '600', color: '#60a5fa' }}>
+                            🛒 Compras / Entradas ({tradeSelectedCompraIds.length} selec.)
+                          </label>
+                          {tradeTickerFilter && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const matchingIds = filteredBuyOps.map(o => o.id);
+                                setTradeSelectedCompraIds(prev => Array.from(new Set([...prev, ...matchingIds])));
+                              }}
+                              style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}
+                            >
+                              + Seleccionar todas ({tradeTickerFilter})
+                            </button>
+                          )}
+                        </div>
+
+                        <div style={{ marginBottom: '8px' }}>
+                          <input
+                            type="text"
+                            placeholder="🔍 Buscar compras (ticker, fecha, precio)..."
+                            value={searchCompraQuery}
+                            onChange={e => setSearchCompraQuery(e.target.value)}
+                            style={{ width: '100%', padding: '6px 10px', fontSize: '12px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff' }}
+                          />
+                        </div>
+
+                        {filteredBuyOps.length === 0 ? (
+                          <div className="empty-state" style={{ padding: '0.75rem', fontSize: '12px' }}>No hay compras que coincidan.</div>
+                        ) : (
+                          <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {filteredBuyOps.map(o => {
+                              const isSelected = tradeSelectedCompraIds.includes(o.id);
+                              return (
+                                <div
+                                  key={o.id}
+                                  onClick={() => toggleSelectCompraForTrade(o.id)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '6px 8px',
+                                    background: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.03)',
+                                    border: isSelected ? '1px solid #3b82f6' : '1px solid transparent',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px'
+                                  }}
+                                >
+                                  <input type="checkbox" checked={isSelected} readOnly style={{ cursor: 'pointer' }} />
+                                  <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{o.fecha}</span>
+                                  <strong style={{ color: '#fff' }}>{o.ticker.replace(/\.BA$/i, '')}</strong>
+                                  <span style={{ marginLeft: 'auto', fontWeight: '500' }}>
+                                    {fmt(o.cantidad, 0)} @ ${fmt(o.precio)} = ${fmt(o.cantidad * o.precio)}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Selected Buys Summary */}
+                        {selectedBuyObjects.length > 0 && (
+                          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--glass-border)', fontSize: '12px', color: 'var(--text-muted)' }}>
+                            Promedio Compra: <strong style={{ color: '#fff' }}>${fmt(avgBuyPrice)}</strong> | Cantidad Total: <strong style={{ color: '#fff' }}>{fmt(totalBuyQty, 0)}</strong>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* VENTAS PANEL */}
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <label style={{ fontSize: '13px', fontWeight: '600', color: '#f87171' }}>
+                            🏷️ Ventas / Salidas ({tradeSelectedVentaIds.length} selec.)
+                          </label>
+                          {tradeTickerFilter && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const matchingIds = filteredSellOps.map(o => o.id);
+                                setTradeSelectedVentaIds(prev => Array.from(new Set([...prev, ...matchingIds])));
+                              }}
+                              style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}
+                            >
+                              + Seleccionar todas ({tradeTickerFilter})
+                            </button>
+                          )}
+                        </div>
+
+                        <div style={{ marginBottom: '8px' }}>
+                          <input
+                            type="text"
+                            placeholder="🔍 Buscar ventas (ticker, fecha, precio)..."
+                            value={searchVentaQuery}
+                            onChange={e => setSearchVentaQuery(e.target.value)}
+                            style={{ width: '100%', padding: '6px 10px', fontSize: '12px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff' }}
+                          />
+                        </div>
+
+                        {filteredSellOps.length === 0 ? (
+                          <div className="empty-state" style={{ padding: '0.75rem', fontSize: '12px' }}>No hay ventas que coincidan.</div>
+                        ) : (
+                          <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {filteredSellOps.map(o => {
+                              const isSelected = tradeSelectedVentaIds.includes(o.id);
+                              return (
+                                <div
+                                  key={o.id}
+                                  onClick={() => toggleSelectVentaForTrade(o.id)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '6px 8px',
+                                    background: isSelected ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.03)',
+                                    border: isSelected ? '1px solid #ef4444' : '1px solid transparent',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px'
+                                  }}
+                                >
+                                  <input type="checkbox" checked={isSelected} readOnly style={{ cursor: 'pointer' }} />
+                                  <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{o.fecha}</span>
+                                  <strong style={{ color: '#fff' }}>{o.ticker.replace(/\.BA$/i, '')}</strong>
+                                  <span style={{ marginLeft: 'auto', fontWeight: '500' }}>
+                                    {fmt(o.cantidad, 0)} @ ${fmt(o.precio)} = ${fmt(o.cantidad * o.precio)}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Selected Sells Summary */}
+                        {selectedSellObjects.length > 0 && (
+                          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--glass-border)', fontSize: '12px', color: 'var(--text-muted)' }}>
+                            Promedio Venta: <strong style={{ color: '#fff' }}>${fmt(avgSellPrice)}</strong> | Cantidad Total: <strong style={{ color: '#fff' }}>{fmt(totalSellQty, 0)}</strong>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Live Preview Summary Box */}
+                    {tradeSelectedCompraIds.length > 0 && tradeSelectedVentaIds.length > 0 && (
+                      <div style={{ padding: '12px 16px', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.3)', borderRadius: '8px', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', fontSize: '13px' }}>
+                        <div>
+                          <strong>Previsualización de Posición:</strong>
+                          <div style={{ marginTop: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                            Promedio Compra: <strong>${fmt(avgBuyPrice)}</strong> ({selectedBuyObjects.length} compras) · Promedio Venta: <strong>${fmt(avgSellPrice)}</strong> ({selectedSellObjects.length} ventas)
+                          </div>
+                        </div>
+                        <div>
+                          Resultado Estimado: {' '}
+                          <strong className={previewDiff >= 0 ? 'positive' : 'negative'} style={{ fontSize: '15px' }}>
+                            {fmtPct(previewPct)} ({previewDiff >= 0 ? '+' : '-'}${fmt(Math.abs(previewDiff))})
+                          </strong>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                            ({fmt(previewMatchedQty, 0)} nom. emparejados)
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button className="btn btn-primary" onClick={guardarTrade}>
+                        {editingTradeId ? 'Guardar Cambios' : 'Guardar Trade Cerrado'}
+                      </button>
+                      <button className="btn" onClick={() => { setShowAddTrade(false); setEditingTradeId(null); }}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Trade Cards */}
           {trades.length === 0 && !showAddTrade ? (
             <div className="empty-state">
               Sin operaciones cerradas registradas todavía. Agregá un trade para comenzar.
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
-              {trades.map(trade => {
-                // Calculate PnL based on the quantity sold to match the buy price accurately.
-                const qty = Math.min(trade.compraCantidad, trade.ventaCantidad);
-                const montoCompraOperado = trade.compraPrecio * qty;
-                const montoVentaOperado = trade.ventaPrecio * qty;
+          ) : (() => {
+            const filteredTrades = trades.map(t => normalizeTrade(t)).filter(Boolean).filter(t => {
+              if (!searchTrades) return true;
+              const q = searchTrades.toLowerCase();
+              const matchTicker = (t.ticker || '').toLowerCase().includes(q);
+              const matchCompraFecha = (t.primeraCompraFecha || '').includes(q);
+              const matchVentaFecha = (t.ultimaVentaFecha || '').includes(q);
+              return matchTicker || matchCompraFecha || matchVentaFecha;
+            });
 
-                const nominalDiff = montoVentaOperado - montoCompraOperado;
-                const pctDiff = montoCompraOperado > 0 ? (nominalDiff / montoCompraOperado) * 100 : 0;
-                const isPos = nominalDiff >= 0;
+            if (filteredTrades.length === 0 && searchTrades) {
+              return (
+                <div className="empty-state">
+                  No se encontraron trades cerrados que coincidan con "{searchTrades}".
+                </div>
+              );
+            }
 
-                const duration = getTradeDays(trade.compraFecha, trade.ventaFecha);
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
+                {filteredTrades.map(trade => {
+                  const isPos = trade.pnlNominal >= 0;
+                  const duration = getTradeDays(trade.primeraCompraFecha, trade.ultimaVentaFecha);
 
-                // Annualized return (TNA simple equivalent)
-                let annualizedPct = null;
-                if (duration && duration.days > 0) {
-                  annualizedPct = (pctDiff / duration.days) * 365;
-                }
+                  // Annualized return (TNA simple equivalent)
+                  let annualizedPct = null;
+                  if (duration && duration.days > 0) {
+                    annualizedPct = (trade.pnlPct / duration.days) * 365;
+                  }
 
-                return (
-                  <div key={trade.id} className="glass-panel" style={{ background: 'rgba(0,0,0,0.2)', position: 'relative' }}>
-                    {/* Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '8px' }}>
-                      <div>
-                        <h3 style={{ fontSize: '15px', marginBottom: '4px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                          <span style={{ opacity: 0.7 }}>{trade.compraFecha} → {trade.ventaFecha}</span>
-                          {duration && (
-                            <span style={{ 
-                              padding: '2px 8px', 
-                              borderRadius: '12px', 
-                              fontSize: '11px', 
-                              fontWeight: '600', 
-                              backgroundColor: 'rgba(99, 102, 241, 0.15)', 
-                              color: 'var(--accent)',
-                              border: '1px solid rgba(99, 102, 241, 0.3)'
-                            }}>
-                              ⏱️ {duration.label}
-                            </span>
-                          )}
-                          · Trade Cerrado: <span style={{ color: 'var(--accent)' }}>{trade.compraTicker}</span>
-                          {trade.compraTicker !== trade.ventaTicker && (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-                              (Venta de {trade.ventaTicker})
-                            </span>
-                          )}
-                        </h3>
-                        <p className="hint">
-                          Compra: ${fmt(trade.compraPrecio)} · Venta: ${fmt(trade.ventaPrecio)}
-                        </p>
-                      </div>
-                      <button className="btn btn-sm btn-danger" onClick={() => eliminarTrade(trade.id)} style={{ flexShrink: 0, marginLeft: '12px' }}>✕</button>
-                    </div>
+                  const isExpanded = expandedTradeIds.includes(trade.id);
 
-                    {/* Scenario output */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '14px' }}>
-                      <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  return (
+                    <div key={trade.id} className="glass-panel" style={{ background: 'rgba(0,0,0,0.2)', position: 'relative' }}>
+                      {/* Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '8px' }}>
                         <div>
-                          Compraste a <strong>${fmt(trade.compraPrecio)}</strong> y lo vendiste a <strong>${fmt(trade.ventaPrecio)}</strong>.
-                          {trade.compraCantidad !== trade.ventaCantidad && (
-                            <div className="hint" style={{ marginTop: '4px' }}>
-                              Cantidades originales: Compra {fmt(trade.compraCantidad, 0)} | Venta {fmt(trade.ventaCantidad, 0)}. Cálculo basado en {fmt(qty, 0)} nominales para igualar.
+                          <h3 style={{ fontSize: '15px', marginBottom: '4px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                            <span style={{ opacity: 0.7 }}>{trade.primeraCompraFecha} → {trade.ultimaVentaFecha}</span>
+                            {duration && (
+                              <span style={{ 
+                                padding: '2px 8px', 
+                                borderRadius: '12px', 
+                                fontSize: '11px', 
+                                fontWeight: '600', 
+                                backgroundColor: 'rgba(99, 102, 241, 0.15)', 
+                                color: 'var(--accent)',
+                                border: '1px solid rgba(99, 102, 241, 0.3)'
+                              }}>
+                                ⏱️ {duration.label}
+                              </span>
+                            )}
+                            · Trade Cerrado: <span style={{ color: 'var(--accent)' }}>{trade.ticker}</span>
+                          </h3>
+                          <p className="hint">
+                            Prom. Compra: <strong>${fmt(trade.avgCompraPrecio)}</strong> ({trade.compras.length} {trade.compras.length === 1 ? 'compra' : 'compras'}) · Prom. Venta: <strong>${fmt(trade.avgVentaPrecio)}</strong> ({trade.ventas.length} {trade.ventas.length === 1 ? 'venta' : 'ventas'})
+                          </p>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                          <button className="btn btn-sm" onClick={() => editarTrade(trade.id)} title="Editar Trade" style={{ padding: '4px 8px' }}>
+                            ✏️ Editar
+                          </button>
+                          <button className="btn btn-sm btn-danger" onClick={() => eliminarTrade(trade.id)} title="Eliminar Trade">
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Main Metrics Output */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '14px' }}>
+                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                          <div>
+                            Promedio Compra: <strong>${fmt(trade.avgCompraPrecio)}</strong> ({fmt(trade.totalCompraQty, 0)} nom.)
+                            {' ➔ '}
+                            Promedio Venta: <strong>${fmt(trade.avgVentaPrecio)}</strong> ({fmt(trade.totalVentaQty, 0)} nom.)
+                            {trade.totalCompraQty !== trade.totalVentaQty && (
+                              <div className="hint" style={{ marginTop: '4px' }}>
+                                Total Comprado: {fmt(trade.totalCompraQty, 0)} | Total Vendido: {fmt(trade.totalVentaQty, 0)}. Cálculo basado en {fmt(trade.matchedQty, 0)} nominales emparejados.
+                              </div>
+                            )}
+                          </div>
+                          {duration && (
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '6px' }}>
+                              Duración: <strong style={{ color: '#fff' }}>{duration.label}</strong>
                             </div>
                           )}
                         </div>
-                        {duration && (
-                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '6px' }}>
-                            Duración: <strong style={{ color: '#fff' }}>{duration.label}</strong>
-                          </div>
-                        )}
-                      </div>
 
-                      <div style={{ padding: '16px', background: isPos ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: `1px solid ${isPos ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`, borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                        <div>
-                          Resultado del Trade:{' '}
-                          <strong className={isPos ? 'positive' : 'negative'} style={{ fontSize: '18px' }}>
-                            {fmtPct(pctDiff)} ({isPos ? '+' : '-'}${fmt(Math.abs(nominalDiff))})
-                          </strong>
-                          {dolarMep && (
-                            <span style={{ fontSize: '14px', fontWeight: '400', opacity: 0.8, marginLeft: '10px' }}>
-                              ≈ US$ {fmt(Math.abs(nominalDiff) / dolarMep)}
-                            </span>
+                        <div style={{ padding: '16px', background: isPos ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: `1px solid ${isPos ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`, borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                          <div>
+                            Resultado del Trade:{' '}
+                            <strong className={isPos ? 'positive' : 'negative'} style={{ fontSize: '18px' }}>
+                              {fmtPct(trade.pnlPct)} ({isPos ? '+' : '-'}${fmt(Math.abs(trade.pnlNominal))})
+                            </strong>
+                            {dolarMep && (
+                              <span style={{ fontSize: '14px', fontWeight: '400', opacity: 0.8, marginLeft: '10px' }}>
+                                ≈ US$ {fmt(Math.abs(trade.pnlNominal) / dolarMep)}
+                              </span>
+                            )}
+                          </div>
+
+                          {annualizedPct !== null && (
+                            <div style={{ fontSize: '13px', textAlign: 'right', opacity: 0.9 }}>
+                              <span className="hint">Rend. Anualizado (TNA eq.): </span>
+                              <strong className={annualizedPct >= 0 ? 'positive' : 'negative'}>
+                                {fmtPct(annualizedPct)} p.a.
+                              </strong>
+                            </div>
                           )}
                         </div>
 
-                        {annualizedPct !== null && (
-                          <div style={{ fontSize: '13px', textAlign: 'right', opacity: 0.9 }}>
-                            <span className="hint">Rend. Anualizado (TNA eq.): </span>
-                            <strong className={annualizedPct >= 0 ? 'positive' : 'negative'}>
-                              {fmtPct(annualizedPct)} p.a.
-                            </strong>
-                          </div>
-                        )}
+                        {/* Expandable Operation Breakdown */}
+                        <div style={{ marginTop: '4px' }}>
+                          <button
+                            onClick={() => toggleExpandedTrade(trade.id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--accent)',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: 0
+                            }}
+                          >
+                            {isExpanded ? '▼ Ocultar detalle de ejecuciones' : `▶ Ver detalle de ejecuciones (${trade.compras.length} compras, ${trade.ventas.length} ventas)`}
+                          </button>
+
+                          {isExpanded && (
+                            <div style={{ marginTop: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '6px', border: '1px solid var(--glass-border)' }}>
+                              <div>
+                                <div style={{ fontSize: '12px', fontWeight: '600', color: '#60a5fa', marginBottom: '6px' }}>🛒 Compras ({trade.compras.length})</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
+                                  {trade.compras.map((c, idx) => (
+                                    <div key={c.id || idx} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '4px 8px', borderRadius: '4px' }}>
+                                      <span>{c.fecha}</span>
+                                      <strong>{fmt(c.cantidad, 0)} @ ${fmt(c.precio)}</strong>
+                                      <span style={{ color: 'var(--text-muted)' }}>=${fmt(c.cantidad * c.precio)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '12px', fontWeight: '600', color: '#f87171', marginBottom: '6px' }}>🏷️ Ventas ({trade.ventas.length})</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
+                                  {trade.ventas.map((v, idx) => (
+                                    <div key={v.id || idx} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '4px 8px', borderRadius: '4px' }}>
+                                      <span>{v.fecha}</span>
+                                      <strong>{fmt(v.cantidad, 0)} @ ${fmt(v.precio)}</strong>
+                                      <span style={{ color: 'var(--text-muted)' }}>=${fmt(v.cantidad * v.precio)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 
