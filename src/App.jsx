@@ -1052,9 +1052,18 @@ function App() {
 
   const [prices, setPrices] = useState(() => JSON.parse(localStorage.getItem('cached_prices') || '{}'));
   const [dailyStats, setDailyStats] = useState(() => JSON.parse(localStorage.getItem('cached_stats') || '{}'));
-  const [dolarMep, setDolarMep] = useState(null);
-  const [dolarMepPrev, setDolarMepPrev] = useState(null);
-  const [dolarCcl, setDolarCcl] = useState(null);
+  const [dolarMep, setDolarMep] = useState(() => {
+    const cached = localStorage.getItem('cached_dolar_mep');
+    return cached ? JSON.parse(cached) : null;
+  });
+  const [dolarMepPrev, setDolarMepPrev] = useState(() => {
+    const cached = localStorage.getItem('cached_dolar_mep_prev');
+    return cached ? JSON.parse(cached) : null;
+  });
+  const [dolarCcl, setDolarCcl] = useState(() => {
+    const cached = localStorage.getItem('cached_dolar_ccl');
+    return cached ? JSON.parse(cached) : null;
+  });
 
   const [status, setStatus] = useState('loading'); // 'loading', 'ok', 'error'
   const [statusText, setStatusText] = useState('Cargando precios...');
@@ -1335,11 +1344,14 @@ function App() {
     safeSetItem('current_portfolio_id', currentPortfolioId);
   }, [allHoldings, allOperaciones, allTrades, allEvals, allFlujos, allLiquidaciones, watchlist, portfolios, currentPortfolioId]);
 
-  // Persist prices separately whenever they are successfully updated
+  // Persist prices and exchange rates separately whenever they are successfully updated
   useEffect(() => {
     if (Object.keys(prices).length > 0) safeSetItem('cached_prices', prices);
     if (Object.keys(dailyStats).length > 0) safeSetItem('cached_stats', sanitizeStatsForStorage(dailyStats));
-  }, [prices, dailyStats]);
+    if (dolarMep !== null) safeSetItem('cached_dolar_mep', dolarMep);
+    if (dolarMepPrev !== null) safeSetItem('cached_dolar_mep_prev', dolarMepPrev);
+    if (dolarCcl !== null) safeSetItem('cached_dolar_ccl', dolarCcl);
+  }, [prices, dailyStats, dolarMep, dolarMepPrev, dolarCcl]);
 
 
 
