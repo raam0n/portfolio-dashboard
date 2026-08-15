@@ -1118,6 +1118,7 @@ function App() {
   const [opFecha, setOpFecha] = useState(new Date().toISOString().split('T')[0]);
   const [opCantidad, setOpCantidad] = useState('');
   const [opPrecio, setOpPrecio] = useState('');
+  const [editingOpId, setEditingOpId] = useState(null);
 
   const [editingHoldingOriginal, setEditingHoldingOriginal] = useState(null);
   const [registerPartialSale, setRegisterPartialSale] = useState(false);
@@ -1980,6 +1981,28 @@ function App() {
   };
 
   // --- OPERACIONES BUSINESS LOGIC ---
+  const cargarEdicionOp = (op) => {
+    setEditingOpId(op.id);
+    setOpAssetTipo(op.assetTipo || 'accion');
+    setOpTicker(op.ticker || '');
+    setOpTipo(op.tipo || 'compra');
+    setOpFecha(op.fecha ? String(op.fecha).split('T')[0] : new Date().toISOString().split('T')[0]);
+    setOpCantidad(op.cantidad !== undefined ? op.cantidad.toString() : '');
+    setOpPrecio(op.precio !== undefined ? op.precio.toString() : '');
+    setShowAddOp(true);
+  };
+
+  const cancelarEdicionOp = () => {
+    setEditingOpId(null);
+    setOpTicker('');
+    setOpCantidad('');
+    setOpPrecio('');
+    setOpFecha(new Date().toISOString().split('T')[0]);
+    setOpAssetTipo('accion');
+    setOpTipo('compra');
+    setShowAddOp(false);
+  };
+
   const agregarOperacion = () => {
     let ticker = opTicker.trim().toUpperCase();
     const cant = parseFloat(opCantidad);
@@ -1992,8 +2015,21 @@ function App() {
       ticker = ticker + '.BA';
     }
 
-    const op = { id: Date.now().toString(), ticker, assetTipo: opAssetTipo, tipo: opTipo, cantidad: cant, precio: prec, fecha: opFecha };
-    setOperaciones([...operaciones, op]);
+    if (editingOpId) {
+      setOperaciones(operaciones.map(o => o.id === editingOpId ? {
+        ...o,
+        ticker,
+        assetTipo: opAssetTipo,
+        tipo: opTipo,
+        cantidad: cant,
+        precio: prec,
+        fecha: opFecha
+      } : o));
+      setEditingOpId(null);
+    } else {
+      const op = { id: Date.now().toString(), ticker, assetTipo: opAssetTipo, tipo: opTipo, cantidad: cant, precio: prec, fecha: opFecha };
+      setOperaciones([...operaciones, op]);
+    }
 
     setOpTicker(''); setOpCantidad(''); setOpPrecio('');
     setShowAddOp(false);
@@ -3710,12 +3746,24 @@ function App() {
         <div className="glass-panel">
           <div className="panel-header">
             <div className="panel-title">Operaciones Históricas ({operaciones.length})</div>
-            <button className="btn btn-primary btn-sm" onClick={() => setShowAddOp(!showAddOp)}>+ Registrar</button>
+            <button className="btn btn-primary btn-sm" onClick={() => {
+              if (showAddOp) {
+                cancelarEdicionOp();
+              } else {
+                setEditingOpId(null);
+                setOpTicker('');
+                setOpCantidad('');
+                setOpPrecio('');
+                setShowAddOp(true);
+              }
+            }}>+ Registrar</button>
           </div>
 
           {showAddOp && (
             <div className="collapsible-content active">
-              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>Registrar Movimiento</div>
+              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>
+                {editingOpId ? '✏️ Editar Operación Histórica' : 'Registrar Movimiento'}
+              </div>
               <div className="form-row trio">
                 <div>
                   <label>Tipo Activo</label>
@@ -3753,8 +3801,12 @@ function App() {
                   <input type="number" value={opPrecio} onChange={e => setOpPrecio(e.target.value)} placeholder="0.00" step="0.01" />
                 </div>
               </div>
-              <button className="btn btn-primary" onClick={agregarOperacion}>Guardar Movimiento</button>
-              <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddOp(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={agregarOperacion}>
+                {editingOpId ? 'Guardar Cambios' : 'Guardar Movimiento'}
+              </button>
+              <button className="btn" style={{ marginLeft: '8px' }} onClick={cancelarEdicionOp}>
+                Cancelar
+              </button>
             </div>
           )}
 
@@ -3770,7 +3822,7 @@ function App() {
                     <th>Detalle</th>
                     <th>Total Movido</th>
                     <th>Rendimiento Estimado</th>
-                    <th></th>
+                    <th style={{ width: '80px', textAlign: 'right' }}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3811,7 +3863,12 @@ function App() {
                         </td>
                         <td>${fmt(op.cantidad * op.precio)}</td>
                         <td className={evalCss}><strong>{evalText}</strong></td>
-                        <td><button className="btn btn-sm btn-danger" onClick={() => eliminarOp(op.id)}>✕</button></td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                            <button className="btn btn-sm" title="Editar operación" onClick={() => cargarEdicionOp(op)}>✎</button>
+                            <button className="btn btn-sm btn-danger" title="Eliminar operación" onClick={() => eliminarOp(op.id)}>✕</button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
