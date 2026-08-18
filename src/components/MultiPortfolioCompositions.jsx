@@ -308,7 +308,7 @@ export default function MultiPortfolioCompositions({
   getYahooTicker = () => null,
   onSelectPortfolio
 }) {
-  const [activeTab, setActiveTab] = useState('grid'); // 'grid' | 'activo' | 'tipo' | 'sector' | 'subsector'
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'tipo' | 'sector' | 'subsector' | 'activo'
   const [highlightedCategory, setHighlightedCategory] = useState(null);
 
   // Compute all breakdowns across portfolios
@@ -438,15 +438,15 @@ export default function MultiPortfolioCompositions({
         return entries;
       };
 
-      const assetSegs = toSegments(rawByAsset, 1.5);
       const tipoSegs = toSegments(rawByTipo, 0);
       const sectorSegs = toSegments(rawBySector, 0);
       const subsectorSegs = toSegments(rawBySubsector, 0);
+      const assetSegs = toSegments(rawByAsset, 1.5);
 
-      assetSegs.forEach(s => allAssetLabels.add(s.label));
       tipoSegs.forEach(s => allTipoLabels.add(s.label));
       sectorSegs.forEach(s => allSectorLabels.add(s.label));
       subsectorSegs.forEach(s => allSubsectorLabels.add(s.label));
+      assetSegs.forEach(s => allAssetLabels.add(s.label));
 
       const pBase = {
         id: p.id,
@@ -455,18 +455,13 @@ export default function MultiPortfolioCompositions({
         activosCount: pHoldings.length
       };
 
-      byAssetPortfolios.push({ ...pBase, segments: assetSegs });
       byTipoPortfolios.push({ ...pBase, segments: tipoSegs });
       bySectorPortfolios.push({ ...pBase, segments: sectorSegs });
       bySubsectorPortfolios.push({ ...pBase, segments: subsectorSegs });
+      byAssetPortfolios.push({ ...pBase, segments: assetSegs });
     });
 
     // Build color mappings
-    const assetColorMap = {};
-    Array.from(allAssetLabels).forEach((l, i) => {
-      assetColorMap[l] = l === 'Otros' ? '#64748b' : EXTENDED_PALETTE[i % EXTENDED_PALETTE.length];
-    });
-
     const tipoColorMap = { ...PREDEFINED_TIPO_COLORS };
     Array.from(allTipoLabels).forEach((l, i) => {
       if (!tipoColorMap[l]) tipoColorMap[l] = EXTENDED_PALETTE[i % EXTENDED_PALETTE.length];
@@ -482,86 +477,76 @@ export default function MultiPortfolioCompositions({
       subsectorColorMap[l] = getDeterministicColor(l);
     });
 
+    const assetColorMap = {};
+    Array.from(allAssetLabels).forEach((l, i) => {
+      assetColorMap[l] = l === 'Otros' ? '#64748b' : EXTENDED_PALETTE[i % EXTENDED_PALETTE.length];
+    });
+
     return {
-      byAssetPortfolios,
       byTipoPortfolios,
       bySectorPortfolios,
       bySubsectorPortfolios,
-      assetColorMap,
+      byAssetPortfolios,
       tipoColorMap,
       sectorColorMap,
-      subsectorColorMap
+      subsectorColorMap,
+      assetColorMap
     };
   }, [portfolios, allHoldings, prices, dolarMep, tickerCatalog, currencyMode, getYahooTicker]);
 
   return (
     <div className="multi-comp-section">
-      {/* Section Header with View Mode Tabs */}
+      {/* Section Header with View Mode Tabs in specified order */}
       <div className="multi-comp-header-bar">
         <div>
           <h3 className="section-title" style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>📊</span> Composiciones Comparativas por Cartera
           </h3>
           <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-            Gráficos de barras apiladas al 100% para comparar la distribución y concentración entre todos los portfolios.
+            Gráficos de barras apiladas al ancho completo (100%) para comparar ponderaciones y balancear riesgos en un solo golpe de vista.
           </p>
         </div>
 
         <div className="multi-comp-nav">
           <button
-            className={`tab-btn ${activeTab === 'grid' ? 'active' : ''}`}
-            onClick={() => setActiveTab('grid')}
+            className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`}
+            onClick={() => setActiveTab('all')}
           >
-            🔲 Cuadrícula 2x2
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'activo' ? 'active' : ''}`}
-            onClick={() => setActiveTab('activo')}
-          >
-            🪙 % por Activo
+            📜 Ver Todos (Ancho Completo)
           </button>
           <button
             className={`tab-btn ${activeTab === 'tipo' ? 'active' : ''}`}
             onClick={() => setActiveTab('tipo')}
           >
-            🏷️ % por Tipo
+            1. 🏷️ % por Tipo
           </button>
           <button
             className={`tab-btn ${activeTab === 'sector' ? 'active' : ''}`}
             onClick={() => setActiveTab('sector')}
           >
-            🏢 % por Sector
+            2. 🏢 % por Sector
           </button>
           <button
             className={`tab-btn ${activeTab === 'subsector' ? 'active' : ''}`}
             onClick={() => setActiveTab('subsector')}
           >
-            🔬 % por Subsector
+            3. 🔬 % por Subsector
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'activo' ? 'active' : ''}`}
+            onClick={() => setActiveTab('activo')}
+          >
+            4. 🪙 % por Activo
           </button>
         </div>
       </div>
 
-      {/* Cards Grid */}
-      <div className={`multi-comp-grid ${activeTab === 'grid' ? 'multi-comp-grid--2x2' : 'multi-comp-grid--single'}`}>
-        {/* Card 1: % por Activo */}
-        {(activeTab === 'grid' || activeTab === 'activo') && (
+      {/* Cards List - 1 Full-width Card per row in user order */}
+      <div className="multi-comp-grid">
+        {/* 1 - % por Tipo de Activo */}
+        {(activeTab === 'all' || activeTab === 'tipo') && (
           <StackedBarDimensionCard
-            title="% por Activo"
-            subtitle="Distribución detallada por ticker / posición individual"
-            icon="🪙"
-            dataByPortfolio={processedData.byAssetPortfolios}
-            colorMap={processedData.assetColorMap}
-            currencyMode={currencyMode}
-            onSelectPortfolio={onSelectPortfolio}
-            highlightedCategory={highlightedCategory}
-            setHighlightedCategory={setHighlightedCategory}
-          />
-        )}
-
-        {/* Card 2: % por Tipo de Activo */}
-        {(activeTab === 'grid' || activeTab === 'tipo') && (
-          <StackedBarDimensionCard
-            title="% por Tipo de Activo"
+            title="1. % por Tipo de Activo"
             subtitle="Acciones AR, CEDEARs, Stocks US, Bonos y Efectivo"
             icon="🏷️"
             dataByPortfolio={processedData.byTipoPortfolios}
@@ -573,11 +558,11 @@ export default function MultiPortfolioCompositions({
           />
         )}
 
-        {/* Card 3: % por Sector */}
-        {(activeTab === 'grid' || activeTab === 'sector') && (
+        {/* 2 - % por Sector */}
+        {(activeTab === 'all' || activeTab === 'sector') && (
           <StackedBarDimensionCard
-            title="% por Sector"
-            subtitle="Exposición sectorial: Tech, Banking, Energía, Renta Fija, etc."
+            title="2. % por Sector"
+            subtitle="Exposición sectorial: Tech, Banking, Energía, Renta Fija Soberana / Corporativa, Consumo, etc."
             icon="🏢"
             dataByPortfolio={processedData.bySectorPortfolios}
             colorMap={processedData.sectorColorMap}
@@ -588,14 +573,29 @@ export default function MultiPortfolioCompositions({
           />
         )}
 
-        {/* Card 4: % por Subsector */}
-        {(activeTab === 'grid' || activeTab === 'subsector') && (
+        {/* 3 - % por Subsector */}
+        {(activeTab === 'all' || activeTab === 'subsector') && (
           <StackedBarDimensionCard
-            title="% por Subsector"
-            subtitle="Desglose por industria específica y subtipo de instrumento"
+            title="3. % por Subsector"
+            subtitle="Desglose por industria específica y tipo de bono (Semiconductores, Bancos, Petróleo, Bonos USD, ONs, etc.)"
             icon="🔬"
             dataByPortfolio={processedData.bySubsectorPortfolios}
             colorMap={processedData.subsectorColorMap}
+            currencyMode={currencyMode}
+            onSelectPortfolio={onSelectPortfolio}
+            highlightedCategory={highlightedCategory}
+            setHighlightedCategory={setHighlightedCategory}
+          />
+        )}
+
+        {/* 4 - % por Activo */}
+        {(activeTab === 'all' || activeTab === 'activo') && (
+          <StackedBarDimensionCard
+            title="4. % por Activo"
+            subtitle="Distribución detallada por ticker individual (posiciones menores al 1.5% agrupadas en 'Otros')"
+            icon="🪙"
+            dataByPortfolio={processedData.byAssetPortfolios}
+            colorMap={processedData.assetColorMap}
             currencyMode={currencyMode}
             onSelectPortfolio={onSelectPortfolio}
             highlightedCategory={highlightedCategory}
