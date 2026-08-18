@@ -207,7 +207,6 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
   const [sizing, setSizing] = useState('marketCap');
   const [period, setPeriod] = useState('1d');
   const [activeTypes, setActiveTypes] = useState(['accion', 'cedear', 'stock']); // all active by default
-  const [onlyPortfolio, setOnlyPortfolio] = useState(false);
   const [marketCaps, setMarketCaps] = useState({});
   const [loadingCaps, setLoadingCaps] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
@@ -237,14 +236,10 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
     });
   }, []);
 
-  // Filter assets by selected types & portfolio
+  // Filter assets by selected types
   const filteredAssets = useMemo(() => {
-    return assets.filter(a => {
-      const matchType = activeTypes.includes(a.tipo);
-      const matchPortfolio = onlyPortfolio ? (a.inPortfolio || a.value > 0) : true;
-      return matchType && matchPortfolio;
-    });
-  }, [assets, activeTypes, onlyPortfolio]);
+    return assets.filter(a => activeTypes.includes(a.tipo));
+  }, [assets, activeTypes]);
 
   // Resize observer
   useEffect(() => {
@@ -407,12 +402,8 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
       }
 
       let groupKey = 'Otros';
-      if (grouping === 'sector') groupKey = a.sector || 'Sin Sector';
-      else if (grouping === 'subsector') groupKey = a.subsector || 'Sin Subsector';
-      else if (grouping === 'pais') groupKey = a.pais || 'Desconocido';
+      if (grouping === 'pais') groupKey = a.pais || 'Desconocido';
       else if (grouping === 'marketCapTier') groupKey = getCapTier(mcapRaw, currency);
-      else if (grouping === 'portfolio_origin') groupKey = (a.inPortfolio || a.value > 0) ? '⭐ En Mi Cartera (CEDEARs & ADRs)' : '🔍 En Lista de Seguimiento';
-      else if (grouping === 'tipo') groupKey = a.tipo === 'cedear' ? '📜 CEDEARs' : a.tipo === 'stock' ? '🇺🇸 Stocks US' : '🇦🇷 Acciones AR';
 
       if (!groups[groupKey]) groups[groupKey] = [];
 
@@ -621,10 +612,6 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
               }}
             >
               <option value="sector_subsector" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>Sector &gt; Subsector</option>
-              <option value="sector" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>Sector</option>
-              <option value="subsector" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>Subsector</option>
-              <option value="portfolio_origin" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>Origen (Mi Cartera vs Seguimiento)</option>
-              <option value="tipo" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>Tipo de Activo</option>
               <option value="pais" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>País</option>
               <option value="marketCapTier" style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>Market Cap (Tiers)</option>
             </select>
@@ -659,24 +646,6 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
             onClick={() => toggleType(opt.value)}
           />
         ))}
-        <button
-          className={`type-filter-btn ${onlyPortfolio ? 'active' : ''}`}
-          onClick={() => setOnlyPortfolio(!onlyPortfolio)}
-          style={{
-            marginLeft: 'auto',
-            background: onlyPortfolio ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
-            border: onlyPortfolio ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.15)',
-            color: onlyPortfolio ? '#fff' : 'var(--text-main)',
-            borderRadius: '6px',
-            padding: '4px 10px',
-            fontSize: '12px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          💼 Solo de mi Cartera ({assets.filter(a => a.inPortfolio || a.value > 0).length})
-        </button>
       </div>
 
       {loadingCaps && Object.keys(marketCaps).length === 0 && (

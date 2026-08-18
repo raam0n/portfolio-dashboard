@@ -2766,7 +2766,10 @@ function App() {
 
   // Watchlist: items visible after type + category filters (before per-ticker exclusion)
   const wlVisibleBeforeExclude = baseWatchlistSource
-    .filter(w => wlTypeFilters.length === 0 || wlTypeFilters.includes(w.tipo))
+    .filter(w => {
+      if (wlPortfolioOnly) return true; // in US portfolio mode, show all mapped US assets
+      return wlTypeFilters.length === 0 || wlTypeFilters.includes(w.tipo);
+    })
     .filter(w => wlSectorFilters.length === 0 || wlSectorFilters.includes(w.sector || ''))
     .filter(w => wlSubsectorFilters.length === 0 || wlSubsectorFilters.includes(w.subsector || ''))
     .filter(w => wlPaisFilters.length === 0 || wlPaisFilters.includes(w.pais || ''));
@@ -4022,6 +4025,43 @@ function App() {
                 <button className="btn btn-primary" onClick={agregarWatchlist}>Guardar en Watchlist</button>
                 <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddWatchlist(false)}>Cancelar</button>
               </div>
+            )}
+          </div>
+
+          {/* ── Mode Switcher: Todos los Mercados vs Mi Cartera en Wall Street ── */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '6px', background: 'rgba(255,255,255,0.04)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <button
+                className={`btn btn-sm ${!wlPortfolioOnly ? 'btn-primary' : ''}`}
+                onClick={() => setWlPortfolioOnly(false)}
+                style={{
+                  background: !wlPortfolioOnly ? 'var(--accent)' : 'transparent',
+                  border: 'none',
+                  color: !wlPortfolioOnly ? '#fff' : 'var(--text-muted)',
+                  fontWeight: !wlPortfolioOnly ? '700' : '500',
+                  padding: '6px 14px'
+                }}
+              >
+                🌐 Todos los Mercados ({watchlist.length})
+              </button>
+              <button
+                className={`btn btn-sm ${wlPortfolioOnly ? 'btn-primary' : ''}`}
+                onClick={() => setWlPortfolioOnly(true)}
+                style={{
+                  background: wlPortfolioOnly ? 'var(--accent)' : 'transparent',
+                  border: 'none',
+                  color: wlPortfolioOnly ? '#fff' : 'var(--text-muted)',
+                  fontWeight: wlPortfolioOnly ? '700' : '500',
+                  padding: '6px 14px'
+                }}
+              >
+                🇺🇸 Mi Cartera en Wall Street ({proxyAnalysis.mapped.length} ADRs & US)
+              </button>
+            </div>
+            {wlPortfolioOnly && (
+              <span className="badge badge-adr" style={{ fontSize: '11px', padding: '4px 10px' }}>
+                🗽 Mostrando activos en USD (NYSE / NASDAQ) con cotizaciones internacionales
+              </span>
             )}
           </div>
 
