@@ -214,7 +214,7 @@ function StackedBarDimensionCard({
                     const color = colorMap[seg.label] || getDeterministicColor(seg.label);
                     const isHovered = highlightedCategory === seg.label;
                     const isDimmed = highlightedCategory !== null && !isHovered;
-                    const showText = seg.pct >= 6.5;
+                    const showText = seg.pct >= 4.5;
 
                     return (
                       <div
