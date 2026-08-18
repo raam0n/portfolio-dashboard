@@ -8,7 +8,6 @@ import { HonorariosDashboard } from './components/HonorariosDashboard';
 import { analyzeMovement } from './services/aiAnalyzer';
 import { extractPortfolioDataFromImage } from './services/visionService';
 import MultiPortfolioCompositions from './components/MultiPortfolioCompositions';
-import InternationalProxyModal from './components/InternationalProxyModal';
 import { extractPortfolioInternationalProxy, calculateProxyDailyReturn } from './services/marketProxy';
 
 
@@ -1080,7 +1079,7 @@ function App() {
   const [showAddHolding, setShowAddHolding] = useState(false);
   const [showAddOp, setShowAddOp] = useState(false);
   const [showAddWatchlist, setShowAddWatchlist] = useState(false);
-  const [showProxyModal, setShowProxyModal] = useState(false);
+  const [wlPortfolioOnly, setWlPortfolioOnly] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [showAddEval, setShowAddEval] = useState(false);
@@ -2725,8 +2724,33 @@ function App() {
     ? (totalDailyChangeUSD / totalPreviousValorUSD) * 100
     : 0;
 
+  // Portfolio equity/CEDEAR tickers (excluding cash & bonds) for quick filtering
+  const portfolioTickers = useMemo(() => {
+    const set = new Set();
+    holdings.forEach(h => {
+      if (h && h.ticker && h.tipo !== 'efectivo' && h.tipo !== 'bono') {
+        const clean = h.ticker.trim().toUpperCase().replace(/\.BA$/i, '');
+        set.add(clean);
+      }
+    });
+    return set;
+  }, [holdings]);
+
+  // International Proxy analysis for holiday tracking & Wall Street proxy
+  const proxyAnalysis = useMemo(() => {
+    const proxy = extractPortfolioInternationalProxy(holdings, tickerCatalog, prices, dolarMep);
+    const stats = calculateProxyDailyReturn(proxy.mapped, dailyStats);
+    return { ...proxy, ...stats };
+  }, [holdings, tickerCatalog, prices, dolarMep, dailyStats]);
+
   // Watchlist: items visible after type + category filters (before per-ticker exclusion)
   const wlVisibleBeforeExclude = watchlist
+    .filter(w => {
+      if (!wlPortfolioOnly) return true;
+      const cleanW = (w.ticker || '').trim().toUpperCase().replace(/\.BA$/i, '');
+      const origClean = w.originalTicker ? w.originalTicker.trim().toUpperCase().replace(/\.BA$/i, '') : null;
+      return portfolioTickers.has(cleanW) || (origClean && portfolioTickers.has(origClean));
+    })
     .filter(w => wlTypeFilters.length === 0 || wlTypeFilters.includes(w.tipo))
     .filter(w => wlSectorFilters.length === 0 || wlSectorFilters.includes(w.sector || ''))
     .filter(w => wlSubsectorFilters.length === 0 || wlSubsectorFilters.includes(w.subsector || ''))
@@ -3141,6 +3165,30 @@ function App() {
                 </div>
               </div>
             </div>
+            {proxyAnalysis.mapped.length > 0 && (
+              <div className="glass-panel metric-card">
+                <div className="metric-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Proxy Wall Street (Hoy)</span>
+                  <span className="badge badge-adr" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                    {proxyAnalysis.coveragePct.toFixed(0)}% Cobertura
+                  </span>
+                </div>
+                <div className="metric-value">
+                  <span className={proxyAnalysis.estimatedReturn >= 0 ? 'positive' : 'negative'} style={{ fontSize: '22px', fontWeight: '800' }}>
+                    {fmtPct(proxyAnalysis.estimatedReturn)}
+                  </span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '4px', textTransform: 'uppercase', fontWeight: '600' }}>USD</span>
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{proxyAnalysis.mapped.length} ADRs y CEDEARs</span>
+                  {proxyAnalysis.topGainer && (
+                    <span style={{ fontSize: '10px', color: proxyAnalysis.topGainer.changePct >= 0 ? 'var(--positive)' : 'var(--negative)' }}>
+                      Top: {proxyAnalysis.topGainer.usTicker} {fmtPct(proxyAnalysis.topGainer.changePct)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="glass-panel" style={{ marginTop: '0.75rem' }}>
@@ -3899,188 +3947,158 @@ function App() {
       )}
 
       {/* --- TAB 3: WATCHLIST --- */}
-      {activeTab === 'watchlist' && (() => {
-        const proxyAnalysis = (() => {
-          const proxy = extractPortfolioInternationalProxy(holdings, tickerCatalog, prices, dolarMep);
-          const stats = calculateProxyDailyReturn(proxy.mapped, dailyStats);
-          return { ...proxy, ...stats };
-        })();
+      {activeTab === 'watchlist' && (
+        <>
+          {/* ── Market Status Bar ── */}
+          <MarketStatusBar dailyStats={dailyStats} watchlist={watchlist} />
 
-        return (
-          <>
-            {/* ── Market Status Bar ── */}
-            <MarketStatusBar dailyStats={dailyStats} watchlist={watchlist} />
-
-            {/* ── Suscripción de Nuevos Activos ── */}
-            <div className="glass-panel" style={{ 
-              marginBottom: '16px', 
-              padding: showAddWatchlist ? '1.5rem' : '0.75rem 1.5rem',
+          {/* ── Suscripción de Nuevos Activos ── */}
+          <div className="glass-panel" style={{ 
+            marginBottom: '16px', 
+            padding: showAddWatchlist ? '1.5rem' : '0.75rem 1.5rem',
+            transition: 'all 0.3s ease'
+          }}>
+            <div className="panel-header" style={{ 
+              alignItems: 'center', 
+              marginBottom: showAddWatchlist ? '1.25rem' : '0',
               transition: 'all 0.3s ease'
             }}>
-              <div className="panel-header" style={{ 
-                alignItems: 'center', 
-                marginBottom: showAddWatchlist ? '1.25rem' : '0',
-                transition: 'all 0.3s ease'
-              }}>
-                <div className="panel-title">Suscripción de Nuevos Activos</div>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <button className="btn btn-primary btn-sm" onClick={() => setShowProxyModal(true)}>
-                    🌎 Importar Proxy Internacional (ADRs / US)
-                  </button>
-                  <button className="btn btn-sm" onClick={() => setShowAddWatchlist(!showAddWatchlist)}>
-                    {showAddWatchlist ? 'Ocultar Formulario' : '+ Suscribir Activo'}
-                  </button>
-                </div>
-              </div>
-              {showAddWatchlist && (
-                <div className="collapsible-content active" style={{ marginTop: '12px' }}>
-                  <div className="form-row trio">
-                    <div>
-                      <label>Tipo Activo</label>
-                      <select value={wlTipo} onChange={(e) => {
-                        const t = e.target.value;
-                        setWlTipo(t);
-                        if (t === 'accion' || t === 'cedear') setWlMercado('BCBA');
-                        else if (t === 'stock') setWlMercado('NYSE');
-                      }}>
-                        <option value="accion">Acción AR</option>
-                        <option value="cedear">CEDEAR</option>
-                        <option value="stock">Stock US</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label>Mercado</label>
-                      {wlTipo === 'stock' ? (
-                        <select value={wlMercado} onChange={e => setWlMercado(e.target.value)}>
-                          <option value="NYSE">NYSE</option>
-                          <option value="NASDAQ">NASDAQ</option>
-                        </select>
-                      ) : (
-                        <input
-                          value="BCBA"
-                          readOnly
-                          style={{ background: 'rgba(0,0,0,0.1)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
-                        />
-                      )}
-                    </div>
-                    <div>
-                      <label>Ticker</label>
-                      <input value={wlTicker} onChange={e => handleWlTickerChange(e.target.value)} list="ticker-suggestions" placeholder="ej: AAPL" />
-                    </div>
-                    <div>
-                      <label>Nombre (opc.)</label>
-                      <input value={wlNombre} onChange={e => setWlNombre(e.target.value)} placeholder="ej: Apple Inc" />
-                    </div>
-                    <div>
-                      <label>Sector (ej: Tech, Banking)</label>
-                      <input value={wlSector} onChange={e => setWlSector(e.target.value)} placeholder="ej: Tech" />
-                    </div>
-                    <div>
-                      <label>Subsector</label>
-                      <input value={wlSubsector} onChange={e => setWlSubsector(e.target.value)} placeholder="ej: Hardware" />
-                    </div>
-                    <div>
-                      <label>País</label>
-                      <input value={wlPais} onChange={e => setWlPais(e.target.value)} placeholder="ej: USA" />
-                    </div>
-                  </div>
-                  <button className="btn btn-primary" onClick={agregarWatchlist}>Guardar en Watchlist</button>
-                  <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddWatchlist(false)}>Cancelar</button>
-                </div>
-              )}
+              <div className="panel-title">Suscripción de Nuevos Activos</div>
+              <button className="btn btn-primary btn-sm" onClick={() => setShowAddWatchlist(!showAddWatchlist)}>
+                {showAddWatchlist ? 'Ocultar Formulario' : '+ Suscribir Activo'}
+              </button>
             </div>
-
-            {/* ── Wall Street Proxy Live Performance Banner ──────── */}
-            {proxyAnalysis.mapped.length > 0 && (
-              <div className="proxy-summary-banner">
-                <div className="proxy-summary-left">
-                  <div className="proxy-summary-icon">🗽</div>
+            {showAddWatchlist && (
+              <div className="collapsible-content active" style={{ marginTop: '12px' }}>
+                <div className="form-row trio">
                   <div>
-                    <div className="proxy-summary-title">
-                      <span>Proxy de Cartera en Wall Street (Feriados / NYSE & NASDAQ)</span>
-                      <span className="badge badge-adr" style={{ fontSize: '11px' }}>
-                        {proxyAnalysis.coveragePct.toFixed(1)}% Cobertura
-                      </span>
-                    </div>
-                    <div className="proxy-summary-desc">
-                      Estimación ponderada en base a las cotizaciones internacionales de tus ADRs y CEDEARs ({proxyAnalysis.mapped.length} activos).
-                    </div>
+                    <label>Tipo Activo</label>
+                    <select value={wlTipo} onChange={(e) => {
+                      const t = e.target.value;
+                      setWlTipo(t);
+                      if (t === 'accion' || t === 'cedear') setWlMercado('BCBA');
+                      else if (t === 'stock') setWlMercado('NYSE');
+                    }}>
+                      <option value="accion">Acción AR</option>
+                      <option value="cedear">CEDEAR</option>
+                      <option value="stock">Stock US</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Mercado</label>
+                    {wlTipo === 'stock' ? (
+                      <select value={wlMercado} onChange={e => setWlMercado(e.target.value)}>
+                        <option value="NYSE">NYSE</option>
+                        <option value="NASDAQ">NASDAQ</option>
+                      </select>
+                    ) : (
+                      <input
+                        value="BCBA"
+                        readOnly
+                        style={{ background: 'rgba(0,0,0,0.1)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <label>Ticker</label>
+                    <input value={wlTicker} onChange={e => handleWlTickerChange(e.target.value)} list="ticker-suggestions" placeholder="ej: AAPL" />
+                  </div>
+                  <div>
+                    <label>Nombre (opc.)</label>
+                    <input value={wlNombre} onChange={e => setWlNombre(e.target.value)} placeholder="ej: Apple Inc" />
+                  </div>
+                  <div>
+                    <label>Sector (ej: Tech, Banking)</label>
+                    <input value={wlSector} onChange={e => setWlSector(e.target.value)} placeholder="ej: Tech" />
+                  </div>
+                  <div>
+                    <label>Subsector</label>
+                    <input value={wlSubsector} onChange={e => setWlSubsector(e.target.value)} placeholder="ej: Hardware" />
+                  </div>
+                  <div>
+                    <label>País</label>
+                    <input value={wlPais} onChange={e => setWlPais(e.target.value)} placeholder="ej: USA" />
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                  <div className="proxy-summary-metric">
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Variación Estimada Hoy:</span>
-                    <span className={`proxy-summary-est-val ${proxyAnalysis.estimatedReturn >= 0 ? 'positive' : 'negative'}`}>
-                      {fmtPct(proxyAnalysis.estimatedReturn)}
-                    </span>
-                  </div>
-                  {proxyAnalysis.movers.length > 0 && (
-                    <div className="proxy-summary-movers">
-                      {proxyAnalysis.movers.slice(0, 4).map(m => (
-                        <span key={m.usTicker} className={`proxy-mover-pill ${m.changePct >= 0 ? 'badge-compra' : 'badge-venta'}`}>
-                          {m.usTicker} {fmtPct(m.changePct)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <button className="btn btn-primary" onClick={agregarWatchlist}>Guardar en Watchlist</button>
+                <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddWatchlist(false)}>Cancelar</button>
               </div>
             )}
+          </div>
 
-            {/* ── Treemap ──────── */}
-            {(() => {
-              const treemapAssets = [
-                ...holdings.filter(h => h.tipo !== 'efectivo' && h.tipo !== 'bono').map(h => {
-                  const yt = getYahooTicker(h) || h.ticker;
-                  const pc = prices[yt] ?? null;
-                  const stats = dailyStats[yt];
-                  const wlItem = watchlist.find(w => w.ticker === h.ticker && w.tipo === h.tipo);
-                  return {
-                    ticker: h.ticker,
-                    nombre: h.nombre || wlItem?.nombre || '',
-                    subsector: wlItem?.subsector || '',
-                    yahooTicker: yt,
-                    tipo: wlItem?.tipo || h.tipo || 'stock',
-                    sector: wlItem?.sector || 'Sin Sector',
-                    pais: wlItem?.pais || 'Argentina',
-                    value: pc !== null ? pc * h.cantidad : h.precioEntrada * h.cantidad,
-                    changePct: stats?.changePct || 0,
-                    hist5d: stats?.hist5d ?? null,
-                    hist1m: stats?.hist1m ?? null,
-                    hist6m: stats?.hist6m ?? null,
-                    hist1y: stats?.hist1y ?? null,
-                    hist5y: stats?.hist5y ?? null
-                  };
-                }),
-                ...watchlist.filter(w => !holdings.some(h => h.ticker === w.ticker && h.tipo === w.tipo) && w.tipo !== 'efectivo' && w.tipo !== 'bono').map(w => {
-                  const yt = getYahooTicker(w) || w.ticker;
-                  const stats = dailyStats[yt];
-                  return {
-                    ticker: w.ticker,
-                    nombre: w.nombre || '',
-                    subsector: w.subsector || '',
-                    yahooTicker: yt,
-                    tipo: w.tipo || 'stock',
-                    sector: w.sector || 'Sin Sector',
-                    pais: w.pais || 'Desconocido',
-                    value: 0,
-                    changePct: stats?.changePct || 0,
-                    hist5d: stats?.hist5d ?? null,
-                    hist1m: stats?.hist1m ?? null,
-                    hist6m: stats?.hist6m ?? null,
-                    hist1y: stats?.hist1y ?? null,
-                    hist5y: stats?.hist5y ?? null
-                  };
-                })
-              ];
-              return <MarketTreemap assets={treemapAssets} dolarCcl={dolarCcl} />;
-            })()}
+          {/* ── Treemap ──────── */}
+          {(() => {
+            const treemapAssets = [
+              ...holdings.filter(h => h.tipo !== 'efectivo' && h.tipo !== 'bono').map(h => {
+                const yt = getYahooTicker(h) || h.ticker;
+                const pc = prices[yt] ?? null;
+                const stats = dailyStats[yt];
+                const wlItem = watchlist.find(w => w.ticker === h.ticker && w.tipo === h.tipo);
+                return {
+                  ticker: h.ticker,
+                  nombre: h.nombre || wlItem?.nombre || '',
+                  subsector: wlItem?.subsector || '',
+                  yahooTicker: yt,
+                  tipo: wlItem?.tipo || h.tipo || 'stock',
+                  sector: wlItem?.sector || 'Sin Sector',
+                  pais: wlItem?.pais || 'Argentina',
+                  value: pc !== null ? pc * h.cantidad : h.precioEntrada * h.cantidad,
+                  changePct: stats?.changePct || 0,
+                  hist5d: stats?.hist5d ?? null,
+                  hist1m: stats?.hist1m ?? null,
+                  hist6m: stats?.hist6m ?? null,
+                  hist1y: stats?.hist1y ?? null,
+                  hist5y: stats?.hist5y ?? null,
+                  inPortfolio: true
+                };
+              }),
+              ...watchlist.filter(w => !holdings.some(h => h.ticker === w.ticker && h.tipo === w.tipo) && w.tipo !== 'efectivo' && w.tipo !== 'bono').map(w => {
+                const yt = getYahooTicker(w) || w.ticker;
+                const stats = dailyStats[yt];
+                return {
+                  ticker: w.ticker,
+                  nombre: w.nombre || '',
+                  subsector: w.subsector || '',
+                  yahooTicker: yt,
+                  tipo: w.tipo || 'stock',
+                  sector: w.sector || 'Sin Sector',
+                  pais: w.pais || 'Desconocido',
+                  value: 0,
+                  changePct: stats?.changePct || 0,
+                  hist5d: stats?.hist5d ?? null,
+                  hist1m: stats?.hist1m ?? null,
+                  hist6m: stats?.hist6m ?? null,
+                  hist1y: stats?.hist1y ?? null,
+                  hist5y: stats?.hist5y ?? null,
+                  inPortfolio: false
+                };
+              })
+            ];
+            return <MarketTreemap assets={treemapAssets} dolarCcl={dolarCcl} />;
+          })()}
 
           <div className="glass-panel">
             <div className="panel-header" style={{ alignItems: 'center' }}>
               <div className="panel-title">Lista de Seguimiento ({watchlist.length})</div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0 }}>Filtros:</span>
+
+                <button 
+                  className={`btn btn-sm ${wlPortfolioOnly ? 'btn-primary' : ''}`}
+                  onClick={() => setWlPortfolioOnly(!wlPortfolioOnly)}
+                  style={{
+                    background: wlPortfolioOnly ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
+                    border: wlPortfolioOnly ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.15)',
+                    color: wlPortfolioOnly ? '#fff' : 'var(--text-main)',
+                    fontWeight: '600'
+                  }}
+                >
+                  💼 Solo de mi Cartera ({watchlist.filter(w => {
+                    const cleanW = (w.ticker || '').trim().toUpperCase().replace(/\.BA$/i, '');
+                    const origClean = w.originalTicker ? w.originalTicker.trim().toUpperCase().replace(/\.BA$/i, '') : null;
+                    return portfolioTickers.has(cleanW) || (origClean && portfolioTickers.has(origClean));
+                  }).length})
+                </button>
 
                 <MultiCheckDropdown
                   placeholder="Todos los tipos"
@@ -4234,48 +4252,8 @@ function App() {
               )}
             </div>
           </div>
-
-          {/* ── International Proxy Import Modal ──────── */}
-          <InternationalProxyModal
-            isOpen={showProxyModal}
-            onClose={() => setShowProxyModal(false)}
-            holdings={holdings}
-            allHoldings={allHoldings}
-            portfolios={portfolios}
-            currentPortfolioId={currentPortfolioId}
-            tickerCatalog={tickerCatalog}
-            prices={prices}
-            dolarMep={dolarMep}
-            onImport={(itemsToImport, mode) => {
-              const newWlItems = itemsToImport.map(item => ({
-                ticker: item.usTicker,
-                tipo: 'stock',
-                mercado: item.mercado || 'NYSE/NASDAQ',
-                nombre: item.name,
-                sector: item.sector,
-                subsector: item.subsector,
-                pais: item.pais,
-                isProxy: true,
-                isAdr: item.isAdr,
-                originalTicker: item.rawTicker
-              }));
-
-              if (mode === 'replace') {
-                setWatchlist(newWlItems);
-              } else {
-                const existingSet = new Set(watchlist.map(w => `${w.ticker}-${w.mercado || 'BCBA'}`));
-                const toAdd = newWlItems.filter(item => !existingSet.has(`${item.ticker}-${item.mercado || 'BCBA'}`));
-                setWatchlist(prev => [...prev, ...toAdd]);
-              }
-
-              setTimeout(() => {
-                refreshData('all');
-              }, 100);
-            }}
-          />
         </>
-      );
-    })()}
+      )}
 
       {/* --- TAB: MERCADOS --- */}
       {activeTab === 'flujos' && (
