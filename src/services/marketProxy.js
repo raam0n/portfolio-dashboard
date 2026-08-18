@@ -152,13 +152,25 @@ export function extractPortfolioInternationalProxy(holdings = [], catalog = {}, 
 
   let totalPortfolioValue = 0;
   let totalMappedValue = 0;
+  const mep = Number(dolarMep) > 0 ? Number(dolarMep) : 1;
 
   holdings.forEach(h => {
-    const pc = prices[h.ticker] ?? h.precioEntrada ?? 0;
-    const isEfectivo = h.tipo === 'efectivo';
-    const isUsd = h.tipo === 'stock' || (isEfectivo && h.ticker === 'USD');
-    const nativeVal = pc * (h.cantidad || 0);
-    const valUSD = isUsd ? nativeVal : nativeVal / (dolarMep || 1);
+    if (!h || !h.ticker) return;
+
+    const rawTicker = h.ticker.trim().toUpperCase().replace(/\.BA$/i, '');
+    const isEfectivo = h.tipo === 'efectivo' || rawTicker === 'ARS' || rawTicker === 'USD' || rawTicker === 'AR$';
+    const isUsd = h.tipo === 'stock' || (isEfectivo && rawTicker === 'USD');
+
+    // Get current price with robust fallback (.BA, raw ticker, or entry price)
+    const ytBA = (h.tipo === 'accion' || h.tipo === 'cedear' || !h.tipo) ? `${rawTicker}.BA` : rawTicker;
+    const pc = isEfectivo 
+      ? 1 
+      : (prices[ytBA] ?? prices[rawTicker] ?? prices[h.ticker] ?? h.precioEntrada ?? 0);
+
+    const cantidad = Number(h.cantidad) || 0;
+    const unitPrice = pc !== null && !isNaN(pc) ? Number(pc) : (Number(h.precioEntrada) || 0);
+    const nativeVal = unitPrice * cantidad;
+    const valUSD = isUsd ? nativeVal : nativeVal / mep;
 
     totalPortfolioValue += valUSD;
 
@@ -191,13 +203,17 @@ export function extractPortfolioInternationalProxy(holdings = [], catalog = {}, 
     m.proxyWeightPct = totalMappedValue > 0 ? (m.valUSD / totalMappedValue) * 100 : 0;
   });
 
+  const coveragePct = totalPortfolioValue > 0
+    ? (totalMappedValue / totalPortfolioValue) * 100
+    : (mapped.length > 0 ? 100 : 0);
+
   return {
     mapped,
     unsupported,
     ignored,
     totalPortfolioValue,
     totalMappedValue,
-    coveragePct: totalPortfolioValue > 0 ? (totalMappedValue / totalPortfolioValue) * 100 : 0
+    coveragePct
   };
 }
 
@@ -210,7 +226,7 @@ export function calculateProxyDailyReturn(mappedItems = [], dailyStats = {}) {
   const movers = [];
 
   mappedItems.forEach(item => {
-    const stats = dailyStats[item.usTicker];
+    const stats = dailyStats[item.usTicker] || dailyStats[item.rawTicker] || dailyStats[`${item.rawTicker}.BA`];
     const changePct = stats?.changePct;
 
     if (changePct !== undefined && changePct !== null && !isNaN(changePct)) {
