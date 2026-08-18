@@ -1133,6 +1133,7 @@ function App() {
   const [holdingToDelete, setHoldingToDelete] = useState(null);
   const [sellPriceForDelete, setSellPriceForDelete] = useState('');
 
+  const [editingWatchlistOriginal, setEditingWatchlistOriginal] = useState(null);
   const [wlTicker, setWlTicker] = useState('');
   const [wlTipo, setWlTipo] = useState('accion');
   const [wlMercado, setWlMercado] = useState('BCBA');
@@ -1910,9 +1911,69 @@ function App() {
   };
 
   // --- WATCHLIST BUSINESS LOGIC ---
+  const cargarEdicionWatchlist = (w) => {
+    setEditingWatchlistOriginal(w);
+    setWlTicker(w.ticker);
+    setWlTipo(w.tipo || 'accion');
+    setWlMercado(w.mercado || (w.tipo === 'stock' ? 'NYSE' : 'BCBA'));
+    setWlNombre(w.nombre || '');
+    setWlSector(w.sector || '');
+    setWlSubsector(w.subsector || '');
+    setWlPais(w.pais || '');
+    setShowAddWatchlist(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelarEdicionWatchlist = () => {
+    setEditingWatchlistOriginal(null);
+    setWlTicker(''); setWlNombre(''); setWlSector(''); setWlSubsector(''); setWlPais('');
+    setShowAddWatchlist(false);
+  };
+
   const agregarWatchlist = () => {
     const ticker = wlTicker.trim().toUpperCase();
     if (!ticker) return alert('Completá el ticker.');
+
+    if (editingWatchlistOriginal) {
+      const origKey = `${editingWatchlistOriginal.ticker}-${editingWatchlistOriginal.mercado || (editingWatchlistOriginal.tipo === 'stock' ? 'NYSE' : 'BCBA')}`;
+      const newKey = `${ticker}-${wlMercado}`;
+
+      if (origKey !== newKey && watchlist.some(w => `${w.ticker}-${w.mercado || (w.tipo === 'stock' ? 'NYSE' : 'BCBA')}` === newKey)) {
+        return alert('Ya existe otro activo en la watchlist con ese ticker y mercado.');
+      }
+
+      const updatedItem = {
+        ...editingWatchlistOriginal,
+        ticker,
+        tipo: wlTipo,
+        mercado: wlMercado,
+        nombre: wlNombre.trim(),
+        sector: wlSector.trim(),
+        subsector: wlSubsector.trim(),
+        pais: wlPais.trim()
+      };
+
+      saveCustomTicker({
+        ticker,
+        nombre: wlNombre.trim(),
+        tipo: wlTipo,
+        mercado: wlMercado,
+        sector: wlSector.trim(),
+        subsector: wlSubsector.trim(),
+        pais: wlPais.trim()
+      });
+
+      setWatchlist(prev => prev.map(w => {
+        const itemKey = `${w.ticker}-${w.mercado || (w.tipo === 'stock' ? 'NYSE' : 'BCBA')}`;
+        return itemKey === origKey ? updatedItem : w;
+      }));
+
+      setEditingWatchlistOriginal(null);
+      setWlTicker(''); setWlNombre(''); setWlSector(''); setWlSubsector(''); setWlPais('');
+      setShowAddWatchlist(false);
+      return;
+    }
+
     if (watchlist.find(w => w.ticker === ticker && w.mercado === wlMercado)) return alert('Ya está en la watchlist con ese mercado.');
 
     const w = { ticker, tipo: wlTipo, mercado: wlMercado, nombre: wlNombre.trim(), sector: wlSector.trim(), subsector: wlSubsector.trim(), pais: wlPais.trim() };
@@ -3965,8 +4026,16 @@ function App() {
               marginBottom: showAddWatchlist ? '1.25rem' : '0',
               transition: 'all 0.3s ease'
             }}>
-              <div className="panel-title">Suscripción de Nuevos Activos</div>
-              <button className="btn btn-primary btn-sm" onClick={() => setShowAddWatchlist(!showAddWatchlist)}>
+              <div className="panel-title">
+                {editingWatchlistOriginal ? `Editar Activo: ${editingWatchlistOriginal.ticker}` : 'Suscripción de Nuevos Activos'}
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={() => {
+                if (showAddWatchlist) {
+                  cancelarEdicionWatchlist();
+                } else {
+                  setShowAddWatchlist(true);
+                }
+              }}>
                 {showAddWatchlist ? 'Ocultar Formulario' : '+ Suscribir Activo'}
               </button>
             </div>
@@ -4022,8 +4091,12 @@ function App() {
                     <input value={wlPais} onChange={e => setWlPais(e.target.value)} placeholder="ej: USA" />
                   </div>
                 </div>
-                <button className="btn btn-primary" onClick={agregarWatchlist}>Guardar en Watchlist</button>
-                <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddWatchlist(false)}>Cancelar</button>
+                <button className="btn btn-primary" onClick={agregarWatchlist}>
+                  {editingWatchlistOriginal ? 'Guardar Cambios' : 'Guardar en Watchlist'}
+                </button>
+                <button className="btn" style={{ marginLeft: '8px' }} onClick={cancelarEdicionWatchlist}>
+                  Cancelar
+                </button>
               </div>
             )}
           </div>
@@ -4297,15 +4370,25 @@ function App() {
                               <td>{stats ? fmtHist(stats.hist1y) : '—'}</td>
                               <td>{stats ? fmtHist(stats.hist5y) : '—'}</td>
                               <td>
-                                <button 
-                                  className="btn btn-sm btn-danger" 
-                                  onClick={(e) => { e.stopPropagation(); eliminarWatchlist(w.ticker); }}
-                                  disabled={w.isProxy}
-                                  title={w.isProxy ? 'Activo de tu cartera' : 'Eliminar de watchlist'}
-                                  style={{ opacity: w.isProxy ? 0.3 : 1, cursor: w.isProxy ? 'default' : 'pointer' }}
-                                >
-                                  {w.isProxy ? '—' : '✕'}
-                                </button>
+                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                  <button 
+                                    className="btn btn-sm" 
+                                    onClick={(e) => { e.stopPropagation(); cargarEdicionWatchlist(w); }}
+                                    title="Editar activo (sector, subsector, país, nombre)"
+                                    style={{ padding: '2px 7px', fontSize: '12px' }}
+                                  >
+                                    ✎
+                                  </button>
+                                  <button 
+                                    className="btn btn-sm btn-danger" 
+                                    onClick={(e) => { e.stopPropagation(); eliminarWatchlist(w.ticker); }}
+                                    disabled={w.isProxy}
+                                    title={w.isProxy ? 'Activo de tu cartera' : 'Eliminar de watchlist'}
+                                    style={{ opacity: w.isProxy ? 0.3 : 1, cursor: w.isProxy ? 'default' : 'pointer', padding: '2px 7px', fontSize: '12px' }}
+                                  >
+                                    {w.isProxy ? '—' : '✕'}
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                             {expandedTicker === w.ticker && (
