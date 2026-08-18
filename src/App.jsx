@@ -7,6 +7,7 @@ import ApiUsageDashboard from './components/ApiUsageDashboard';
 import { HonorariosDashboard } from './components/HonorariosDashboard';
 import { analyzeMovement } from './services/aiAnalyzer';
 import { extractPortfolioDataFromImage } from './services/visionService';
+import MultiPortfolioCompositions from './components/MultiPortfolioCompositions';
 
 
 // ── Pure SVG Pie Chart ────────────────────────────────────────────────────────
@@ -3737,6 +3738,21 @@ function App() {
                 </div>
               </div>
             </div>
+
+            {/* Gráficos de Barras Apiladas de Composición Comparativa */}
+            <MultiPortfolioCompositions
+              portfolios={portfolios}
+              allHoldings={allHoldings}
+              prices={prices}
+              dolarMep={dolarMep}
+              tickerCatalog={tickerCatalog}
+              currencyMode={currencyMode}
+              getYahooTicker={getYahooTicker}
+              onSelectPortfolio={(portfolioId) => {
+                setCurrentPortfolioId(portfolioId);
+                setActiveTab('portfolio');
+              }}
+            />
           </div>
         );
       })()}
