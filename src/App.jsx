@@ -1528,14 +1528,17 @@ function App() {
       let shouldFetchIndices = scope === 'all' || activeTab === 'mercados';
       let shouldFetchOps = scope === 'all' || activeTab === 'operaciones';
 
+      // Always track international proxy US counterparts so USD prices and variations are live
+      const allProxyUsItems = (proxyAnalysis?.mapped || []).map(m => ({ ticker: m.usTicker, tipo: 'stock' }));
+
       if (scope === 'all') {
         const allHoldingsList = Object.values(allHoldings || {}).flat().filter(Boolean);
         const allOpsList = Object.values(allOperaciones || {}).flat().filter(Boolean).map(op => ({ ticker: op.ticker, tipo: op.assetTipo || 'accion' }));
         const allTradesList = Object.values(allTrades || {}).flat().filter(Boolean).map(t => ({ ticker: t.ticker || t.compraTicker, tipo: t.tipo || 'accion' }));
-        trackedItems = [...allHoldingsList, ...watchlist, ...allOpsList, ...allTradesList];
+        trackedItems = [...allHoldingsList, ...watchlist, ...allOpsList, ...allTradesList, ...allProxyUsItems];
       } else {
         if (activeTab === 'watchlist') {
-          trackedItems = watchlist;
+          trackedItems = [...watchlist, ...allProxyUsItems];
         } else if (activeTab === 'mercados') {
           trackedItems = [];
         } else if (activeTab === 'operaciones') {
@@ -1543,7 +1546,7 @@ function App() {
         } else if (activeTab === 'trades') {
           trackedItems = [...holdings, ...trades.map(t => ({ ticker: t.ticker || t.compraTicker, tipo: t.tipo || 'accion' }))];
         } else {
-          trackedItems = holdings;
+          trackedItems = [...holdings, ...allProxyUsItems];
         }
       }
 
@@ -2743,14 +2746,26 @@ function App() {
     return { ...proxy, ...stats };
   }, [holdings, tickerCatalog, prices, dolarMep, dailyStats]);
 
+  // US international counterpart items generated dynamically from active portfolio holdings
+  const portfolioUsProxyItems = useMemo(() => {
+    return proxyAnalysis.mapped.map(m => ({
+      ticker: m.usTicker,
+      nombre: m.name,
+      tipo: 'stock',
+      mercado: m.mercado || 'NYSE/NASDAQ',
+      sector: m.sector || 'General',
+      subsector: m.subsector || 'General',
+      pais: m.pais || (m.isAdr ? 'Argentina' : 'USA'),
+      isAdr: m.isAdr,
+      isProxy: true,
+      originalTicker: m.rawTicker
+    }));
+  }, [proxyAnalysis.mapped]);
+
+  const baseWatchlistSource = wlPortfolioOnly ? portfolioUsProxyItems : watchlist;
+
   // Watchlist: items visible after type + category filters (before per-ticker exclusion)
-  const wlVisibleBeforeExclude = watchlist
-    .filter(w => {
-      if (!wlPortfolioOnly) return true;
-      const cleanW = (w.ticker || '').trim().toUpperCase().replace(/\.BA$/i, '');
-      const origClean = w.originalTicker ? w.originalTicker.trim().toUpperCase().replace(/\.BA$/i, '') : null;
-      return portfolioTickers.has(cleanW) || (origClean && portfolioTickers.has(origClean));
-    })
+  const wlVisibleBeforeExclude = baseWatchlistSource
     .filter(w => wlTypeFilters.length === 0 || wlTypeFilters.includes(w.tipo))
     .filter(w => wlSectorFilters.length === 0 || wlSectorFilters.includes(w.sector || ''))
     .filter(w => wlSubsectorFilters.length === 0 || wlSubsectorFilters.includes(w.subsector || ''))
@@ -3139,8 +3154,16 @@ function App() {
                   )}
                 </div>
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 'auto' }}>
-                Resultado real de la jornada
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div>Resultado real de la jornada</div>
+                {proxyAnalysis.mapped.length > 0 && (
+                  <div style={{ paddingTop: '4px', borderTop: '1px dashed rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>🗽 Proxy Wall Street (EE.UU.):</span>
+                    <span className={proxyAnalysis.estimatedReturn >= 0 ? 'positive' : 'negative'} style={{ fontWeight: '700' }}>
+                      {fmtPct(proxyAnalysis.estimatedReturn)} <span style={{ fontSize: '9px', opacity: 0.8 }}>USD</span>
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="glass-panel metric-card">
@@ -3165,30 +3188,6 @@ function App() {
                 </div>
               </div>
             </div>
-            {proxyAnalysis.mapped.length > 0 && (
-              <div className="glass-panel metric-card">
-                <div className="metric-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Proxy Wall Street (Hoy)</span>
-                  <span className="badge badge-adr" style={{ fontSize: '10px', padding: '1px 6px' }}>
-                    {proxyAnalysis.coveragePct.toFixed(0)}% Cobertura
-                  </span>
-                </div>
-                <div className="metric-value">
-                  <span className={proxyAnalysis.estimatedReturn >= 0 ? 'positive' : 'negative'} style={{ fontSize: '22px', fontWeight: '800' }}>
-                    {fmtPct(proxyAnalysis.estimatedReturn)}
-                  </span>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '4px', textTransform: 'uppercase', fontWeight: '600' }}>USD</span>
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>{proxyAnalysis.mapped.length} ADRs y CEDEARs</span>
-                  {proxyAnalysis.topGainer && (
-                    <span style={{ fontSize: '10px', color: proxyAnalysis.topGainer.changePct >= 0 ? 'var(--positive)' : 'var(--negative)' }}>
-                      Top: {proxyAnalysis.topGainer.usTicker} {fmtPct(proxyAnalysis.topGainer.changePct)}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="glass-panel" style={{ marginTop: '0.75rem' }}>
@@ -4028,58 +4027,82 @@ function App() {
 
           {/* ── Treemap ──────── */}
           {(() => {
-            const treemapAssets = [
-              ...holdings.filter(h => h.tipo !== 'efectivo' && h.tipo !== 'bono').map(h => {
-                const yt = getYahooTicker(h) || h.ticker;
-                const pc = prices[yt] ?? null;
-                const stats = dailyStats[yt];
-                const wlItem = watchlist.find(w => w.ticker === h.ticker && w.tipo === h.tipo);
-                return {
-                  ticker: h.ticker,
-                  nombre: h.nombre || wlItem?.nombre || '',
-                  subsector: wlItem?.subsector || '',
-                  yahooTicker: yt,
-                  tipo: wlItem?.tipo || h.tipo || 'stock',
-                  sector: wlItem?.sector || 'Sin Sector',
-                  pais: wlItem?.pais || 'Argentina',
-                  value: pc !== null ? pc * h.cantidad : h.precioEntrada * h.cantidad,
-                  changePct: stats?.changePct || 0,
-                  hist5d: stats?.hist5d ?? null,
-                  hist1m: stats?.hist1m ?? null,
-                  hist6m: stats?.hist6m ?? null,
-                  hist1y: stats?.hist1y ?? null,
-                  hist5y: stats?.hist5y ?? null,
-                  inPortfolio: true
-                };
-              }),
-              ...watchlist.filter(w => !holdings.some(h => h.ticker === w.ticker && h.tipo === w.tipo) && w.tipo !== 'efectivo' && w.tipo !== 'bono').map(w => {
-                const yt = getYahooTicker(w) || w.ticker;
-                const stats = dailyStats[yt];
-                return {
-                  ticker: w.ticker,
-                  nombre: w.nombre || '',
-                  subsector: w.subsector || '',
-                  yahooTicker: yt,
-                  tipo: w.tipo || 'stock',
-                  sector: w.sector || 'Sin Sector',
-                  pais: w.pais || 'Desconocido',
-                  value: 0,
-                  changePct: stats?.changePct || 0,
-                  hist5d: stats?.hist5d ?? null,
-                  hist1m: stats?.hist1m ?? null,
-                  hist6m: stats?.hist6m ?? null,
-                  hist1y: stats?.hist1y ?? null,
-                  hist5y: stats?.hist5y ?? null,
-                  inPortfolio: false
-                };
-              })
-            ];
+            const treemapAssets = wlPortfolioOnly
+              ? proxyAnalysis.mapped.map(m => {
+                  const stats = dailyStats[m.usTicker];
+                  const pc = prices[m.usTicker] ?? null;
+                  return {
+                    ticker: m.usTicker,
+                    nombre: m.name,
+                    subsector: m.subsector || '',
+                    yahooTicker: m.usTicker,
+                    tipo: 'stock',
+                    sector: m.sector || 'Sin Sector',
+                    pais: m.pais || (m.isAdr ? 'Argentina' : 'USA'),
+                    value: pc !== null ? pc * (m.cantidad || 1) : m.valUSD || 0,
+                    changePct: stats?.changePct || 0,
+                    hist5d: stats?.hist5d ?? null,
+                    hist1m: stats?.hist1m ?? null,
+                    hist6m: stats?.hist6m ?? null,
+                    hist1y: stats?.hist1y ?? null,
+                    hist5y: stats?.hist5y ?? null,
+                    inPortfolio: true
+                  };
+                })
+              : [
+                  ...holdings.filter(h => h.tipo !== 'efectivo' && h.tipo !== 'bono').map(h => {
+                    const yt = getYahooTicker(h) || h.ticker;
+                    const pc = prices[yt] ?? null;
+                    const stats = dailyStats[yt];
+                    const wlItem = watchlist.find(w => w.ticker === h.ticker && w.tipo === h.tipo);
+                    return {
+                      ticker: h.ticker,
+                      nombre: h.nombre || wlItem?.nombre || '',
+                      subsector: wlItem?.subsector || '',
+                      yahooTicker: yt,
+                      tipo: wlItem?.tipo || h.tipo || 'stock',
+                      sector: wlItem?.sector || 'Sin Sector',
+                      pais: wlItem?.pais || 'Argentina',
+                      value: pc !== null ? pc * h.cantidad : h.precioEntrada * h.cantidad,
+                      changePct: stats?.changePct || 0,
+                      hist5d: stats?.hist5d ?? null,
+                      hist1m: stats?.hist1m ?? null,
+                      hist6m: stats?.hist6m ?? null,
+                      hist1y: stats?.hist1y ?? null,
+                      hist5y: stats?.hist5y ?? null,
+                      inPortfolio: true
+                    };
+                  }),
+                  ...watchlist.filter(w => !holdings.some(h => h.ticker === w.ticker && h.tipo === w.tipo) && w.tipo !== 'efectivo' && w.tipo !== 'bono').map(w => {
+                    const yt = getYahooTicker(w) || w.ticker;
+                    const stats = dailyStats[yt];
+                    return {
+                      ticker: w.ticker,
+                      nombre: w.nombre || '',
+                      subsector: w.subsector || '',
+                      yahooTicker: yt,
+                      tipo: w.tipo || 'stock',
+                      sector: w.sector || 'Sin Sector',
+                      pais: w.pais || 'Desconocido',
+                      value: 0,
+                      changePct: stats?.changePct || 0,
+                      hist5d: stats?.hist5d ?? null,
+                      hist1m: stats?.hist1m ?? null,
+                      hist6m: stats?.hist6m ?? null,
+                      hist1y: stats?.hist1y ?? null,
+                      hist5y: stats?.hist5y ?? null,
+                      inPortfolio: false
+                    };
+                  })
+                ];
             return <MarketTreemap assets={treemapAssets} dolarCcl={dolarCcl} />;
           })()}
 
           <div className="glass-panel">
             <div className="panel-header" style={{ alignItems: 'center' }}>
-              <div className="panel-title">Lista de Seguimiento ({watchlist.length})</div>
+              <div className="panel-title">
+                {wlPortfolioOnly ? `Mi Cartera en EE.UU. (${proxyAnalysis.mapped.length} ADRs & Stocks)` : `Lista de Seguimiento (${watchlist.length})`}
+              </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0 }}>Filtros:</span>
 
@@ -4093,11 +4116,7 @@ function App() {
                     fontWeight: '600'
                   }}
                 >
-                  💼 Solo de mi Cartera ({watchlist.filter(w => {
-                    const cleanW = (w.ticker || '').trim().toUpperCase().replace(/\.BA$/i, '');
-                    const origClean = w.originalTicker ? w.originalTicker.trim().toUpperCase().replace(/\.BA$/i, '') : null;
-                    return portfolioTickers.has(cleanW) || (origClean && portfolioTickers.has(origClean));
-                  }).length})
+                  🇺🇸 Mi Cartera en EE.UU. ({proxyAnalysis.mapped.length} ADRs & US)
                 </button>
 
                 <MultiCheckDropdown
@@ -4113,21 +4132,21 @@ function App() {
 
                 <MultiCheckDropdown
                   placeholder="Todas las categorías"
-                  options={[...new Set(watchlist.map(w => w.sector).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
+                  options={[...new Set(baseWatchlistSource.map(w => w.sector).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
                   selected={wlSectorFilters}
                   onChange={setWlSectorFilters}
                 />
 
                 <MultiCheckDropdown
                   placeholder="Todas las subcategorías"
-                  options={[...new Set(watchlist.map(w => w.subsector).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
+                  options={[...new Set(baseWatchlistSource.map(w => w.subsector).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
                   selected={wlSubsectorFilters}
                   onChange={setWlSubsectorFilters}
                 />
 
                 <MultiCheckDropdown
                   placeholder="Todos los países"
-                  options={[...new Set(watchlist.map(w => w.pais).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
+                  options={[...new Set(baseWatchlistSource.map(w => w.pais).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
                   selected={wlPaisFilters}
                   onChange={setWlPaisFilters}
                 />
@@ -4142,8 +4161,10 @@ function App() {
             </div>
 
             <div className="table-container">
-              {watchlist.length === 0 ? (
-                <div className="empty-state">No estás siguiendo ningún activo.</div>
+              {wlVisibleBeforeExclude.length === 0 ? (
+                <div className="empty-state">
+                  {wlPortfolioOnly ? 'No se encontraron activos de tu cartera con cotización internacional.' : 'No estás siguiendo ningún activo.'}
+                </div>
               ) : (
                 <table>
                   <thead>
@@ -4235,7 +4256,17 @@ function App() {
                               <td>{stats ? fmtHist(stats.hist6m) : '—'}</td>
                               <td>{stats ? fmtHist(stats.hist1y) : '—'}</td>
                               <td>{stats ? fmtHist(stats.hist5y) : '—'}</td>
-                              <td><button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); eliminarWatchlist(w.ticker); }}>✕</button></td>
+                              <td>
+                                <button 
+                                  className="btn btn-sm btn-danger" 
+                                  onClick={(e) => { e.stopPropagation(); eliminarWatchlist(w.ticker); }}
+                                  disabled={w.isProxy}
+                                  title={w.isProxy ? 'Activo de tu cartera' : 'Eliminar de watchlist'}
+                                  style={{ opacity: w.isProxy ? 0.3 : 1, cursor: w.isProxy ? 'default' : 'pointer' }}
+                                >
+                                  {w.isProxy ? '—' : '✕'}
+                                </button>
+                              </td>
                             </tr>
                             {expandedTicker === w.ticker && (
                               <tr className="expanded-panel-row">
