@@ -8,6 +8,8 @@ import { HonorariosDashboard } from './components/HonorariosDashboard';
 import { analyzeMovement } from './services/aiAnalyzer';
 import { extractPortfolioDataFromImage } from './services/visionService';
 import MultiPortfolioCompositions from './components/MultiPortfolioCompositions';
+import InternationalProxyModal from './components/InternationalProxyModal';
+import { extractPortfolioInternationalProxy, calculateProxyDailyReturn } from './services/marketProxy';
 
 
 // ── Pure SVG Pie Chart ────────────────────────────────────────────────────────
@@ -1078,6 +1080,7 @@ function App() {
   const [showAddHolding, setShowAddHolding] = useState(false);
   const [showAddOp, setShowAddOp] = useState(false);
   const [showAddWatchlist, setShowAddWatchlist] = useState(false);
+  const [showProxyModal, setShowProxyModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [showAddEval, setShowAddEval] = useState(false);
@@ -3896,290 +3899,384 @@ function App() {
       )}
 
       {/* --- TAB 3: WATCHLIST --- */}
-      {activeTab === 'watchlist' && (
-        <>
-          {/* ── Market Status Bar ── */}
-          <MarketStatusBar dailyStats={dailyStats} watchlist={watchlist} />
+      {activeTab === 'watchlist' && (() => {
+        const proxyAnalysis = (() => {
+          const proxy = extractPortfolioInternationalProxy(holdings, tickerCatalog, prices, dolarMep);
+          const stats = calculateProxyDailyReturn(proxy.mapped, dailyStats);
+          return { ...proxy, ...stats };
+        })();
 
-          {/* ── Suscripción de Nuevos Activos ── */}
-          <div className="glass-panel" style={{ 
-            marginBottom: '16px', 
-            padding: showAddWatchlist ? '1.5rem' : '0.75rem 1.5rem',
-            transition: 'all 0.3s ease'
-          }}>
-            <div className="panel-header" style={{ 
-              alignItems: 'center', 
-              marginBottom: showAddWatchlist ? '1.25rem' : '0',
+        return (
+          <>
+            {/* ── Market Status Bar ── */}
+            <MarketStatusBar dailyStats={dailyStats} watchlist={watchlist} />
+
+            {/* ── Suscripción de Nuevos Activos ── */}
+            <div className="glass-panel" style={{ 
+              marginBottom: '16px', 
+              padding: showAddWatchlist ? '1.5rem' : '0.75rem 1.5rem',
               transition: 'all 0.3s ease'
             }}>
-              <div className="panel-title">Suscripción de Nuevos Activos</div>
-              <button className="btn btn-primary btn-sm" onClick={() => setShowAddWatchlist(!showAddWatchlist)}>
-                {showAddWatchlist ? 'Ocultar Formulario' : '+ Suscribir Activo'}
-              </button>
-            </div>
-            {showAddWatchlist && (
-              <div className="collapsible-content active" style={{ marginTop: '12px' }}>
-                <div className="form-row trio">
-                  <div>
-                    <label>Tipo Activo</label>
-                    <select value={wlTipo} onChange={(e) => {
-                      const t = e.target.value;
-                      setWlTipo(t);
-                      if (t === 'accion' || t === 'cedear') setWlMercado('BCBA');
-                      else if (t === 'stock') setWlMercado('NYSE');
-                    }}>
-                      <option value="accion">Acción AR</option>
-                      <option value="cedear">CEDEAR</option>
-                      <option value="stock">Stock US</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label>Mercado</label>
-                    {wlTipo === 'stock' ? (
-                      <select value={wlMercado} onChange={e => setWlMercado(e.target.value)}>
-                        <option value="NYSE">NYSE</option>
-                        <option value="NASDAQ">NASDAQ</option>
+              <div className="panel-header" style={{ 
+                alignItems: 'center', 
+                marginBottom: showAddWatchlist ? '1.25rem' : '0',
+                transition: 'all 0.3s ease'
+              }}>
+                <div className="panel-title">Suscripción de Nuevos Activos</div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button className="btn btn-primary btn-sm" onClick={() => setShowProxyModal(true)}>
+                    🌎 Importar Proxy Internacional (ADRs / US)
+                  </button>
+                  <button className="btn btn-sm" onClick={() => setShowAddWatchlist(!showAddWatchlist)}>
+                    {showAddWatchlist ? 'Ocultar Formulario' : '+ Suscribir Activo'}
+                  </button>
+                </div>
+              </div>
+              {showAddWatchlist && (
+                <div className="collapsible-content active" style={{ marginTop: '12px' }}>
+                  <div className="form-row trio">
+                    <div>
+                      <label>Tipo Activo</label>
+                      <select value={wlTipo} onChange={(e) => {
+                        const t = e.target.value;
+                        setWlTipo(t);
+                        if (t === 'accion' || t === 'cedear') setWlMercado('BCBA');
+                        else if (t === 'stock') setWlMercado('NYSE');
+                      }}>
+                        <option value="accion">Acción AR</option>
+                        <option value="cedear">CEDEAR</option>
+                        <option value="stock">Stock US</option>
                       </select>
-                    ) : (
-                      <input
-                        value="BCBA"
-                        readOnly
-                        style={{ background: 'rgba(0,0,0,0.1)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
-                      />
-                    )}
+                    </div>
+                    <div>
+                      <label>Mercado</label>
+                      {wlTipo === 'stock' ? (
+                        <select value={wlMercado} onChange={e => setWlMercado(e.target.value)}>
+                          <option value="NYSE">NYSE</option>
+                          <option value="NASDAQ">NASDAQ</option>
+                        </select>
+                      ) : (
+                        <input
+                          value="BCBA"
+                          readOnly
+                          style={{ background: 'rgba(0,0,0,0.1)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <label>Ticker</label>
+                      <input value={wlTicker} onChange={e => handleWlTickerChange(e.target.value)} list="ticker-suggestions" placeholder="ej: AAPL" />
+                    </div>
+                    <div>
+                      <label>Nombre (opc.)</label>
+                      <input value={wlNombre} onChange={e => setWlNombre(e.target.value)} placeholder="ej: Apple Inc" />
+                    </div>
+                    <div>
+                      <label>Sector (ej: Tech, Banking)</label>
+                      <input value={wlSector} onChange={e => setWlSector(e.target.value)} placeholder="ej: Tech" />
+                    </div>
+                    <div>
+                      <label>Subsector</label>
+                      <input value={wlSubsector} onChange={e => setWlSubsector(e.target.value)} placeholder="ej: Hardware" />
+                    </div>
+                    <div>
+                      <label>País</label>
+                      <input value={wlPais} onChange={e => setWlPais(e.target.value)} placeholder="ej: USA" />
+                    </div>
                   </div>
+                  <button className="btn btn-primary" onClick={agregarWatchlist}>Guardar en Watchlist</button>
+                  <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddWatchlist(false)}>Cancelar</button>
+                </div>
+              )}
+            </div>
+
+            {/* ── Wall Street Proxy Live Performance Banner ──────── */}
+            {proxyAnalysis.mapped.length > 0 && (
+              <div className="proxy-summary-banner">
+                <div className="proxy-summary-left">
+                  <div className="proxy-summary-icon">🗽</div>
                   <div>
-                    <label>Ticker</label>
-                    <input value={wlTicker} onChange={e => handleWlTickerChange(e.target.value)} list="ticker-suggestions" placeholder="ej: AAPL" />
-                  </div>
-                  <div>
-                    <label>Nombre (opc.)</label>
-                    <input value={wlNombre} onChange={e => setWlNombre(e.target.value)} placeholder="ej: Apple Inc" />
-                  </div>
-                  <div>
-                    <label>Sector (ej: Tech, Banking)</label>
-                    <input value={wlSector} onChange={e => setWlSector(e.target.value)} placeholder="ej: Tech" />
-                  </div>
-                  <div>
-                    <label>Subsector</label>
-                    <input value={wlSubsector} onChange={e => setWlSubsector(e.target.value)} placeholder="ej: Hardware" />
-                  </div>
-                  <div>
-                    <label>País</label>
-                    <input value={wlPais} onChange={e => setWlPais(e.target.value)} placeholder="ej: USA" />
+                    <div className="proxy-summary-title">
+                      <span>Proxy de Cartera en Wall Street (Feriados / NYSE & NASDAQ)</span>
+                      <span className="badge badge-adr" style={{ fontSize: '11px' }}>
+                        {proxyAnalysis.coveragePct.toFixed(1)}% Cobertura
+                      </span>
+                    </div>
+                    <div className="proxy-summary-desc">
+                      Estimación ponderada en base a las cotizaciones internacionales de tus ADRs y CEDEARs ({proxyAnalysis.mapped.length} activos).
+                    </div>
                   </div>
                 </div>
-                <button className="btn btn-primary" onClick={agregarWatchlist}>Guardar en Watchlist</button>
-                <button className="btn" style={{ marginLeft: '8px' }} onClick={() => setShowAddWatchlist(false)}>Cancelar</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                  <div className="proxy-summary-metric">
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Variación Estimada Hoy:</span>
+                    <span className={`proxy-summary-est-val ${proxyAnalysis.estimatedReturn >= 0 ? 'positive' : 'negative'}`}>
+                      {fmtPct(proxyAnalysis.estimatedReturn)}
+                    </span>
+                  </div>
+                  {proxyAnalysis.movers.length > 0 && (
+                    <div className="proxy-summary-movers">
+                      {proxyAnalysis.movers.slice(0, 4).map(m => (
+                        <span key={m.usTicker} className={`proxy-mover-pill ${m.changePct >= 0 ? 'badge-compra' : 'badge-venta'}`}>
+                          {m.usTicker} {fmtPct(m.changePct)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
-          </div>
 
-          {/* ── Treemap ──────── */}
-          {(() => {
-            const treemapAssets = [
-              ...holdings.filter(h => h.tipo !== 'efectivo' && h.tipo !== 'bono').map(h => {
-                const yt = getYahooTicker(h) || h.ticker;
-                const pc = prices[yt] ?? null;
-                const stats = dailyStats[yt];
-                const wlItem = watchlist.find(w => w.ticker === h.ticker && w.tipo === h.tipo);
-                return {
-                  ticker: h.ticker,
-                  nombre: h.nombre || wlItem?.nombre || '',
-                  subsector: wlItem?.subsector || '',
-                  yahooTicker: yt,
-                  tipo: wlItem?.tipo || h.tipo || 'stock',
-                  sector: wlItem?.sector || 'Sin Sector',
-                  pais: wlItem?.pais || 'Argentina',
-                  value: pc !== null ? pc * h.cantidad : h.precioEntrada * h.cantidad,
-                  changePct: stats?.changePct || 0,
-                  hist5d: stats?.hist5d ?? null,
-                  hist1m: stats?.hist1m ?? null,
-                  hist6m: stats?.hist6m ?? null,
-                  hist1y: stats?.hist1y ?? null,
-                  hist5y: stats?.hist5y ?? null
-                };
-              }),
-              ...watchlist.filter(w => !holdings.some(h => h.ticker === w.ticker && h.tipo === w.tipo) && w.tipo !== 'efectivo' && w.tipo !== 'bono').map(w => {
-                const yt = getYahooTicker(w) || w.ticker;
-                const stats = dailyStats[yt];
-                return {
-                  ticker: w.ticker,
-                  nombre: w.nombre || '',
-                  subsector: w.subsector || '',
-                  yahooTicker: yt,
-                  tipo: w.tipo || 'stock',
-                  sector: w.sector || 'Sin Sector',
-                  pais: w.pais || 'Desconocido',
-                  value: 0,
-                  changePct: stats?.changePct || 0,
-                  hist5d: stats?.hist5d ?? null,
-                  hist1m: stats?.hist1m ?? null,
-                  hist6m: stats?.hist6m ?? null,
-                  hist1y: stats?.hist1y ?? null,
-                  hist5y: stats?.hist5y ?? null
-                };
-              })
-            ];
-            return <MarketTreemap assets={treemapAssets} dolarCcl={dolarCcl} />;
-          })()}
+            {/* ── Treemap ──────── */}
+            {(() => {
+              const treemapAssets = [
+                ...holdings.filter(h => h.tipo !== 'efectivo' && h.tipo !== 'bono').map(h => {
+                  const yt = getYahooTicker(h) || h.ticker;
+                  const pc = prices[yt] ?? null;
+                  const stats = dailyStats[yt];
+                  const wlItem = watchlist.find(w => w.ticker === h.ticker && w.tipo === h.tipo);
+                  return {
+                    ticker: h.ticker,
+                    nombre: h.nombre || wlItem?.nombre || '',
+                    subsector: wlItem?.subsector || '',
+                    yahooTicker: yt,
+                    tipo: wlItem?.tipo || h.tipo || 'stock',
+                    sector: wlItem?.sector || 'Sin Sector',
+                    pais: wlItem?.pais || 'Argentina',
+                    value: pc !== null ? pc * h.cantidad : h.precioEntrada * h.cantidad,
+                    changePct: stats?.changePct || 0,
+                    hist5d: stats?.hist5d ?? null,
+                    hist1m: stats?.hist1m ?? null,
+                    hist6m: stats?.hist6m ?? null,
+                    hist1y: stats?.hist1y ?? null,
+                    hist5y: stats?.hist5y ?? null
+                  };
+                }),
+                ...watchlist.filter(w => !holdings.some(h => h.ticker === w.ticker && h.tipo === w.tipo) && w.tipo !== 'efectivo' && w.tipo !== 'bono').map(w => {
+                  const yt = getYahooTicker(w) || w.ticker;
+                  const stats = dailyStats[yt];
+                  return {
+                    ticker: w.ticker,
+                    nombre: w.nombre || '',
+                    subsector: w.subsector || '',
+                    yahooTicker: yt,
+                    tipo: w.tipo || 'stock',
+                    sector: w.sector || 'Sin Sector',
+                    pais: w.pais || 'Desconocido',
+                    value: 0,
+                    changePct: stats?.changePct || 0,
+                    hist5d: stats?.hist5d ?? null,
+                    hist1m: stats?.hist1m ?? null,
+                    hist6m: stats?.hist6m ?? null,
+                    hist1y: stats?.hist1y ?? null,
+                    hist5y: stats?.hist5y ?? null
+                  };
+                })
+              ];
+              return <MarketTreemap assets={treemapAssets} dolarCcl={dolarCcl} />;
+            })()}
 
-        <div className="glass-panel">
-          <div className="panel-header" style={{ alignItems: 'center' }}>
-            <div className="panel-title">Lista de Seguimiento ({watchlist.length})</div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0 }}>Filtros:</span>
+          <div className="glass-panel">
+            <div className="panel-header" style={{ alignItems: 'center' }}>
+              <div className="panel-title">Lista de Seguimiento ({watchlist.length})</div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0 }}>Filtros:</span>
 
-              <MultiCheckDropdown
-                placeholder="Todos los tipos"
-                options={[
-                  { value: 'accion', label: 'Acciones AR' },
-                  { value: 'cedear', label: 'CEDEARs' },
-                  { value: 'stock', label: 'Stocks US' },
-                ]}
-                selected={wlTypeFilters}
-                onChange={setWlTypeFilters}
-              />
+                <MultiCheckDropdown
+                  placeholder="Todos los tipos"
+                  options={[
+                    { value: 'accion', label: 'Acciones AR' },
+                    { value: 'cedear', label: 'CEDEARs' },
+                    { value: 'stock', label: 'Stocks US' },
+                  ]}
+                  selected={wlTypeFilters}
+                  onChange={setWlTypeFilters}
+                />
 
-              <MultiCheckDropdown
-                placeholder="Todas las categorías"
-                options={[...new Set(watchlist.map(w => w.sector).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
-                selected={wlSectorFilters}
-                onChange={setWlSectorFilters}
-              />
+                <MultiCheckDropdown
+                  placeholder="Todas las categorías"
+                  options={[...new Set(watchlist.map(w => w.sector).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
+                  selected={wlSectorFilters}
+                  onChange={setWlSectorFilters}
+                />
 
-              <MultiCheckDropdown
-                placeholder="Todas las subcategorías"
-                options={[...new Set(watchlist.map(w => w.subsector).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
-                selected={wlSubsectorFilters}
-                onChange={setWlSubsectorFilters}
-              />
+                <MultiCheckDropdown
+                  placeholder="Todas las subcategorías"
+                  options={[...new Set(watchlist.map(w => w.subsector).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
+                  selected={wlSubsectorFilters}
+                  onChange={setWlSubsectorFilters}
+                />
 
-              <MultiCheckDropdown
-                placeholder="Todos los países"
-                options={[...new Set(watchlist.map(w => w.pais).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
-                selected={wlPaisFilters}
-                onChange={setWlPaisFilters}
-              />
+                <MultiCheckDropdown
+                  placeholder="Todos los países"
+                  options={[...new Set(watchlist.map(w => w.pais).filter(Boolean))].sort().map(cat => ({ value: cat, label: cat }))}
+                  selected={wlPaisFilters}
+                  onChange={setWlPaisFilters}
+                />
 
-              <MultiCheckDropdown
-                placeholder="Ocultar activo..."
-                options={wlVisibleBeforeExclude.map(w => ({ value: `${w.ticker}-${w.mercado || 'BCBA'}`, label: w.ticker }))}
-                selected={wlExcludedTickers}
-                onChange={setWlExcludedTickers}
-              />
+                <MultiCheckDropdown
+                  placeholder="Ocultar activo..."
+                  options={wlVisibleBeforeExclude.map(w => ({ value: `${w.ticker}-${w.mercado || 'BCBA'}`, label: w.ticker }))}
+                  selected={wlExcludedTickers}
+                  onChange={setWlExcludedTickers}
+                />
+              </div>
+            </div>
+
+            <div className="table-container">
+              {watchlist.length === 0 ? (
+                <div className="empty-state">No estás siguiendo ningún activo.</div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Activo</th>
+                      <th>Tipo</th>
+                      <th>Mercado</th>
+                      <th>Sector</th>
+                      <th>Subsector</th>
+                      <th>País</th>
+                      <th>P. Mercado</th>
+                      <th>Últ. Actualización</th>
+                      <th>1 Día</th>
+                      <th>5 Días</th>
+                      <th>1 Mes</th>
+                      <th>6 Meses</th>
+                      <th>1 Año</th>
+                      <th>5 Años</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {wlVisibleBeforeExclude
+                      .filter(w => !wlExcludedTickers.includes(`${w.ticker}-${w.mercado || 'BCBA'}`))
+                      .sort((a, b) => {
+                        const ytA = getYahooTicker(a) || a.ticker;
+                        const ytB = getYahooTicker(b) || b.ticker;
+                        const pctA = dailyStats[ytA]?.changePct ?? null;
+                        const pctB = dailyStats[ytB]?.changePct ?? null;
+                        if (pctA === null && pctB === null) return 0;
+                        if (pctA === null) return 1;
+                        if (pctB === null) return -1;
+                        return pctB - pctA;
+                      }).map(w => {
+                        const yt = getYahooTicker(w) || w.ticker;
+                        const pc = prices[yt] ?? null;
+                        const stats = dailyStats[yt] ?? null;
+
+                        let todayCss = 'neutral';
+                        let todayText = '—';
+                        if (stats && pc !== null) {
+                          todayCss = stats.change >= 0 ? 'positive' : 'negative';
+                          todayText = fmtPct(stats.changePct);
+                        }
+
+                        const fmtHist = (val) => {
+                          if (val == null) return <span style={{ color: '#666' }}>—</span>;
+                          let css = val >= 0 ? 'positive' : 'negative';
+                          return <span className={css}><strong>{fmtPct(val)}</strong></span>;
+                        };
+
+                        return (
+                          <React.Fragment key={`${w.ticker}-${w.mercado || 'BCBA'}`}>
+                            <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === w.ticker ? null : w.ticker)}>
+                              <td>
+                                <div className="ticker-name">{w.ticker}</div>
+                                {w.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{w.nombre}</div>}
+                              </td>
+                              <td>
+                                <span className={`badge ${w.isAdr ? 'badge-adr' : `badge-${w.tipo}`}`}>
+                                  {w.isAdr ? 'ADR' : w.tipo === 'stock' ? 'Stock US' : w.tipo}
+                                </span>
+                              </td>
+                              <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.mercado || (w.tipo === 'stock' ? 'NYSE/NASDAQ' : 'BCBA')}</span></td>
+                              <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.sector || '—'}</span></td>
+                              <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.subsector || '—'}</span></td>
+                              <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.pais || '—'}</span></td>
+                              <td>
+                                <strong className={pc !== null && stats && !stats.isOpen ? 'price-stale' : ''}>
+                                  {pc !== null ? `$${fmt(pc)}` : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>}
+                                </strong>
+                                {pc !== null && stats && (
+                                  <div>
+                                    <span className={`mkt-price-badge mkt-price-badge--${stats.isOpen ? 'open' : 'closed'}`}>
+                                      <span className="mkt-price-badge__dot" />
+                                      {stats.isOpen ? 'En vivo' : 'Cierre ant.'}
+                                    </span>
+                                  </div>
+                                )}
+                              </td>
+                              <td>
+                                <span style={{ fontSize: '11px', opacity: 0.85 }} title={stats && (stats.updatedAt || stats.regularMarketTime) ? new Date(stats.updatedAt || stats.regularMarketTime * 1000).toLocaleString('es-AR') : ''}>
+                                  {formatLastUpdated(stats)}
+                                </span>
+                              </td>
+                              <td className={todayCss}><strong>{todayText}</strong></td>
+                              <td>{stats ? fmtHist(stats.hist5d) : '—'}</td>
+                              <td>{stats ? fmtHist(stats.hist1m) : '—'}</td>
+                              <td>{stats ? fmtHist(stats.hist6m) : '—'}</td>
+                              <td>{stats ? fmtHist(stats.hist1y) : '—'}</td>
+                              <td>{stats ? fmtHist(stats.hist5y) : '—'}</td>
+                              <td><button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); eliminarWatchlist(w.ticker); }}>✕</button></td>
+                            </tr>
+                            {expandedTicker === w.ticker && (
+                              <tr className="expanded-panel-row">
+                                <td colSpan="15">
+                                  <HistoricalChart data={stats} ticker={w.ticker} name={w.nombre} />
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
 
-          <div className="table-container">
-            {watchlist.length === 0 ? (
-              <div className="empty-state">No estás siguiendo ningún activo.</div>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Activo</th>
-                    <th>Tipo</th>
-                    <th>Mercado</th>
-                    <th>Sector</th>
-                    <th>Subsector</th>
-                    <th>País</th>
-                    <th>P. Mercado</th>
-                    <th>Últ. Actualización</th>
-                    <th>1 Día</th>
-                    <th>5 Días</th>
-                    <th>1 Mes</th>
-                    <th>6 Meses</th>
-                    <th>1 Año</th>
-                    <th>5 Años</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {wlVisibleBeforeExclude
-                    .filter(w => !wlExcludedTickers.includes(`${w.ticker}-${w.mercado || 'BCBA'}`))
-                    .sort((a, b) => {
-                      const ytA = getYahooTicker(a) || a.ticker;
-                      const ytB = getYahooTicker(b) || b.ticker;
-                      const pctA = dailyStats[ytA]?.changePct ?? null;
-                      const pctB = dailyStats[ytB]?.changePct ?? null;
-                      if (pctA === null && pctB === null) return 0;
-                      if (pctA === null) return 1;
-                      if (pctB === null) return -1;
-                      return pctB - pctA;
-                    }).map(w => {
-                      const yt = getYahooTicker(w) || w.ticker;
-                      const pc = prices[yt] ?? null;
-                      const stats = dailyStats[yt] ?? null;
+          {/* ── International Proxy Import Modal ──────── */}
+          <InternationalProxyModal
+            isOpen={showProxyModal}
+            onClose={() => setShowProxyModal(false)}
+            holdings={holdings}
+            allHoldings={allHoldings}
+            portfolios={portfolios}
+            currentPortfolioId={currentPortfolioId}
+            tickerCatalog={tickerCatalog}
+            prices={prices}
+            dolarMep={dolarMep}
+            onImport={(itemsToImport, mode) => {
+              const newWlItems = itemsToImport.map(item => ({
+                ticker: item.usTicker,
+                tipo: 'stock',
+                mercado: item.mercado || 'NYSE/NASDAQ',
+                nombre: item.name,
+                sector: item.sector,
+                subsector: item.subsector,
+                pais: item.pais,
+                isProxy: true,
+                isAdr: item.isAdr,
+                originalTicker: item.rawTicker
+              }));
 
-                      let todayCss = 'neutral';
-                      let todayText = '—';
-                      if (stats && pc !== null) {
-                        todayCss = stats.change >= 0 ? 'positive' : 'negative';
-                        todayText = fmtPct(stats.changePct);
-                      }
+              if (mode === 'replace') {
+                setWatchlist(newWlItems);
+              } else {
+                const existingSet = new Set(watchlist.map(w => `${w.ticker}-${w.mercado || 'BCBA'}`));
+                const toAdd = newWlItems.filter(item => !existingSet.has(`${item.ticker}-${item.mercado || 'BCBA'}`));
+                setWatchlist(prev => [...prev, ...toAdd]);
+              }
 
-                      const fmtHist = (val) => {
-                        if (val == null) return <span style={{ color: '#666' }}>—</span>;
-                        let css = val >= 0 ? 'positive' : 'negative';
-                        return <span className={css}><strong>{fmtPct(val)}</strong></span>;
-                      };
-
-                      return (
-                        <React.Fragment key={`${w.ticker}-${w.mercado || 'BCBA'}`}>
-                          <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === w.ticker ? null : w.ticker)}>
-                            <td>
-                              <div className="ticker-name">{w.ticker}</div>
-                              {w.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{w.nombre}</div>}
-                            </td>
-                            <td><span className={`badge badge-${w.tipo}`}>{w.tipo}</span></td>
-                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.mercado || (w.tipo === 'stock' ? 'NYSE/NASDAQ' : 'BCBA')}</span></td>
-                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.sector || '—'}</span></td>
-                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.subsector || '—'}</span></td>
-                            <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.pais || '—'}</span></td>
-                            <td>
-                              <strong className={pc !== null && stats && !stats.isOpen ? 'price-stale' : ''}>
-                                {pc !== null ? `$${fmt(pc)}` : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>}
-                              </strong>
-                              {pc !== null && stats && (
-                                <div>
-                                  <span className={`mkt-price-badge mkt-price-badge--${stats.isOpen ? 'open' : 'closed'}`}>
-                                    <span className="mkt-price-badge__dot" />
-                                    {stats.isOpen ? 'En vivo' : 'Cierre ant.'}
-                                  </span>
-                                </div>
-                              )}
-                            </td>
-                            <td>
-                              <span style={{ fontSize: '11px', opacity: 0.85 }} title={stats && (stats.updatedAt || stats.regularMarketTime) ? new Date(stats.updatedAt || stats.regularMarketTime * 1000).toLocaleString('es-AR') : ''}>
-                                {formatLastUpdated(stats)}
-                              </span>
-                            </td>
-                            <td className={todayCss}><strong>{todayText}</strong></td>
-                            <td>{stats ? fmtHist(stats.hist5d) : '—'}</td>
-                            <td>{stats ? fmtHist(stats.hist1m) : '—'}</td>
-                            <td>{stats ? fmtHist(stats.hist6m) : '—'}</td>
-                            <td>{stats ? fmtHist(stats.hist1y) : '—'}</td>
-                            <td>{stats ? fmtHist(stats.hist5y) : '—'}</td>
-                            <td><button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); eliminarWatchlist(w.ticker); }}>✕</button></td>
-                          </tr>
-                          {expandedTicker === w.ticker && (
-                            <tr className="expanded-panel-row">
-                              <td colSpan="15">
-                                <HistoricalChart data={stats} ticker={w.ticker} name={w.nombre} />
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
+              setTimeout(() => {
+                refreshData('all');
+              }, 100);
+            }}
+          />
         </>
-      )}
+      );
+    })()}
+
       {/* --- TAB: MERCADOS --- */}
       {activeTab === 'flujos' && (
         <div className="tab-pane active">

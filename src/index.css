@@ -1559,4 +1559,343 @@ textarea:focus {
   color: var(--text-muted);
   font-style: italic;
   margin-top: 2px;
-}
+}
+
+/* ── International Market Proxy Modal & Banner ─────────────────────────────── */
+.badge-adr {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.proxy-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.proxy-modal-card {
+  background: #0f172a;
+  border: 1px solid var(--glass-border-hover);
+  border-radius: 18px;
+  width: 100%;
+  max-width: 820px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+  animation: modalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.proxy-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem 1.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.proxy-modal-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.proxy-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.proxy-modal-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 650px;
+  line-height: 1.4;
+}
+
+.proxy-modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.proxy-modal-close-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.proxy-modal-scope-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.proxy-modal-scope-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.proxy-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  padding: 1.25rem 1.75rem;
+}
+
+.proxy-metric-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.proxy-metric-card.highlight {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.proxy-metric-val {
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.proxy-metric-card.highlight .proxy-metric-val {
+  color: var(--accent);
+}
+
+.proxy-metric-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.proxy-metric-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.proxy-table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 1.75rem;
+  max-height: 340px;
+}
+
+.proxy-table-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.proxy-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.proxy-item-row {
+  display: grid;
+  grid-template-columns: 24px 130px 110px 1.5fr 110px 70px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 13px;
+}
+
+.proxy-item-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.proxy-item-row.selected {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.proxy-item-tickers {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.proxy-ticker-us {
+  font-weight: 700;
+  color: #fff;
+  font-size: 14px;
+}
+
+.proxy-ticker-arrow {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.proxy-ticker-local {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.proxy-item-name {
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.proxy-item-sector {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.proxy-item-weight {
+  text-align: right;
+  font-size: 13px;
+  color: #fff;
+}
+
+.proxy-excluded-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0.75rem 1.75rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.proxy-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.proxy-modal-mode-select {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Proxy Summary Banner in Watchlist ─────────────────────────────────────── */
+.proxy-summary-banner {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(15, 23, 42, 0.6));
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.proxy-summary-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.proxy-summary-icon {
+  font-size: 28px;
+  background: rgba(99, 102, 241, 0.2);
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.proxy-summary-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.proxy-summary-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.proxy-summary-metric {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.proxy-summary-est-val {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.proxy-summary-movers {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.proxy-mover-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
