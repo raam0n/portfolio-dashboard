@@ -715,6 +715,22 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
 
               // Leaf node
               const isHovered = hoveredItem?.name === item.name;
+              const w = item.w;
+              const h = item.h;
+              const cx = item.x + w / 2;
+              const cy = item.y + h / 2;
+              const changeStr = item.changePct != null ? `${item.changePct > 0 ? '+' : ''}${item.changePct.toFixed(2)}%` : null;
+
+              // Layout adaptive logic:
+              // 1. Can we fit anything?
+              const canFitTicker = w >= 24 && h >= 14;
+              // 2. Wide & Short layout (e.g. SPCX: wide rectangle with low height)
+              const isWideAndShort = h < 38 && h >= 16 && w >= 52;
+              // 3. Tall / standard stacked layout (enough vertical space for 2 lines)
+              const isStacked = h >= 38 && w >= 32;
+              // 4. Compact stacked layout (small square)
+              const isCompactStacked = !isStacked && !isWideAndShort && h >= 26 && w >= 34;
+
               return (
                 <g
                   key={`l-${i}`}
@@ -732,27 +748,102 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
                     opacity={hoveredItem && !isHovered ? 0.6 : 1}
                     style={{ transition: 'opacity 0.15s, stroke 0.15s' }}
                   />
-                  {/* Ticker name */}
-                  {item.w > 35 && item.h > 28 && (
-                    <text
-                      x={item.x + item.w / 2} y={item.y + item.h / 2 - (item.h > 45 ? 4 : 0)}
-                      textAnchor="middle" dominantBaseline="central"
-                      fill="#fff" fontSize={item.w > 80 ? 14 : 11} fontWeight="700"
-                      style={{ pointerEvents: 'none', textShadow: '0 1px 4px rgba(0,0,0,0.7)' }}
-                    >
-                      {item.name}
-                    </text>
-                  )}
-                  {/* Change % */}
-                  {item.w > 45 && item.h > 45 && (
-                    <text
-                      x={item.x + item.w / 2} y={item.y + item.h / 2 + 14}
-                      textAnchor="middle" dominantBaseline="central"
-                      fill="rgba(255,255,255,0.85)" fontSize={item.w > 80 ? 12 : 10}
-                      style={{ pointerEvents: 'none' }}
-                    >
-                      {item.changePct != null ? `${item.changePct > 0 ? '+' : ''}${item.changePct.toFixed(2)}%` : '—'}
-                    </text>
+
+                  {/* Adaptive Text Rendering */}
+                  {canFitTicker && (
+                    <>
+                      {isWideAndShort ? (
+                        /* Single line inline: Ticker + Change % */
+                        <text
+                          x={cx}
+                          y={cy}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#fff"
+                          fontSize={h >= 26 ? (w > 110 ? 13 : 11.5) : 10}
+                          style={{ pointerEvents: 'none', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}
+                        >
+                          <tspan fontWeight="700">{item.name}</tspan>
+                          {changeStr && (
+                            <tspan fill="rgba(255,255,255,0.9)" fontWeight="500" dx="6">
+                              {changeStr}
+                            </tspan>
+                          )}
+                        </text>
+                      ) : isStacked ? (
+                        /* Two lines stacked */
+                        <>
+                          <text
+                            x={cx}
+                            y={cy - (h >= 54 ? 8 : 6)}
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            fill="#fff"
+                            fontSize={w > 90 && h > 58 ? 14 : (w > 60 ? 12 : 11)}
+                            fontWeight="700"
+                            style={{ pointerEvents: 'none', textShadow: '0 1px 4px rgba(0,0,0,0.7)' }}
+                          >
+                            {item.name}
+                          </text>
+                          {changeStr && (
+                            <text
+                              x={cx}
+                              y={cy + (h >= 54 ? 10 : 8)}
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill="rgba(255,255,255,0.9)"
+                              fontSize={w > 90 && h > 58 ? 12 : (w > 60 ? 10.5 : 9.5)}
+                              fontWeight="500"
+                              style={{ pointerEvents: 'none' }}
+                            >
+                              {changeStr}
+                            </text>
+                          )}
+                        </>
+                      ) : isCompactStacked && changeStr ? (
+                        /* Compact stacked for smaller squares */
+                        <>
+                          <text
+                            x={cx}
+                            y={cy - 5}
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            fill="#fff"
+                            fontSize={9.5}
+                            fontWeight="700"
+                            style={{ pointerEvents: 'none', textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}
+                          >
+                            {item.name}
+                          </text>
+                          <text
+                            x={cx}
+                            y={cy + 6}
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            fill="rgba(255,255,255,0.9)"
+                            fontSize={8.5}
+                            fontWeight="500"
+                            style={{ pointerEvents: 'none' }}
+                          >
+                            {changeStr}
+                          </text>
+                        </>
+                      ) : (
+                        /* Centered single ticker when strictly too tight for change % */
+                        <text
+                          x={cx}
+                          y={cy}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#fff"
+                          fontSize={Math.min(12, Math.max(9, Math.floor(h * 0.5)))}
+                          fontWeight="700"
+                          style={{ pointerEvents: 'none', textShadow: '0 1px 4px rgba(0,0,0,0.7)' }}
+                        >
+                          {item.name}
+                        </text>
+                      )}
+                    </>
                   )}
                 </g>
               );
