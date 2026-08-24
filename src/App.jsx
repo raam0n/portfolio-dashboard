@@ -1122,6 +1122,7 @@ function App() {
   const [opCantidad, setOpCantidad] = useState('');
   const [opPrecio, setOpPrecio] = useState('');
   const [editingOpId, setEditingOpId] = useState(null);
+  const [searchOpTicker, setSearchOpTicker] = useState('');
 
   const [editingHoldingOriginal, setEditingHoldingOriginal] = useState(null);
   const [registerPartialSale, setRegisterPartialSale] = useState(false);
@@ -3872,142 +3873,195 @@ function App() {
       })()}
 
       {/* --- TAB: OPERACIONES --- */}
-      {activeTab === 'operaciones' && (
-        <div className="glass-panel">
-          <div className="panel-header">
-            <div className="panel-title">Operaciones Históricas ({operaciones.length})</div>
-            <button className="btn btn-primary btn-sm" onClick={() => {
-              if (showAddOp) {
-                cancelarEdicionOp();
-              } else {
-                setEditingOpId(null);
-                setOpTicker('');
-                setOpCantidad('');
-                setOpPrecio('');
-                setShowAddOp(true);
-              }
-            }}>+ Registrar</button>
-          </div>
+      {activeTab === 'operaciones' && (() => {
+        const filteredOperaciones = [...operaciones]
+          .filter(op => {
+            if (!searchOpTicker.trim()) return true;
+            return (op.ticker || '').toLowerCase().includes(searchOpTicker.trim().toLowerCase());
+          })
+          .sort((a, b) => {
+            if (a.fecha !== b.fecha) return b.fecha.localeCompare(a.fecha);
+            return (a.ticker || '').localeCompare(b.ticker || '');
+          });
 
-          {showAddOp && (
-            <div className="collapsible-content active">
-              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>
-                {editingOpId ? '✏️ Editar Operación Histórica' : 'Registrar Movimiento'}
+        return (
+          <div className="glass-panel">
+            <div className="panel-header" style={{ flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
+                <div className="panel-title" style={{ margin: 0 }}>
+                  Operaciones Históricas ({filteredOperaciones.length}{searchOpTicker.trim() ? ` / ${operaciones.length}` : ''})
+                </div>
+                <div style={{ position: 'relative', minWidth: '220px' }}>
+                  <input
+                    type="text"
+                    placeholder="🔍 Buscar por ticker..."
+                    value={searchOpTicker}
+                    onChange={e => setSearchOpTicker(e.target.value)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: '6px',
+                      color: '#fff',
+                      width: '100%'
+                    }}
+                  />
+                  {searchOpTicker && (
+                    <button
+                      onClick={() => setSearchOpTicker('')}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: '#999',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                      title="Limpiar búsqueda"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="form-row trio">
-                <div>
-                  <label>Tipo Activo</label>
-                  <select value={opAssetTipo} onChange={e => setOpAssetTipo(e.target.value)}>
-                    <option value="accion">Acción AR</option>
-                    <option value="cedear">CEDEAR</option>
-                    <option value="stock">Stock US</option>
-                    <option value="bono">Bono</option>
-                    <option value="efectivo">Efectivo</option>
-                  </select>
-                </div>
-                <div>
-                  <label>Ticker</label>
-                  <input value={opTicker} onChange={e => handleOpTickerChange(e.target.value)} list="ticker-suggestions" placeholder="GGAL" />
-                </div>
-                <div>
-                  <label>Movimiento</label>
-                  <select value={opTipo} onChange={e => setOpTipo(e.target.value)}>
-                    <option value="compra">Compra</option>
-                    <option value="venta">Venta</option>
-                  </select>
-                </div>
-              </div>
-              <div className="form-row trio">
-                <div>
-                  <label>Fecha</label>
-                  <input type="date" value={opFecha} onChange={e => setOpFecha(e.target.value)} />
-                </div>
-                <div>
-                  <label>Cantidad</label>
-                  <input type="number" value={opCantidad} onChange={e => setOpCantidad(e.target.value)} placeholder="Ej: 50" />
-                </div>
-                <div>
-                  <label>Precio ($)</label>
-                  <input type="number" value={opPrecio} onChange={e => setOpPrecio(e.target.value)} placeholder="0.00" step="0.01" />
-                </div>
-              </div>
-              <button className="btn btn-primary" onClick={agregarOperacion}>
-                {editingOpId ? 'Guardar Cambios' : 'Guardar Movimiento'}
-              </button>
-              <button className="btn" style={{ marginLeft: '8px' }} onClick={cancelarEdicionOp}>
-                Cancelar
-              </button>
+              <button className="btn btn-primary btn-sm" onClick={() => {
+                if (showAddOp) {
+                  cancelarEdicionOp();
+                } else {
+                  setEditingOpId(null);
+                  setOpTicker(searchOpTicker.trim().toUpperCase() || '');
+                  setOpCantidad('');
+                  setOpPrecio('');
+                  setShowAddOp(true);
+                }
+              }}>+ Registrar</button>
             </div>
-          )}
 
-          <div className="table-container">
-            {operaciones.length === 0 ? (
-              <div className="empty-state">Sin operaciones.</div>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Activo</th>
-                    <th>Detalle</th>
-                    <th>Total Movido</th>
-                    <th>Rendimiento Estimado</th>
-                    <th style={{ width: '80px', textAlign: 'right' }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...operaciones].sort((a, b) => {
-                    if (a.fecha !== b.fecha) return b.fecha.localeCompare(a.fecha);
-                    return a.ticker.localeCompare(b.ticker);
-                  }).map(op => {
-                    const yt = getYahooTicker({ ticker: op.ticker, tipo: op.assetTipo || 'accion' });
-                    const currentPrice = yt ? prices[yt] : (prices[op.ticker] ?? null);
-                    let evalCss = 'neutral';
-                    let evalText = '—';
-
-                    if (currentPrice !== null) {
-                      const diff = currentPrice - op.precio;
-                      const pct = (diff / op.precio) * 100;
-                      const nominalDiff = diff * op.cantidad;
-
-                      if (op.tipo === 'compra') {
-                        evalCss = diff >= 0 ? 'positive' : 'negative';
-                        const sign = diff >= 0 ? '+' : '-';
-                        evalText = `${fmtPct(pct)} (${sign}$${fmt(Math.abs(nominalDiff))})`;
-                      } else if (op.tipo === 'venta') {
-                        evalCss = diff <= 0 ? 'positive' : 'negative';
-                        const salePct = -pct;
-                        const saleNominal = -nominalDiff;
-                        const sign = saleNominal >= 0 ? '+' : '-';
-                        evalText = `${fmtPct(salePct)} (${sign}$${fmt(Math.abs(saleNominal))})`;
-                      }
-                    }
-
-                    return (
-                      <tr key={op.id}>
-                        <td style={{ whiteSpace: 'nowrap', fontSize: '12px', color: 'var(--text-muted)' }}>{op.fecha}</td>
-                        <td><strong>{op.ticker}</strong></td>
-                        <td>
-                          <span className={`badge badge-${op.tipo}`}>{op.tipo}</span><br />
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{fmt(op.cantidad, 0)} @ ${fmt(op.precio)}</span>
-                        </td>
-                        <td>${fmt(op.cantidad * op.precio)}</td>
-                        <td className={evalCss}><strong>{evalText}</strong></td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-                            <button className="btn btn-sm" title="Editar operación" onClick={() => cargarEdicionOp(op)}>✎</button>
-                            <button className="btn btn-sm btn-danger" title="Eliminar operación" onClick={() => eliminarOp(op.id)}>✕</button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            {showAddOp && (
+              <div className="collapsible-content active">
+                <div className="panel-title" style={{ marginBottom: '12px', fontSize: '14px' }}>
+                  {editingOpId ? '✏️ Editar Operación Histórica' : 'Registrar Movimiento'}
+                </div>
+                <div className="form-row trio">
+                  <div>
+                    <label>Tipo Activo</label>
+                    <select value={opAssetTipo} onChange={e => setOpAssetTipo(e.target.value)}>
+                      <option value="accion">Acción AR</option>
+                      <option value="cedear">CEDEAR</option>
+                      <option value="stock">Stock US</option>
+                      <option value="bono">Bono</option>
+                      <option value="efectivo">Efectivo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Ticker</label>
+                    <input value={opTicker} onChange={e => handleOpTickerChange(e.target.value)} list="ticker-suggestions" placeholder="GGAL" />
+                  </div>
+                  <div>
+                    <label>Movimiento</label>
+                    <select value={opTipo} onChange={e => setOpTipo(e.target.value)}>
+                      <option value="compra">Compra</option>
+                      <option value="venta">Venta</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row trio">
+                  <div>
+                    <label>Fecha</label>
+                    <input type="date" value={opFecha} onChange={e => setOpFecha(e.target.value)} />
+                  </div>
+                  <div>
+                    <label>Cantidad</label>
+                    <input type="number" value={opCantidad} onChange={e => setOpCantidad(e.target.value)} placeholder="Ej: 50" />
+                  </div>
+                  <div>
+                    <label>Precio ($)</label>
+                    <input type="number" value={opPrecio} onChange={e => setOpPrecio(e.target.value)} placeholder="0.00" step="0.01" />
+                  </div>
+                </div>
+                <button className="btn btn-primary" onClick={agregarOperacion}>
+                  {editingOpId ? 'Guardar Cambios' : 'Guardar Movimiento'}
+                </button>
+                <button className="btn" style={{ marginLeft: '8px' }} onClick={cancelarEdicionOp}>
+                  Cancelar
+                </button>
+              </div>
             )}
+
+            <div className="table-container">
+              {operaciones.length === 0 ? (
+                <div className="empty-state">Sin operaciones.</div>
+              ) : filteredOperaciones.length === 0 ? (
+                <div className="empty-state">
+                  No se encontraron operaciones para "{searchOpTicker}".
+                </div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Activo</th>
+                      <th>Detalle</th>
+                      <th>Total Movido</th>
+                      <th>Rendimiento Estimado</th>
+                      <th style={{ width: '80px', textAlign: 'right' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOperaciones.map(op => {
+                      const yt = getYahooTicker({ ticker: op.ticker, tipo: op.assetTipo || 'accion' });
+                      const currentPrice = yt ? prices[yt] : (prices[op.ticker] ?? null);
+                      let evalCss = 'neutral';
+                      let evalText = '—';
+
+                      if (currentPrice !== null) {
+                        const diff = currentPrice - op.precio;
+                        const pct = (diff / op.precio) * 100;
+                        const nominalDiff = diff * op.cantidad;
+
+                        if (op.tipo === 'compra') {
+                          evalCss = diff >= 0 ? 'positive' : 'negative';
+                          const sign = diff >= 0 ? '+' : '-';
+                          evalText = `${fmtPct(pct)} (${sign}$${fmt(Math.abs(nominalDiff))})`;
+                        } else if (op.tipo === 'venta') {
+                          evalCss = diff <= 0 ? 'positive' : 'negative';
+                          const salePct = -pct;
+                          const saleNominal = -nominalDiff;
+                          const sign = saleNominal >= 0 ? '+' : '-';
+                          evalText = `${fmtPct(salePct)} (${sign}$${fmt(Math.abs(saleNominal))})`;
+                        }
+                      }
+
+                      return (
+                        <tr key={op.id}>
+                          <td style={{ whiteSpace: 'nowrap', fontSize: '12px', color: 'var(--text-muted)' }}>{op.fecha}</td>
+                          <td><strong>{op.ticker}</strong></td>
+                          <td>
+                            <span className={`badge badge-${op.tipo}`}>{op.tipo}</span><br />
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{fmt(op.cantidad, 0)} @ ${fmt(op.precio)}</span>
+                          </td>
+                          <td>${fmt(op.cantidad * op.precio)}</td>
+                          <td className={evalCss}><strong>{evalText}</strong></td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                              <button className="btn btn-sm" title="Editar operación" onClick={() => cargarEdicionOp(op)}>✎</button>
+                              <button className="btn btn-sm btn-danger" title="Eliminar operación" onClick={() => eliminarOp(op.id)}>✕</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* --- TAB 3: WATCHLIST --- */}
       {activeTab === 'watchlist' && (
