@@ -67,6 +67,18 @@ const fmtPct = (n) => {
   return `${n.toFixed(1)}%`;
 };
 
+// Helper to sort labels alphabetically (A-Z) case-insensitively with 'Otros' always placed at the end
+export function sortAlphaWithOtros(a, b) {
+  const strA = typeof a === 'string' ? a : (a?.label || a?.ticker || '');
+  const strB = typeof b === 'string' ? b : (b?.label || b?.ticker || '');
+  const isAOtros = strA.trim().toLowerCase() === 'otros';
+  const isBOtros = strB.trim().toLowerCase() === 'otros';
+  if (isAOtros && isBOtros) return 0;
+  if (isAOtros) return 1;
+  if (isBOtros) return -1;
+  return strA.localeCompare(strB, 'es', { sensitivity: 'base', numeric: true });
+}
+
 /**
  * Stacked Bar Chart Component for a single dimension (e.g. Sector, Asset, etc.)
  */
@@ -93,11 +105,7 @@ function StackedBarDimensionCard({
     });
     return Object.entries(totals)
       .map(([label, totalVal]) => ({ label, totalVal }))
-      .sort((a, b) => {
-        if (a.label === 'Otros') return 1;
-        if (b.label === 'Otros') return -1;
-        return a.label.localeCompare(b.label, 'es', { sensitivity: 'base' });
-      });
+      .sort(sortAlphaWithOtros);
   }, [dataByPortfolio]);
 
   const handleSegmentMouseMove = (e, p, seg, color) => {
@@ -403,19 +411,17 @@ export default function MultiPortfolioCompositions({
         }
       });
 
-      // Transform into sorted segments with percentages (alphabetically sorted, 'Otros' at the end)
+      // Transform into sorted segments with percentages (alphabetically sorted A-Z, 'Otros' at the end)
       const toSegments = (rawObj, groupThresholdPct = 0) => {
         if (totalVal === 0) return [];
         let entries = Object.entries(rawObj).map(([label, data]) => ({
           label,
           value: data.valor,
           pct: (data.valor / totalVal) * 100,
-          items: data.items.map(it => ({ ...it, pct: (it.valor / totalVal) * 100 })).sort((a, b) => a.ticker.localeCompare(b.ticker, 'es', { sensitivity: 'base' }))
-        })).sort((a, b) => {
-          if (a.label === 'Otros') return 1;
-          if (b.label === 'Otros') return -1;
-          return a.label.localeCompare(b.label, 'es', { sensitivity: 'base' });
-        });
+          items: data.items
+            .map(it => ({ ...it, pct: (it.valor / totalVal) * 100 }))
+            .sort(sortAlphaWithOtros)
+        }));
 
         if (groupThresholdPct > 0) {
           const thresholdVal = totalVal * (groupThresholdPct / 100);
@@ -437,13 +443,13 @@ export default function MultiPortfolioCompositions({
               label: 'Otros',
               value: otrosVal,
               pct: (otrosVal / totalVal) * 100,
-              items: otrosItems.sort((a, b) => a.ticker.localeCompare(b.ticker, 'es', { sensitivity: 'base' }))
+              items: otrosItems.sort(sortAlphaWithOtros)
             });
           }
           entries = keep;
         }
 
-        return entries;
+        return entries.sort(sortAlphaWithOtros);
       };
 
       const tipoSegs = toSegments(rawByTipo, 0);
@@ -469,13 +475,9 @@ export default function MultiPortfolioCompositions({
       byAssetPortfolios.push({ ...pBase, segments: assetSegs });
     });
 
-    // Helper to sort labels alphabetically with 'Otros' at the end
+    // Helper to sort labels alphabetically (A-Z) with 'Otros' at the end
     const sortLabelsAlpha = (labelsSet) => {
-      return Array.from(labelsSet).sort((a, b) => {
-        if (a === 'Otros') return 1;
-        if (b === 'Otros') return -1;
-        return a.localeCompare(b, 'es', { sensitivity: 'base' });
-      });
+      return Array.from(labelsSet).sort(sortAlphaWithOtros);
     };
 
     // Build color mappings
