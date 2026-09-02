@@ -83,7 +83,7 @@ function StackedBarDimensionCard({
 }) {
   const [tooltip, setTooltip] = useState(null);
 
-  // Collect all unique categories present in this dimension sorted by total global value
+  // Collect all unique categories present in this dimension sorted alphabetically (A-Z) with 'Otros' at the end
   const globalCategoryStats = useMemo(() => {
     const totals = {};
     dataByPortfolio.forEach(p => {
@@ -93,7 +93,11 @@ function StackedBarDimensionCard({
     });
     return Object.entries(totals)
       .map(([label, totalVal]) => ({ label, totalVal }))
-      .sort((a, b) => b.totalVal - a.totalVal);
+      .sort((a, b) => {
+        if (a.label === 'Otros') return 1;
+        if (b.label === 'Otros') return -1;
+        return a.label.localeCompare(b.label, 'es', { sensitivity: 'base' });
+      });
   }, [dataByPortfolio]);
 
   const handleSegmentMouseMove = (e, p, seg, color) => {
@@ -399,15 +403,19 @@ export default function MultiPortfolioCompositions({
         }
       });
 
-      // Transform into sorted segments with percentages
+      // Transform into sorted segments with percentages (alphabetically sorted, 'Otros' at the end)
       const toSegments = (rawObj, groupThresholdPct = 0) => {
         if (totalVal === 0) return [];
         let entries = Object.entries(rawObj).map(([label, data]) => ({
           label,
           value: data.valor,
           pct: (data.valor / totalVal) * 100,
-          items: data.items.map(it => ({ ...it, pct: (it.valor / totalVal) * 100 })).sort((a, b) => b.valor - a.valor)
-        })).sort((a, b) => b.value - a.value);
+          items: data.items.map(it => ({ ...it, pct: (it.valor / totalVal) * 100 })).sort((a, b) => a.ticker.localeCompare(b.ticker, 'es', { sensitivity: 'base' }))
+        })).sort((a, b) => {
+          if (a.label === 'Otros') return 1;
+          if (b.label === 'Otros') return -1;
+          return a.label.localeCompare(b.label, 'es', { sensitivity: 'base' });
+        });
 
         if (groupThresholdPct > 0) {
           const thresholdVal = totalVal * (groupThresholdPct / 100);
@@ -429,7 +437,7 @@ export default function MultiPortfolioCompositions({
               label: 'Otros',
               value: otrosVal,
               pct: (otrosVal / totalVal) * 100,
-              items: otrosItems.sort((a, b) => b.valor - a.valor)
+              items: otrosItems.sort((a, b) => a.ticker.localeCompare(b.ticker, 'es', { sensitivity: 'base' }))
             });
           }
           entries = keep;
@@ -461,24 +469,33 @@ export default function MultiPortfolioCompositions({
       byAssetPortfolios.push({ ...pBase, segments: assetSegs });
     });
 
+    // Helper to sort labels alphabetically with 'Otros' at the end
+    const sortLabelsAlpha = (labelsSet) => {
+      return Array.from(labelsSet).sort((a, b) => {
+        if (a === 'Otros') return 1;
+        if (b === 'Otros') return -1;
+        return a.localeCompare(b, 'es', { sensitivity: 'base' });
+      });
+    };
+
     // Build color mappings
     const tipoColorMap = { ...PREDEFINED_TIPO_COLORS };
-    Array.from(allTipoLabels).forEach((l, i) => {
+    sortLabelsAlpha(allTipoLabels).forEach((l, i) => {
       if (!tipoColorMap[l]) tipoColorMap[l] = EXTENDED_PALETTE[i % EXTENDED_PALETTE.length];
     });
 
     const sectorColorMap = { ...PREDEFINED_SECTOR_COLORS };
-    Array.from(allSectorLabels).forEach((l, i) => {
+    sortLabelsAlpha(allSectorLabels).forEach((l, i) => {
       if (!sectorColorMap[l]) sectorColorMap[l] = EXTENDED_PALETTE[i % EXTENDED_PALETTE.length];
     });
 
     const subsectorColorMap = {};
-    Array.from(allSubsectorLabels).forEach((l, i) => {
+    sortLabelsAlpha(allSubsectorLabels).forEach((l, i) => {
       subsectorColorMap[l] = getDeterministicColor(l);
     });
 
     const assetColorMap = {};
-    Array.from(allAssetLabels).forEach((l, i) => {
+    sortLabelsAlpha(allAssetLabels).forEach((l, i) => {
       assetColorMap[l] = l === 'Otros' ? '#64748b' : EXTENDED_PALETTE[i % EXTENDED_PALETTE.length];
     });
 
