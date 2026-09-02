@@ -5444,8 +5444,12 @@ function App() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1.5rem' }}>
               {evals.map(group => {
                 const groupOps = (group.opIds || []).map(id => operaciones.find(o => o.id === id)).filter(Boolean);
-                const comprasOps = groupOps.filter(o => o.tipo === 'compra');
-                const ventasOps = groupOps.filter(o => o.tipo === 'venta');
+                const comprasOps = groupOps
+                  .filter(o => o.tipo === 'compra')
+                  .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || '') || (a.ticker || '').localeCompare(b.ticker || ''));
+                const ventasOps = groupOps
+                  .filter(o => o.tipo === 'venta')
+                  .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || '') || (a.ticker || '').localeCompare(b.ticker || ''));
 
                 let groupBuyCost = 0;
                 let groupBuyValue = 0;
