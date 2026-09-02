@@ -49,6 +49,33 @@ const cleanTickerSymbol = (t) => {
   return String(t).trim().toUpperCase().replace(/\.BA$/i, '');
 };
 
+// Sanitizes and deduplicates watchlist entries by clean ticker symbol
+export const sanitizeWatchlist = (rawList) => {
+  if (!Array.isArray(rawList)) return [];
+  const seen = new Map();
+  rawList.forEach(item => {
+    if (!item || !item.ticker) return;
+    const key = cleanTickerSymbol(item.ticker);
+    if (!key) return;
+    if (!seen.has(key)) {
+      seen.set(key, { ...item, ticker: key });
+    } else {
+      const existing = seen.get(key);
+      seen.set(key, {
+        ...existing,
+        ...item,
+        ticker: key,
+        nombre: existing.nombre && existing.nombre !== key ? existing.nombre : (item.nombre || existing.nombre || key),
+        sector: existing.sector && existing.sector !== 'Sin Sector' && existing.sector !== 'General' ? existing.sector : (item.sector || existing.sector),
+        subsector: existing.subsector && existing.subsector !== 'Sin Subsector' && existing.subsector !== 'General' ? existing.subsector : (item.subsector || existing.subsector),
+        pais: existing.pais && existing.pais !== 'Desconocido' ? existing.pais : (item.pais || existing.pais),
+        mercado: existing.mercado && existing.mercado !== 'NYSE/NASDAQ' ? existing.mercado : (item.mercado || existing.mercado || (item.tipo === 'stock' ? 'NASDAQ' : 'BCBA'))
+      });
+    }
+  });
+  return Array.from(seen.values());
+};
+
 
 const SEED_TICKER_CATALOG = {
   // Acciones Argentina (BCBA)
@@ -1055,7 +1082,10 @@ function App() {
     return {};
   });
 
-  const [watchlist, setWatchlist] = useState(() => JSON.parse(localStorage.getItem('portfolio_watchlist') || '[]'));
+  const [watchlist, setWatchlist] = useState(() => {
+    const raw = JSON.parse(localStorage.getItem('portfolio_watchlist') || '[]');
+    return sanitizeWatchlist(raw);
+  });
 
   const [prices, setPrices] = useState(() => JSON.parse(localStorage.getItem('cached_prices') || '{}'));
   const [dailyStats, setDailyStats] = useState(() => JSON.parse(localStorage.getItem('cached_stats') || '{}'));
@@ -1359,7 +1389,7 @@ function App() {
     safeSetItem('all_evals', allEvals);
     safeSetItem('all_flujos', allFlujos);
     safeSetItem('all_liquidaciones', allLiquidaciones);
-    safeSetItem('portfolio_watchlist', watchlist);
+    safeSetItem('portfolio_watchlist', sanitizeWatchlist(watchlist));
     safeSetItem('portfolios_list', portfolios);
     safeSetItem('current_portfolio_id', currentPortfolioId);
   }, [allHoldings, allOperaciones, allTrades, allEvals, allFlujos, allLiquidaciones, watchlist, portfolios, currentPortfolioId]);
@@ -1932,15 +1962,15 @@ function App() {
   };
 
   const agregarWatchlist = () => {
-    const ticker = wlTicker.trim().toUpperCase();
+    const ticker = cleanTickerSymbol(wlTicker);
     if (!ticker) return alert('Completá el ticker.');
 
     if (editingWatchlistOriginal) {
-      const origKey = `${editingWatchlistOriginal.ticker}-${editingWatchlistOriginal.mercado || (editingWatchlistOriginal.tipo === 'stock' ? 'NYSE' : 'BCBA')}`;
-      const newKey = `${ticker}-${wlMercado}`;
+      const origKey = cleanTickerSymbol(editingWatchlistOriginal.ticker);
+      const newKey = ticker;
 
-      if (origKey !== newKey && watchlist.some(w => `${w.ticker}-${w.mercado || (w.tipo === 'stock' ? 'NYSE' : 'BCBA')}` === newKey)) {
-        return alert('Ya existe otro activo en la watchlist con ese ticker y mercado.');
+      if (origKey !== newKey && watchlist.some(w => cleanTickerSymbol(w.ticker) === newKey)) {
+        return alert('Ya existe otro activo en la watchlist con ese ticker.');
       }
 
       const updatedItem = {
@@ -1964,10 +1994,7 @@ function App() {
         pais: wlPais.trim()
       });
 
-      setWatchlist(prev => prev.map(w => {
-        const itemKey = `${w.ticker}-${w.mercado || (w.tipo === 'stock' ? 'NYSE' : 'BCBA')}`;
-        return itemKey === origKey ? updatedItem : w;
-      }));
+      setWatchlist(prev => sanitizeWatchlist(prev.map(w => (cleanTickerSymbol(w.ticker) === origKey ? updatedItem : w))));
 
       setEditingWatchlistOriginal(null);
       setWlTicker(''); setWlNombre(''); setWlSector(''); setWlSubsector(''); setWlPais('');
@@ -1975,19 +2002,22 @@ function App() {
       return;
     }
 
-    if (watchlist.find(w => w.ticker === ticker && w.mercado === wlMercado)) return alert('Ya está en la watchlist con ese mercado.');
+    if (watchlist.some(w => cleanTickerSymbol(w.ticker) === ticker)) {
+      return alert('Ya está en la watchlist.');
+    }
 
     const w = { ticker, tipo: wlTipo, mercado: wlMercado, nombre: wlNombre.trim(), sector: wlSector.trim(), subsector: wlSubsector.trim(), pais: wlPais.trim() };
 
     saveCustomTicker({ ticker, nombre: wlNombre.trim(), tipo: wlTipo, mercado: wlMercado, sector: wlSector.trim(), subsector: wlSubsector.trim(), pais: wlPais.trim() });
-    setWatchlist([...watchlist, w]);
+    setWatchlist(prev => sanitizeWatchlist([...prev, w]));
     setWlTicker(''); setWlNombre(''); setWlSector(''); setWlSubsector(''); setWlPais('');
     setShowAddWatchlist(false);
   };
 
   const eliminarWatchlist = (ticker) => {
     if (!window.confirm(`¿Remover ${ticker} de la watchlist?`)) return;
-    setWatchlist(watchlist.filter(w => w.ticker !== ticker));
+    const norm = cleanTickerSymbol(ticker);
+    setWatchlist(prev => prev.filter(w => cleanTickerSymbol(w.ticker) !== norm));
   };
 
 
@@ -2513,7 +2543,7 @@ function App() {
         throw new Error('Estructura incorrecta');
       }
 
-      setWatchlist(Array.isArray(data.watchlist) ? data.watchlist : []);
+      setWatchlist(sanitizeWatchlist(Array.isArray(data.watchlist) ? data.watchlist : []));
       setPrices({});
       setImportJson('');
       setShowSettings(false);
@@ -2810,18 +2840,26 @@ function App() {
 
   // US international counterpart items generated dynamically from active portfolio holdings
   const portfolioUsProxyItems = useMemo(() => {
-    return proxyAnalysis.mapped.map(m => ({
-      ticker: m.usTicker,
-      nombre: m.name,
-      tipo: 'stock',
-      mercado: m.mercado || 'NYSE/NASDAQ',
-      sector: m.sector || 'General',
-      subsector: m.subsector || 'General',
-      pais: m.pais || (m.isAdr ? 'Argentina' : 'USA'),
-      isAdr: m.isAdr,
-      isProxy: true,
-      originalTicker: m.rawTicker
-    }));
+    const seen = new Set();
+    const items = [];
+    proxyAnalysis.mapped.forEach(m => {
+      const clean = cleanTickerSymbol(m.usTicker);
+      if (!clean || seen.has(clean)) return;
+      seen.add(clean);
+      items.push({
+        ticker: clean,
+        nombre: m.name,
+        tipo: 'stock',
+        mercado: m.mercado || 'NYSE/NASDAQ',
+        sector: m.sector || 'General',
+        subsector: m.subsector || 'General',
+        pais: m.pais || (m.isAdr ? 'Argentina' : 'USA'),
+        isAdr: m.isAdr,
+        isProxy: true,
+        originalTicker: m.rawTicker
+      });
+    });
+    return items;
   }, [proxyAnalysis.mapped]);
 
   const baseWatchlistSource = wlPortfolioOnly ? portfolioUsProxyItems : watchlist;
@@ -4216,13 +4254,19 @@ function App() {
                     inPortfolio: true
                   };
                 })
-              : [
-                  ...holdings.filter(h => h.tipo !== 'efectivo' && h.tipo !== 'bono').map(h => {
+              : (() => {
+                  const seenMap = new Map();
+
+                  // 1. Add active holdings first (priority)
+                  holdings.filter(h => h.tipo !== 'efectivo' && h.tipo !== 'bono').forEach(h => {
+                    const cleanH = cleanTickerSymbol(h.ticker);
+                    if (!cleanH) return;
                     const yt = getYahooTicker(h) || h.ticker;
                     const pc = prices[yt] ?? null;
                     const stats = dailyStats[yt];
-                    const wlItem = watchlist.find(w => w.ticker === h.ticker && w.tipo === h.tipo);
-                    return {
+                    const wlItem = watchlist.find(w => cleanTickerSymbol(w.ticker) === cleanH);
+
+                    seenMap.set(cleanH, {
                       ticker: h.ticker,
                       nombre: h.nombre || wlItem?.nombre || '',
                       subsector: wlItem?.subsector || '',
@@ -4238,12 +4282,17 @@ function App() {
                       hist1y: stats?.hist1y ?? null,
                       hist5y: stats?.hist5y ?? null,
                       inPortfolio: true
-                    };
-                  }),
-                  ...watchlist.filter(w => !holdings.some(h => h.ticker === w.ticker && h.tipo === w.tipo) && w.tipo !== 'efectivo' && w.tipo !== 'bono').map(w => {
+                    });
+                  });
+
+                  // 2. Add remaining watchlist items not present in holdings
+                  watchlist.filter(w => w.tipo !== 'efectivo' && w.tipo !== 'bono').forEach(w => {
+                    const cleanW = cleanTickerSymbol(w.ticker);
+                    if (!cleanW || seenMap.has(cleanW)) return;
                     const yt = getYahooTicker(w) || w.ticker;
                     const stats = dailyStats[yt];
-                    return {
+
+                    seenMap.set(cleanW, {
                       ticker: w.ticker,
                       nombre: w.nombre || '',
                       subsector: w.subsector || '',
@@ -4259,9 +4308,11 @@ function App() {
                       hist1y: stats?.hist1y ?? null,
                       hist5y: stats?.hist5y ?? null,
                       inPortfolio: false
-                    };
-                  })
-                ];
+                    });
+                  });
+
+                  return Array.from(seenMap.values());
+                })();
             return <MarketTreemap assets={treemapAssets} dolarCcl={dolarCcl} />;
           })()}
 
@@ -4320,7 +4371,7 @@ function App() {
 
                 <MultiCheckDropdown
                   placeholder="Ocultar activo..."
-                  options={wlVisibleBeforeExclude.map(w => ({ value: `${w.ticker}-${w.mercado || 'BCBA'}`, label: w.ticker }))}
+                  options={wlVisibleBeforeExclude.map(w => ({ value: cleanTickerSymbol(w.ticker), label: w.ticker }))}
                   selected={wlExcludedTickers}
                   onChange={setWlExcludedTickers}
                 />
@@ -4355,7 +4406,7 @@ function App() {
                   </thead>
                   <tbody>
                     {wlVisibleBeforeExclude
-                      .filter(w => !wlExcludedTickers.includes(`${w.ticker}-${w.mercado || 'BCBA'}`))
+                      .filter(w => !wlExcludedTickers.includes(cleanTickerSymbol(w.ticker)))
                       .sort((a, b) => {
                         const ytA = getYahooTicker(a) || a.ticker;
                         const ytB = getYahooTicker(b) || b.ticker;
@@ -4384,7 +4435,7 @@ function App() {
                         };
 
                         return (
-                          <React.Fragment key={`${w.ticker}-${w.mercado || 'BCBA'}`}>
+                          <React.Fragment key={cleanTickerSymbol(w.ticker)}>
                             <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === w.ticker ? null : w.ticker)}>
                               <td>
                                 <div className="ticker-name">{w.ticker}</div>
