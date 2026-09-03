@@ -359,6 +359,18 @@ const fmtPct = (n) => {
   return `${sign}${fmt(n, 2)}%`;
 };
 
+const normalizeTicker = (t) => (t || '').trim().toUpperCase().replace(/\.BA$/i, '');
+
+const calcNewPpc = (oldCant, oldPpc, buyCant, buyPrice) => {
+  const q1 = parseFloat(oldCant) || 0;
+  const p1 = parseFloat(oldPpc) || 0;
+  const q2 = parseFloat(buyCant) || 0;
+  const p2 = parseFloat(buyPrice) || 0;
+  const totalQ = q1 + q2;
+  if (totalQ <= 0) return 0;
+  return ((q1 * p1) + (q2 * p2)) / totalQ;
+};
+
 
 
 function PieChart({ data, title, twoColumns = false, forceSingleColumn = false }) {
@@ -1153,6 +1165,7 @@ function App() {
   const [opPrecio, setOpPrecio] = useState('');
   const [editingOpId, setEditingOpId] = useState(null);
   const [searchOpTicker, setSearchOpTicker] = useState('');
+  const [opAutoImpactPortfolio, setOpAutoImpactPortfolio] = useState(true);
 
   const [editingHoldingOriginal, setEditingHoldingOriginal] = useState(null);
   const [registerPartialSale, setRegisterPartialSale] = useState(false);
@@ -1160,6 +1173,8 @@ function App() {
   const [registerPurchase, setRegisterPurchase] = useState(true);
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
   const [purchasePrice, setPurchasePrice] = useState('');
+
+  const [manageHolding, setManageHolding] = useState(null);
   
   const [holdingToDelete, setHoldingToDelete] = useState(null);
   const [sellPriceForDelete, setSellPriceForDelete] = useState('');
@@ -1848,21 +1863,37 @@ function App() {
           const op = { id: Date.now().toString(), ticker: opTicker, assetTipo: newTipo, tipo: 'compra', cantidad: diff, precio: finalPurchasePrice, fecha: finalPurchaseDate };
           setOperaciones(prev => [...prev, op]);
         }
-      } else if (registerPurchase) {
-        const op = { id: Date.now().toString(), ticker: opTicker, assetTipo: newTipo, tipo: 'compra', cantidad: cant, precio: finalPurchasePrice, fecha: finalPurchaseDate };
-        setOperaciones(prev => [...prev, op]);
-      }
+        const newHoldings = [...holdings];
+        newHoldings[existingIndex] = { ...newHoldings[existingIndex], cantidad: cant, precioEntrada: prec, nombre: newNombre.trim(), tipo: newTipo };
+        if (newTipo === 'bono') {
+          const pa = parseFloat(newPrecioActual);
+          if (!isNaN(pa)) {
+            newHoldings[existingIndex].precioActual = pa;
+            nPrices[ticker] = pa;
+          }
+        }
+        setHoldings(newHoldings);
+      } else {
+        // Activo ya existente agregado desde + Agregar Holding: acumular y recalcular PPC ponderado automáticamente
+        const currentH = holdings[existingIndex];
+        const newCant = currentH.cantidad + cant;
+        const newPpc = calcNewPpc(currentH.cantidad, currentH.precioEntrada, cant, prec);
+        const newHoldings = [...holdings];
+        newHoldings[existingIndex] = { ...currentH, cantidad: newCant, precioEntrada: newPpc, nombre: newNombre.trim() || currentH.nombre, tipo: newTipo };
+        if (newTipo === 'bono') {
+          const pa = parseFloat(newPrecioActual);
+          if (!isNaN(pa)) {
+            newHoldings[existingIndex].precioActual = pa;
+            nPrices[ticker] = pa;
+          }
+        }
+        setHoldings(newHoldings);
 
-      const newHoldings = [...holdings];
-      newHoldings[existingIndex] = { ...newHoldings[existingIndex], cantidad: cant, precioEntrada: prec, nombre: newNombre.trim(), tipo: newTipo };
-      if (newTipo === 'bono') {
-        const pa = parseFloat(newPrecioActual);
-        if (!isNaN(pa)) {
-          newHoldings[existingIndex].precioActual = pa;
-          nPrices[ticker] = pa;
+        if (registerPurchase) {
+          const op = { id: Date.now().toString(), ticker: opTicker, assetTipo: newTipo, tipo: 'compra', cantidad: cant, precio: finalPurchasePrice, fecha: finalPurchaseDate };
+          setOperaciones(prev => [...prev, op]);
         }
       }
-      setHoldings(newHoldings);
     } else {
       if (registerPurchase) {
         const op = { id: Date.now().toString(), ticker: opTicker, assetTipo: newTipo, tipo: 'compra', cantidad: cant, precio: finalPurchasePrice, fecha: finalPurchaseDate };
@@ -1888,21 +1919,145 @@ function App() {
     setShowAddHolding(false);
   };
 
+  const abrirGestionHolding = (h, mode = 'compra') => {
+    setManageHolding({
+      holding: h,
+      mode,
+      orderCant: '',
+      orderPrecio: '',
+      orderFecha: new Date().toISOString().split('T')[0],
+      registrarOp: true,
+      editNombre: h.nombre || '',
+      editTipo: h.tipo || 'accion',
+      editMercado: h.mercado || 'BCBA',
+      editCantidad: h.cantidad != null ? h.cantidad.toString() : '',
+      editPrecio: h.precioEntrada != null ? h.precioEntrada.toString() : '',
+      editPrecioActual: h.precioActual !== undefined ? h.precioActual.toString() : ''
+    });
+  };
+
+  const aplicarCompraHolding = () => {
+    if (!manageHolding) return;
+    const { holding, orderCant, orderPrecio, orderFecha, registrarOp } = manageHolding;
+    const cant = parseFloat(orderCant);
+    const prec = parseFloat(orderPrecio);
+
+    if (isNaN(cant) || cant <= 0) return alert('Por favor ingresá una cantidad de compra válida (> 0).');
+    if (isNaN(prec) || prec <= 0) return alert('Por favor ingresá un precio de compra válido (> 0).');
+
+    const nuevaCantidad = holding.cantidad + cant;
+    const nuevoPpc = calcNewPpc(holding.cantidad, holding.precioEntrada, cant, prec);
+
+    const hIndex = holdings.findIndex(item => item.ticker === holding.ticker && item.mercado === holding.mercado);
+    if (hIndex === -1) return;
+
+    const newHoldings = [...holdings];
+    newHoldings[hIndex] = {
+      ...holding,
+      cantidad: nuevaCantidad,
+      precioEntrada: nuevoPpc
+    };
+    setHoldings(newHoldings);
+
+    if (registrarOp) {
+      let opTicker = holding.ticker;
+      if ((holding.tipo === 'accion' || holding.tipo === 'cedear') && !opTicker.endsWith('.BA')) {
+        opTicker = opTicker + '.BA';
+      }
+      const op = {
+        id: Date.now().toString(),
+        ticker: opTicker,
+        assetTipo: holding.tipo,
+        tipo: 'compra',
+        cantidad: cant,
+        precio: prec,
+        fecha: orderFecha || new Date().toISOString().split('T')[0]
+      };
+      setOperaciones(prev => [...prev, op]);
+    }
+
+    setManageHolding(null);
+  };
+
+  const aplicarVentaHolding = () => {
+    if (!manageHolding) return;
+    const { holding, orderCant, orderPrecio, orderFecha, registrarOp } = manageHolding;
+    const cant = parseFloat(orderCant);
+    const prec = parseFloat(orderPrecio);
+
+    if (isNaN(cant) || cant <= 0) return alert('Por favor ingresá una cantidad a vender válida (> 0).');
+    if (cant > holding.cantidad) return alert(`La cantidad a vender (${cant}) no puede ser mayor que tu tenencia actual (${holding.cantidad}).`);
+    if (isNaN(prec) || prec <= 0) return alert('Por favor ingresá un precio de venta válido (> 0).');
+
+    const hIndex = holdings.findIndex(item => item.ticker === holding.ticker && item.mercado === holding.mercado);
+    if (hIndex === -1) return;
+
+    const remanente = holding.cantidad - cant;
+    if (remanente <= 0.000001) {
+      setHoldings(holdings.filter((_, idx) => idx !== hIndex));
+    } else {
+      const newHoldings = [...holdings];
+      newHoldings[hIndex] = {
+        ...holding,
+        cantidad: remanente
+      };
+      setHoldings(newHoldings);
+    }
+
+    if (registrarOp) {
+      let opTicker = holding.ticker;
+      if ((holding.tipo === 'accion' || holding.tipo === 'cedear') && !opTicker.endsWith('.BA')) {
+        opTicker = opTicker + '.BA';
+      }
+      const op = {
+        id: Date.now().toString(),
+        ticker: opTicker,
+        assetTipo: holding.tipo,
+        tipo: 'venta',
+        cantidad: cant,
+        precio: prec,
+        fecha: orderFecha || new Date().toISOString().split('T')[0]
+      };
+      setOperaciones(prev => [...prev, op]);
+    }
+
+    setManageHolding(null);
+  };
+
+  const aplicarEdicionManualHolding = () => {
+    if (!manageHolding) return;
+    const { holding, editNombre, editTipo, editMercado, editCantidad, editPrecio, editPrecioActual } = manageHolding;
+    const cant = parseFloat(editCantidad);
+    const prec = parseFloat(editPrecio);
+
+    if (isNaN(cant) || isNaN(prec)) return alert('Completá cantidad y precio válidos.');
+
+    const hIndex = holdings.findIndex(item => item.ticker === holding.ticker && item.mercado === holding.mercado);
+    if (hIndex === -1) return;
+
+    const newHoldings = [...holdings];
+    const updated = {
+      ...holding,
+      nombre: editNombre.trim(),
+      tipo: editTipo,
+      mercado: editMercado,
+      cantidad: cant,
+      precioEntrada: prec
+    };
+    if (editTipo === 'bono') {
+      const pa = parseFloat(editPrecioActual);
+      if (!isNaN(pa)) {
+        updated.precioActual = pa;
+        setPrices(prev => ({ ...prev, [holding.ticker]: pa }));
+      }
+    }
+    newHoldings[hIndex] = updated;
+    setHoldings(newHoldings);
+    setManageHolding(null);
+  };
+
   const cargarEdicionHolding = (h) => {
-    setEditingHoldingOriginal(h);
-    setRegisterPartialSale(false);
-    setPartialSalePrice('');
-    setRegisterPurchase(true);
-    setPurchaseDate(new Date().toISOString().split('T')[0]);
-    setPurchasePrice('');
-    setNewTicker(h.ticker);
-    setNewTipo(h.tipo);
-    setNewMercado(h.mercado);
-    setNewNombre(h.nombre || '');
-    setNewCantidad(h.cantidad);
-    setNewPrecio(h.precioEntrada);
-    if (h.tipo === 'bono' && h.precioActual !== undefined) setNewPrecioActual(h.precioActual);
-    setShowAddHolding(true);
+    abrirGestionHolding(h, 'editar');
   };
 
   const requestEliminarHolding = (h) => {
@@ -2127,6 +2282,48 @@ function App() {
     } else {
       const op = { id: Date.now().toString(), ticker, assetTipo: opAssetTipo, tipo: opTipo, cantidad: cant, precio: prec, fecha: opFecha };
       setOperaciones([...operaciones, op]);
+
+      if (opAutoImpactPortfolio) {
+        const normOpTicker = normalizeTicker(ticker);
+        const existingIndex = holdings.findIndex(h => normalizeTicker(h.ticker) === normOpTicker);
+        if (opTipo === 'compra') {
+          if (existingIndex !== -1) {
+            const currentH = holdings[existingIndex];
+            const newCant = currentH.cantidad + cant;
+            const newPpc = calcNewPpc(currentH.cantidad, currentH.precioEntrada, cant, prec);
+            const updatedHoldings = [...holdings];
+            updatedHoldings[existingIndex] = { ...currentH, cantidad: newCant, precioEntrada: newPpc };
+            setHoldings(updatedHoldings);
+          } else {
+            let mercado = 'BCBA';
+            if (opAssetTipo === 'stock') mercado = 'NYSE/NASDAQ';
+            else if (opAssetTipo === 'bono') mercado = 'OTC';
+            else if (opAssetTipo === 'efectivo') mercado = 'Caja';
+            const cleanTicker = normOpTicker;
+            const newH = {
+              ticker: cleanTicker,
+              tipo: opAssetTipo,
+              mercado,
+              nombre: customTickers[cleanTicker]?.nombre || cleanTicker,
+              cantidad: cant,
+              precioEntrada: prec
+            };
+            setHoldings([...holdings, newH]);
+          }
+        } else if (opTipo === 'venta') {
+          if (existingIndex !== -1) {
+            const currentH = holdings[existingIndex];
+            if (cant >= currentH.cantidad) {
+              setHoldings(holdings.filter((_, idx) => idx !== existingIndex));
+            } else {
+              const newCant = currentH.cantidad - cant;
+              const updatedHoldings = [...holdings];
+              updatedHoldings[existingIndex] = { ...currentH, cantidad: newCant };
+              setHoldings(updatedHoldings);
+            }
+          }
+        }
+      }
     }
 
     setOpTicker(''); setOpCantidad(''); setOpPrecio('');
@@ -3302,7 +3499,9 @@ function App() {
             {showAddHolding && (
               <div className="collapsible-content active" tabIndex="0" onPaste={handlePasteCapture} style={{ outline: 'none' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                  <div className="panel-title" style={{ fontSize: '14px', margin: 0 }}>Nuevo Holding</div>
+                  <div className="panel-title" style={{ fontSize: '14px', margin: 0 }}>
+                    {editingHoldingOriginal ? `Editar Holding: ${editingHoldingOriginal.ticker}` : 'Nuevo Holding'}
+                  </div>
                   <div 
                     style={{ 
                       fontSize: '12px', color: 'var(--text-muted)', 
@@ -3364,6 +3563,30 @@ function App() {
                     <input type="number" value={newPrecio} onChange={e => setNewPrecio(e.target.value)} placeholder="0.00" step="0.01" />
                   </div>
                 </div>
+                {(() => {
+                  const existingH = !editingHoldingOriginal && newTicker ? holdings.find(h => normalizeTicker(h.ticker) === normalizeTicker(newTicker)) : null;
+                  const cCant = parseFloat(newCantidad);
+                  const cPrec = parseFloat(newPrecio);
+                  if (existingH) {
+                    const isValidCalc = !isNaN(cCant) && cCant > 0 && !isNaN(cPrec) && cPrec > 0;
+                    return (
+                      <div style={{ marginBottom: '14px', padding: '12px 14px', backgroundColor: 'rgba(99, 102, 241, 0.1)', border: '1px solid var(--accent)', borderRadius: '8px', fontSize: '13px' }}>
+                        <div>
+                          💡 <strong>Activo existente en tu cartera:</strong> Ya poseés <strong>{fmt(existingH.cantidad)} nominales</strong> de <strong>{existingH.ticker}</strong> a <strong>${fmt(existingH.precioEntrada)}</strong> PPC.
+                        </div>
+                        <div style={{ marginTop: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                          Al guardar esta orden de compra, se sumará automáticamente a tu tenencia recalculando el nuevo Precio Promedio de Compra ponderado.
+                        </div>
+                        {isValidCalc && (
+                          <div style={{ marginTop: '8px', fontSize: '13px', fontWeight: '600', color: 'var(--positive)' }}>
+                            ➔ Nueva tenencia calculada: {fmt(existingH.cantidad + cCant)} nominales @ PPC ${fmt(calcNewPpc(existingH.cantidad, existingH.precioEntrada, cCant, cPrec))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
                 {editingHoldingOriginal && parseFloat(newCantidad) < editingHoldingOriginal.cantidad && (
                   <div style={{ marginBottom: '12px', padding: '10px', backgroundColor: 'rgba(99, 102, 241, 0.1)', borderRadius: '8px', border: '1px dashed var(--accent)' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: registerPartialSale ? '8px' : '0px', fontSize: '13px' }}>
@@ -3560,9 +3783,39 @@ function App() {
                               <td className={cssPnl}>{pnlA !== null ? sign + '$' + fmt(pnlA) : '—'}</td>
                               <td className={cssPnl}><strong>{fmtPct(pnlP)}</strong></td>
                               <td>
-                                <div style={{ display: 'flex', gap: '4px' }}>
-                                  <button className="btn btn-sm" title="Editar" onClick={(e) => { e.stopPropagation(); cargarEdicionHolding(h); }}>✎</button>
-                                  <button className="btn btn-sm btn-danger" title="Eliminar" onClick={(e) => { e.stopPropagation(); requestEliminarHolding(h); }}>✕</button>
+                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                                  <button 
+                                    className="btn btn-sm" 
+                                    title="Sumar Compra (orden / recalcular PPC)" 
+                                    style={{ color: 'var(--positive)', borderColor: 'rgba(34, 197, 94, 0.4)', fontWeight: 'bold', padding: '3px 8px' }} 
+                                    onClick={(e) => { e.stopPropagation(); abrirGestionHolding(h, 'compra'); }}
+                                  >
+                                    +
+                                  </button>
+                                  <button 
+                                    className="btn btn-sm" 
+                                    title="Venta Parcial (descontar nominales)" 
+                                    style={{ color: 'var(--warning)', borderColor: 'rgba(245, 158, 11, 0.4)', fontWeight: 'bold', padding: '3px 9px' }} 
+                                    onClick={(e) => { e.stopPropagation(); abrirGestionHolding(h, 'venta'); }}
+                                  >
+                                    -
+                                  </button>
+                                  <button 
+                                    className="btn btn-sm" 
+                                    title="Editar / Ajustar posición" 
+                                    style={{ padding: '3px 7px' }} 
+                                    onClick={(e) => { e.stopPropagation(); abrirGestionHolding(h, 'editar'); }}
+                                  >
+                                    ✎
+                                  </button>
+                                  <button 
+                                    className="btn btn-sm btn-danger" 
+                                    title="Eliminar / Liquidar todo" 
+                                    style={{ padding: '3px 7px' }} 
+                                    onClick={(e) => { e.stopPropagation(); requestEliminarHolding(h); }}
+                                  >
+                                    ✕
+                                  </button>
                                 </div>
                               </td>
                             </tr>
@@ -4021,6 +4274,73 @@ function App() {
                     <input type="number" value={opPrecio} onChange={e => setOpPrecio(e.target.value)} placeholder="0.00" step="0.01" />
                   </div>
                 </div>
+                {!editingOpId && (
+                  <div style={{ marginBottom: '16px', padding: '12px 14px', backgroundColor: 'rgba(99, 102, 241, 0.08)', borderRadius: '8px', border: '1px dashed var(--accent)' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={opAutoImpactPortfolio} 
+                        onChange={e => setOpAutoImpactPortfolio(e.target.checked)} 
+                      />
+                      <span>
+                        💼 <strong>Impactar automáticamente en mi Portfolio (Holdings)</strong>
+                        <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {opTipo === 'compra' 
+                            ? 'Suma las cantidades a tu cartera y recalcula el nuevo Precio Promedio de Compra (PPC) ponderado.'
+                            : 'Descuenta las cantidades de tu cartera manteniendo el PPC histórico intacto (o liquida la posición si vendés todo).'}
+                        </span>
+                      </span>
+                    </label>
+                    {opAutoImpactPortfolio && opTicker && (() => {
+                      const matchH = holdings.find(h => normalizeTicker(h.ticker) === normalizeTicker(opTicker));
+                      const cNum = parseFloat(opCantidad);
+                      const pNum = parseFloat(opPrecio);
+                      if (matchH) {
+                        if (opTipo === 'compra' && !isNaN(cNum) && cNum > 0 && !isNaN(pNum) && pNum > 0) {
+                          const nCant = matchH.cantidad + cNum;
+                          const nPpc = calcNewPpc(matchH.cantidad, matchH.precioEntrada, cNum, pNum);
+                          return (
+                            <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--positive)' }}>
+                              ✓ Activo encontrado en cartera ({fmt(matchH.cantidad)} nom. @ ${fmt(matchH.precioEntrada)}).
+                              <br />
+                              ➔ <strong>Nuevo total cartera:</strong> {fmt(nCant)} nominales @ PPC ${fmt(nPpc)}.
+                            </div>
+                          );
+                        } else if (opTipo === 'venta' && !isNaN(cNum) && cNum > 0) {
+                          const rem = matchH.cantidad - cNum;
+                          return (
+                            <div style={{ marginTop: '8px', fontSize: '12px', color: rem >= 0 ? 'var(--warning)' : 'var(--negative)' }}>
+                              ✓ Activo encontrado en cartera ({fmt(matchH.cantidad)} nom. @ ${fmt(matchH.precioEntrada)}).
+                              <br />
+                              ➔ {rem > 0 
+                                ? <><strong>Remanente en cartera:</strong> {fmt(rem)} nominales @ ${fmt(matchH.precioEntrada)}.</>
+                                : <><strong>⚠️ Liquidación total:</strong> Se removerá {matchH.ticker} del portfolio.</>
+                              }
+                            </div>
+                          );
+                        }
+                        return (
+                          <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                            ℹ️ Activo actual en cartera: {fmt(matchH.cantidad)} nom. a ${fmt(matchH.precioEntrada)} PPC.
+                          </div>
+                        );
+                      } else if (opTipo === 'compra' && !isNaN(cNum) && cNum > 0 && !isNaN(pNum) && pNum > 0) {
+                        return (
+                          <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--accent)' }}>
+                            ℹ️ Este activo no está actualmente en tus holdings. Se creará una nueva posición de {fmt(cNum)} nominales a ${fmt(pNum)}.
+                          </div>
+                        );
+                      } else if (opTipo === 'venta') {
+                        return (
+                          <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                            ℹ️ No se encontró una posición abierta de este activo en tus holdings para descontar.
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                )}
                 <button className="btn btn-primary" onClick={agregarOperacion}>
                   {editingOpId ? 'Guardar Cambios' : 'Guardar Movimiento'}
                 </button>
@@ -5804,6 +6124,424 @@ function App() {
             </div>
           );
           })()}
+        </div>
+      )}
+
+      {manageHolding && (
+        <div 
+          className="modal-overlay" 
+          style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            width: '100%', 
+            height: '100%', 
+            backgroundColor: 'rgba(0,0,0,0.75)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            zIndex: 1000, 
+            backdropFilter: 'blur(4px)',
+            padding: '16px'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setManageHolding(null);
+          }}
+        >
+          <div 
+            className="glass-panel" 
+            style={{ 
+              width: '100%', 
+              maxWidth: '520px', 
+              padding: '24px', 
+              backgroundColor: 'var(--bg-main)', 
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: '12px',
+              boxShadow: '0 12px 36px rgba(0,0,0,0.5)',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>{manageHolding.holding.ticker}</span>
+                  {manageHolding.holding.nombre && (
+                    <span style={{ fontSize: '13px', fontWeight: 'normal', color: 'var(--text-muted)' }}>
+                      · {manageHolding.holding.nombre}
+                    </span>
+                  )}
+                </h3>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Tenencia actual: <strong>{fmt(manageHolding.holding.cantidad)} nominales</strong> @ <strong>${fmt(manageHolding.holding.precioEntrada)}</strong> PPC
+                </div>
+              </div>
+              <button 
+                className="btn btn-sm" 
+                style={{ border: 'none', background: 'transparent', fontSize: '16px', cursor: 'pointer', padding: '0 4px', color: 'var(--text-muted)' }} 
+                onClick={() => setManageHolding(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Tabs */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '18px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '8px' }}>
+              <button 
+                type="button"
+                className={`tab-btn ${manageHolding.mode === 'compra' ? 'active' : ''}`}
+                onClick={() => setManageHolding(prev => ({ ...prev, mode: 'compra' }))}
+                style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <span style={{ color: 'var(--positive)' }}>➕</span> Sumar Compra
+              </button>
+              <button 
+                type="button"
+                className={`tab-btn ${manageHolding.mode === 'venta' ? 'active' : ''}`}
+                onClick={() => setManageHolding(prev => ({ ...prev, mode: 'venta' }))}
+                style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <span style={{ color: 'var(--warning)' }}>➖</span> Venta Parcial
+              </button>
+              <button 
+                type="button"
+                className={`tab-btn ${manageHolding.mode === 'editar' ? 'active' : ''}`}
+                onClick={() => setManageHolding(prev => ({ ...prev, mode: 'editar' }))}
+                style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <span>✏️</span> Ajuste Manual
+              </button>
+            </div>
+
+            {/* TAB: COMPRA */}
+            {manageHolding.mode === 'compra' && (() => {
+              const cCant = parseFloat(manageHolding.orderCant);
+              const cPrec = parseFloat(manageHolding.orderPrecio);
+              const isValid = !isNaN(cCant) && cCant > 0 && !isNaN(cPrec) && cPrec > 0;
+              const nuevaCant = isValid ? manageHolding.holding.cantidad + cCant : manageHolding.holding.cantidad;
+              const nuevoPpc = isValid ? calcNewPpc(manageHolding.holding.cantidad, manageHolding.holding.precioEntrada, cCant, cPrec) : manageHolding.holding.precioEntrada;
+              const totalOrden = isValid ? cCant * cPrec : 0;
+
+              return (
+                <div>
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px' }}>
+                    Registrá una compra adicional de este activo. El nuevo Precio Promedio de Compra (PPC) se calculará automáticamente.
+                  </p>
+
+                  <div className="form-row trio" style={{ marginBottom: '14px' }}>
+                    <div>
+                      <label>Cantidad Comprada</label>
+                      <input 
+                        type="number" 
+                        placeholder="Ej: 10" 
+                        value={manageHolding.orderCant} 
+                        onChange={e => setManageHolding({ ...manageHolding, orderCant: e.target.value })} 
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label>Precio Compra ($)</label>
+                      <input 
+                        type="number" 
+                        step="0.01" 
+                        placeholder="0.00" 
+                        value={manageHolding.orderPrecio} 
+                        onChange={e => setManageHolding({ ...manageHolding, orderPrecio: e.target.value })} 
+                      />
+                    </div>
+                    <div>
+                      <label>Fecha</label>
+                      <input 
+                        type="date" 
+                        value={manageHolding.orderFecha} 
+                        onChange={e => setManageHolding({ ...manageHolding, orderFecha: e.target.value })} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Live Preview Box */}
+                  <div style={{ 
+                    padding: '12px 14px', 
+                    backgroundColor: isValid ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255, 255, 255, 0.03)', 
+                    border: isValid ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--glass-border)', 
+                    borderRadius: '8px', 
+                    marginBottom: '16px',
+                    fontSize: '13px'
+                  }}>
+                    <div style={{ fontWeight: '600', color: isValid ? 'var(--positive)' : 'var(--text-muted)', marginBottom: '8px' }}>
+                      📊 {isValid ? 'Vista Previa del Recálculo' : 'Ingresá cantidad y precio para previsualizar el cálculo'}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cantidad Total:</div>
+                        <div style={{ fontSize: '14px', fontWeight: '600' }}>
+                          {fmt(manageHolding.holding.cantidad)} {isValid && <span style={{ color: 'var(--positive)' }}>➔ {fmt(nuevaCant)} (+{fmt(cCant)})</span>}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Nuevo PPC Promedio:</div>
+                        <div style={{ fontSize: '14px', fontWeight: '600' }}>
+                          ${fmt(manageHolding.holding.precioEntrada)} {isValid && <span style={{ color: 'var(--positive)' }}>➔ ${fmt(nuevoPpc)}</span>}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Monto de esta Orden:</div>
+                        <div style={{ fontSize: '14px', fontWeight: '600' }}>
+                          {isValid ? `$${fmt(totalOrden)}` : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Nuevo Capital Invertido:</div>
+                        <div style={{ fontSize: '14px', fontWeight: '600' }}>
+                          {isValid ? `$${fmt(nuevaCant * nuevoPpc)}` : `$${fmt(manageHolding.holding.cantidad * manageHolding.holding.precioEntrada)}`}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '18px', fontSize: '13px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={manageHolding.registrarOp} 
+                      onChange={e => setManageHolding({ ...manageHolding, registrarOp: e.target.checked })} 
+                    />
+                    Registrar esta orden en Histórico de Operaciones
+                  </label>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button 
+                      className="btn btn-primary" 
+                      disabled={!isValid} 
+                      onClick={aplicarCompraHolding}
+                    >
+                      Confirmar Compra y Actualizar
+                    </button>
+                    <button className="btn" onClick={() => setManageHolding(null)}>
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* TAB: VENTA PARCIAL */}
+            {manageHolding.mode === 'venta' && (() => {
+              const vCant = parseFloat(manageHolding.orderCant);
+              const vPrec = parseFloat(manageHolding.orderPrecio);
+              const isValidCant = !isNaN(vCant) && vCant > 0;
+              const isExceeded = isValidCant && vCant > manageHolding.holding.cantidad;
+              const isFullSale = isValidCant && Math.abs(vCant - manageHolding.holding.cantidad) < 0.000001;
+              const isValid = isValidCant && !isExceeded && !isNaN(vPrec) && vPrec > 0;
+              const remanente = isValidCant && !isExceeded ? manageHolding.holding.cantidad - vCant : manageHolding.holding.cantidad;
+              const totalVenta = isValid ? vCant * vPrec : 0;
+              const costoVendido = isValid ? vCant * manageHolding.holding.precioEntrada : 0;
+              const pnlVenta = isValid ? totalVenta - costoVendido : 0;
+              const pnlVentaPct = isValid && costoVendido > 0 ? (pnlVenta / costoVendido) * 100 : 0;
+
+              return (
+                <div>
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px' }}>
+                    Ingresá la venta realizada. Se descontará automáticamente la cantidad vendida sin alterar el precio de compra promedio original.
+                  </p>
+
+                  <div className="form-row trio" style={{ marginBottom: '14px' }}>
+                    <div>
+                      <label>Cantidad Vendida</label>
+                      <input 
+                        type="number" 
+                        placeholder={`Máx: ${manageHolding.holding.cantidad}`} 
+                        value={manageHolding.orderCant} 
+                        onChange={e => setManageHolding({ ...manageHolding, orderCant: e.target.value })} 
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label>Precio Venta ($)</label>
+                      <input 
+                        type="number" 
+                        step="0.01" 
+                        placeholder="0.00" 
+                        value={manageHolding.orderPrecio} 
+                        onChange={e => setManageHolding({ ...manageHolding, orderPrecio: e.target.value })} 
+                      />
+                    </div>
+                    <div>
+                      <label>Fecha</label>
+                      <input 
+                        type="date" 
+                        value={manageHolding.orderFecha} 
+                        onChange={e => setManageHolding({ ...manageHolding, orderFecha: e.target.value })} 
+                      />
+                    </div>
+                  </div>
+
+                  {isExceeded && (
+                    <div style={{ marginBottom: '14px', padding: '8px 12px', backgroundColor: 'var(--negative-bg)', border: '1px solid var(--negative)', borderRadius: '6px', fontSize: '12px', color: 'var(--negative)' }}>
+                      ⚠️ La cantidad a vender ({fmt(vCant)}) no puede ser mayor que tu tenencia disponible ({fmt(manageHolding.holding.cantidad)}).
+                    </div>
+                  )}
+
+                  {isFullSale && (
+                    <div style={{ marginBottom: '14px', padding: '8px 12px', backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid var(--warning)', borderRadius: '6px', fontSize: '12px', color: 'var(--warning)' }}>
+                      ℹ️ <strong>Liquidación Total (100%):</strong> Se retirará {manageHolding.holding.ticker} del portfolio y se registrará la venta en Operaciones.
+                    </div>
+                  )}
+
+                  {/* Live Preview Box */}
+                  <div style={{ 
+                    padding: '12px 14px', 
+                    backgroundColor: isValid ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255, 255, 255, 0.03)', 
+                    border: isValid ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--glass-border)', 
+                    borderRadius: '8px', 
+                    marginBottom: '16px',
+                    fontSize: '13px'
+                  }}>
+                    <div style={{ fontWeight: '600', color: isValid ? 'var(--text-main)' : 'var(--text-muted)', marginBottom: '8px' }}>
+                      📊 {isValid ? 'Vista Previa de la Venta' : 'Ingresá cantidad y precio para previsualizar el cálculo'}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Remanente en Cartera:</div>
+                        <div style={{ fontSize: '14px', fontWeight: '600' }}>
+                          {fmt(manageHolding.holding.cantidad)} {isValid && <span style={{ color: 'var(--negative)' }}>➔ {fmt(remanente)} (-{fmt(vCant)})</span>}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Precio Promedio (PPC):</div>
+                        <div style={{ fontSize: '14px', fontWeight: '600' }}>
+                          ${fmt(manageHolding.holding.precioEntrada)} <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>(inalterado)</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Total a Cobrar:</div>
+                        <div style={{ fontSize: '14px', fontWeight: '600' }}>
+                          {isValid ? `$${fmt(totalVenta)}` : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Resultado Estimado:</div>
+                        <div style={{ fontSize: '14px', fontWeight: '600' }}>
+                          {isValid ? (
+                            <span className={pnlVenta >= 0 ? 'positive' : 'negative'}>
+                              {pnlVenta >= 0 ? '+' : ''}${fmt(pnlVenta)} ({fmtPct(pnlVentaPct)})
+                            </span>
+                          ) : '—'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '18px', fontSize: '13px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={manageHolding.registrarOp} 
+                      onChange={e => setManageHolding({ ...manageHolding, registrarOp: e.target.checked })} 
+                    />
+                    Registrar esta venta en Histórico de Operaciones
+                  </label>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button 
+                      className="btn btn-primary" 
+                      disabled={!isValid} 
+                      onClick={aplicarVentaHolding}
+                    >
+                      {isFullSale ? 'Liquidar Posición' : 'Confirmar Venta y Descontar'}
+                    </button>
+                    <button className="btn" onClick={() => setManageHolding(null)}>
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* TAB: EDICIÓN MANUAL */}
+            {manageHolding.mode === 'editar' && (
+              <div>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px' }}>
+                  Ajuste o corrección manual directa de valores y parámetros de la posición.
+                </p>
+
+                <div className="form-row">
+                  <div>
+                    <label>Tipo</label>
+                    <select 
+                      value={manageHolding.editTipo} 
+                      onChange={e => setManageHolding({ ...manageHolding, editTipo: e.target.value })}
+                    >
+                      <option value="accion">Acción AR</option>
+                      <option value="cedear">CEDEAR</option>
+                      <option value="stock">Stock US</option>
+                      <option value="bono">Bono</option>
+                      <option value="efectivo">Efectivo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Mercado</label>
+                    <select 
+                      value={manageHolding.editMercado} 
+                      onChange={e => setManageHolding({ ...manageHolding, editMercado: e.target.value })}
+                    >
+                      <option value="BCBA">BCBA (Argentina)</option>
+                      <option value="NYSE/NASDAQ">NYSE/NASDAQ (US)</option>
+                      <option value="MAE">MAE</option>
+                      <option value="OTC">OTC</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Nombre (opc.)</label>
+                    <input 
+                      value={manageHolding.editNombre} 
+                      onChange={e => setManageHolding({ ...manageHolding, editNombre: e.target.value })} 
+                      placeholder="ej: Galicia" 
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div>
+                    <label>Cantidad Total</label>
+                    <input 
+                      type="number" 
+                      value={manageHolding.editCantidad} 
+                      onChange={e => setManageHolding({ ...manageHolding, editCantidad: e.target.value })} 
+                    />
+                  </div>
+                  <div>
+                    <label>Precio Entrada Promedio ($)</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      value={manageHolding.editPrecio} 
+                      onChange={e => setManageHolding({ ...manageHolding, editPrecio: e.target.value })} 
+                    />
+                  </div>
+                  {manageHolding.editTipo === 'bono' && (
+                    <div>
+                      <label>Precio Actual Manual ($)</label>
+                      <input 
+                        type="number" 
+                        step="0.01" 
+                        value={manageHolding.editPrecioActual} 
+                        onChange={e => setManageHolding({ ...manageHolding, editPrecioActual: e.target.value })} 
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+                  <button className="btn btn-primary" onClick={aplicarEdicionManualHolding}>
+                    Guardar Cambios
+                  </button>
+                  <button className="btn" onClick={() => setManageHolding(null)}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
         </div>
       )}
 
