@@ -49,27 +49,36 @@ const cleanTickerSymbol = (t) => {
   return String(t).trim().toUpperCase().replace(/\.BA$/i, '');
 };
 
-// Sanitizes and deduplicates watchlist entries by clean ticker symbol
+// Sanitizes and deduplicates watchlist entries by clean ticker symbol AND asset type
 export const sanitizeWatchlist = (rawList) => {
   if (!Array.isArray(rawList)) return [];
   const seen = new Map();
   rawList.forEach(item => {
     if (!item || !item.ticker) return;
-    const key = cleanTickerSymbol(item.ticker);
-    if (!key) return;
+    const cleanTicker = cleanTickerSymbol(item.ticker);
+    if (!cleanTicker) return;
+    const itemTipo = item.tipo || (item.mercado === 'NYSE' || item.mercado === 'NASDAQ' || item.mercado === 'NYSE/NASDAQ' ? 'stock' : 'cedear');
+    const key = `${cleanTicker}_${itemTipo}`;
+
     if (!seen.has(key)) {
-      seen.set(key, { ...item, ticker: key });
+      seen.set(key, {
+        ...item,
+        ticker: cleanTicker,
+        tipo: itemTipo,
+        mercado: item.mercado || (itemTipo === 'stock' ? 'NASDAQ' : 'BCBA')
+      });
     } else {
       const existing = seen.get(key);
       seen.set(key, {
         ...existing,
         ...item,
-        ticker: key,
-        nombre: existing.nombre && existing.nombre !== key ? existing.nombre : (item.nombre || existing.nombre || key),
+        ticker: cleanTicker,
+        tipo: itemTipo,
+        nombre: existing.nombre && existing.nombre !== cleanTicker ? existing.nombre : (item.nombre || existing.nombre || cleanTicker),
         sector: existing.sector && existing.sector !== 'Sin Sector' && existing.sector !== 'General' ? existing.sector : (item.sector || existing.sector),
         subsector: existing.subsector && existing.subsector !== 'Sin Subsector' && existing.subsector !== 'General' ? existing.subsector : (item.subsector || existing.subsector),
         pais: existing.pais && existing.pais !== 'Desconocido' ? existing.pais : (item.pais || existing.pais),
-        mercado: existing.mercado && existing.mercado !== 'NYSE/NASDAQ' ? existing.mercado : (item.mercado || existing.mercado || (item.tipo === 'stock' ? 'NASDAQ' : 'BCBA'))
+        mercado: item.mercado || existing.mercado || (itemTipo === 'stock' ? 'NASDAQ' : 'BCBA')
       });
     }
   });
@@ -1275,8 +1284,18 @@ function App() {
     const match = tickerCatalog[upper.trim()];
     if (match) {
       if (match.nombre) setWlNombre(match.nombre);
-      if (match.tipo) setWlTipo(match.tipo);
-      if (match.mercado) setWlMercado(match.mercado);
+      // DO NOT overwrite user-selected wlTipo when in 'stock' mode
+      if (wlTipo === 'stock') {
+        const usMkt = match.mercado && match.mercado !== 'BCBA' ? match.mercado : (match.pais === 'USA' ? 'NASDAQ' : 'NYSE');
+        setWlMercado(usMkt);
+      } else if (wlTipo === 'cedear') {
+        setWlMercado('BCBA');
+      } else if (wlTipo === 'accion') {
+        setWlMercado('BCBA');
+      } else {
+        if (match.tipo) setWlTipo(match.tipo);
+        if (match.mercado) setWlMercado(match.mercado);
+      }
       if (match.sector) setWlSector(match.sector);
       if (match.subsector) setWlSubsector(match.subsector);
       if (match.pais) setWlPais(match.pais);
@@ -1436,11 +1455,20 @@ function App() {
   };
 
   const getYahooTicker = (h) => {
+    if (!h) return null;
     if (h.tipo === 'efectivo') return null;
-    let t = h.ticker.trim().toUpperCase();
-    if (h.tipo === 'accion' || h.tipo === 'cedear') return t.endsWith('.BA') ? t : t + '.BA';
-    if (h.tipo === 'stock') return t;
-    return null;
+    let t = (h.ticker || '').trim().toUpperCase();
+    if (!t) return null;
+    // US Stocks on NYSE/NASDAQ must NEVER have .BA
+    if (h.tipo === 'stock' || h.mercado === 'NYSE' || h.mercado === 'NASDAQ' || h.mercado === 'NYSE/NASDAQ') {
+      return t.replace(/\.BA$/i, '');
+    }
+    // Argentine actions and CEDEARs on BCBA get .BA
+    if (h.tipo === 'accion' || h.tipo === 'cedear' || h.mercado === 'BCBA') {
+      return t.endsWith('.BA') ? t : t + '.BA';
+    }
+    if (t.endsWith('.BA')) return t;
+    return t;
   };
 
   const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
@@ -1496,7 +1524,16 @@ function App() {
 
       if (price === undefined || price === null) return null;
 
-      const prevClose = meta1d?.chartPreviousClose || price;
+      let prevClose = meta1d?.chartPreviousClose || meta1d?.previousClose;
+      if (!prevClose && len >= 2) {
+        for (let i = len - 2; i >= 0; i--) {
+          if (closes[i] !== null && closes[i] !== undefined) {
+            prevClose = closes[i];
+            break;
+          }
+        }
+      }
+      if (!prevClose) prevClose = price;
       const change = price - prevClose;
       const changePct = prevClose > 0 ? (change / prevClose) * 100 : 0;
 
@@ -2100,8 +2137,8 @@ function App() {
   const cargarEdicionWatchlist = (w) => {
     setEditingWatchlistOriginal(w);
     setWlTicker(w.ticker);
-    setWlTipo(w.tipo || 'accion');
-    setWlMercado(w.mercado || (w.tipo === 'stock' ? 'NYSE' : 'BCBA'));
+    setWlTipo(w.tipo || 'stock');
+    setWlMercado(w.mercado || (w.tipo === 'stock' ? 'NASDAQ' : 'BCBA'));
     setWlNombre(w.nombre || '');
     setWlSector(w.sector || '');
     setWlSubsector(w.subsector || '');
@@ -2121,18 +2158,18 @@ function App() {
     if (!ticker) return alert('Completá el ticker.');
 
     if (editingWatchlistOriginal) {
-      const origKey = cleanTickerSymbol(editingWatchlistOriginal.ticker);
-      const newKey = ticker;
+      const origKey = `${cleanTickerSymbol(editingWatchlistOriginal.ticker)}_${editingWatchlistOriginal.tipo || 'stock'}`;
+      const newKey = `${ticker}_${wlTipo}`;
 
-      if (origKey !== newKey && watchlist.some(w => cleanTickerSymbol(w.ticker) === newKey)) {
-        return alert('Ya existe otro activo en la watchlist con ese ticker.');
+      if (origKey !== newKey && watchlist.some(w => `${cleanTickerSymbol(w.ticker)}_${w.tipo || 'stock'}` === newKey)) {
+        return alert('Ya existe otro activo en la watchlist con ese ticker y tipo.');
       }
 
       const updatedItem = {
         ...editingWatchlistOriginal,
         ticker,
         tipo: wlTipo,
-        mercado: wlMercado,
+        mercado: wlMercado || (wlTipo === 'stock' ? 'NASDAQ' : 'BCBA'),
         nombre: wlNombre.trim(),
         sector: wlSector.trim(),
         subsector: wlSubsector.trim(),
@@ -2143,13 +2180,13 @@ function App() {
         ticker,
         nombre: wlNombre.trim(),
         tipo: wlTipo,
-        mercado: wlMercado,
+        mercado: wlMercado || (wlTipo === 'stock' ? 'NASDAQ' : 'BCBA'),
         sector: wlSector.trim(),
         subsector: wlSubsector.trim(),
         pais: wlPais.trim()
       });
 
-      setWatchlist(prev => sanitizeWatchlist(prev.map(w => (cleanTickerSymbol(w.ticker) === origKey ? updatedItem : w))));
+      setWatchlist(prev => sanitizeWatchlist(prev.map(w => (`${cleanTickerSymbol(w.ticker)}_${w.tipo || 'stock'}` === origKey ? updatedItem : w))));
 
       setEditingWatchlistOriginal(null);
       setWlTicker(''); setWlNombre(''); setWlSector(''); setWlSubsector(''); setWlPais('');
@@ -2157,22 +2194,55 @@ function App() {
       return;
     }
 
-    if (watchlist.some(w => cleanTickerSymbol(w.ticker) === ticker)) {
+    const newKey = `${ticker}_${wlTipo}`;
+    if (watchlist.some(w => `${cleanTickerSymbol(w.ticker)}_${w.tipo || 'stock'}` === newKey)) {
       return alert('Ya está en la watchlist.');
     }
 
-    const w = { ticker, tipo: wlTipo, mercado: wlMercado, nombre: wlNombre.trim(), sector: wlSector.trim(), subsector: wlSubsector.trim(), pais: wlPais.trim() };
+    const w = {
+      ticker,
+      tipo: wlTipo,
+      mercado: wlMercado || (wlTipo === 'stock' ? 'NASDAQ' : 'BCBA'),
+      nombre: wlNombre.trim(),
+      sector: wlSector.trim(),
+      subsector: wlSubsector.trim(),
+      pais: wlPais.trim()
+    };
 
-    saveCustomTicker({ ticker, nombre: wlNombre.trim(), tipo: wlTipo, mercado: wlMercado, sector: wlSector.trim(), subsector: wlSubsector.trim(), pais: wlPais.trim() });
+    saveCustomTicker({
+      ticker,
+      nombre: wlNombre.trim(),
+      tipo: wlTipo,
+      mercado: wlMercado || (wlTipo === 'stock' ? 'NASDAQ' : 'BCBA'),
+      sector: wlSector.trim(),
+      subsector: wlSubsector.trim(),
+      pais: wlPais.trim()
+    });
     setWatchlist(prev => sanitizeWatchlist([...prev, w]));
     setWlTicker(''); setWlNombre(''); setWlSector(''); setWlSubsector(''); setWlPais('');
     setShowAddWatchlist(false);
   };
 
-  const eliminarWatchlist = (ticker) => {
-    if (!window.confirm(`¿Remover ${ticker} de la watchlist?`)) return;
+  const eliminarWatchlist = (itemOrTicker, itemTipo) => {
+    let ticker = '';
+    let tipo = null;
+    if (typeof itemOrTicker === 'object' && itemOrTicker !== null) {
+      ticker = itemOrTicker.ticker;
+      tipo = itemOrTicker.tipo || null;
+    } else {
+      ticker = itemOrTicker;
+      tipo = itemTipo || null;
+    }
     const norm = cleanTickerSymbol(ticker);
-    setWatchlist(prev => prev.filter(w => cleanTickerSymbol(w.ticker) !== norm));
+    const typeDesc = tipo === 'stock' ? 'Stock US' : tipo === 'cedear' ? 'CEDEAR' : tipo === 'accion' ? 'Acción AR' : '';
+    if (!window.confirm(`¿Remover ${norm} ${typeDesc ? `(${typeDesc})` : ''} de la watchlist?`)) return;
+    setWatchlist(prev => prev.filter(w => {
+      const wClean = cleanTickerSymbol(w.ticker);
+      if (tipo) {
+        return !(wClean === norm && (w.tipo || 'stock') === tipo);
+      }
+      return wClean !== norm;
+    }));
   };
 
 
@@ -4577,24 +4647,36 @@ function App() {
               : (() => {
                   const seenMap = new Map();
 
-                  // 1. Add active holdings first (priority)
+                  // 1. Add active holdings first (priority for their actual holding asset type)
                   holdings.filter(h => h.tipo !== 'efectivo' && h.tipo !== 'bono').forEach(h => {
                     const cleanH = cleanTickerSymbol(h.ticker);
                     if (!cleanH) return;
-                    const yt = getYahooTicker(h) || h.ticker;
+                    const hTipo = h.tipo || 'accion';
+                    const yt = getYahooTicker(h) || (hTipo === 'stock' ? cleanH : cleanH + '.BA');
                     const pc = prices[yt] ?? null;
                     const stats = dailyStats[yt];
-                    const wlItem = watchlist.find(w => cleanTickerSymbol(w.ticker) === cleanH);
+                    const catInfo = tickerCatalog[cleanH] || {};
+                    const wlMatch = watchlist.find(w => cleanTickerSymbol(w.ticker) === cleanH && (w.tipo || 'stock') === hTipo);
 
-                    seenMap.set(cleanH, {
+                    // Normalize portfolio value to USD for treemap sizing consistency
+                    let valUSD = 0;
+                    const rawVal = pc !== null ? pc * h.cantidad : (h.precioEntrada || 0) * h.cantidad;
+                    if (hTipo === 'stock') {
+                      valUSD = rawVal;
+                    } else {
+                      valUSD = rawVal / (dolarCcl || dolarMep || 1200);
+                    }
+
+                    const key = `${cleanH}_${hTipo}`;
+                    seenMap.set(key, {
                       ticker: h.ticker,
-                      nombre: h.nombre || wlItem?.nombre || '',
-                      subsector: wlItem?.subsector || '',
+                      nombre: h.nombre || wlMatch?.nombre || catInfo.nombre || cleanH,
+                      subsector: h.subsector || wlMatch?.subsector || catInfo.subsector || '',
                       yahooTicker: yt,
-                      tipo: wlItem?.tipo || h.tipo || 'stock',
-                      sector: wlItem?.sector || 'Sin Sector',
-                      pais: wlItem?.pais || 'Argentina',
-                      value: pc !== null ? pc * h.cantidad : h.precioEntrada * h.cantidad,
+                      tipo: hTipo, // PRESERVE holding's real type (cedear / accion / stock)
+                      sector: h.sector || wlMatch?.sector || catInfo.sector || 'Sin Sector',
+                      pais: h.pais || wlMatch?.pais || catInfo.pais || (hTipo === 'accion' ? 'Argentina' : 'USA'),
+                      value: valUSD,
                       changePct: stats?.changePct || 0,
                       hist5d: stats?.hist5d ?? null,
                       hist1m: stats?.hist1m ?? null,
@@ -4605,21 +4687,26 @@ function App() {
                     });
                   });
 
-                  // 2. Add remaining watchlist items not present in holdings
+                  // 2. Add remaining watchlist items
                   watchlist.filter(w => w.tipo !== 'efectivo' && w.tipo !== 'bono').forEach(w => {
                     const cleanW = cleanTickerSymbol(w.ticker);
-                    if (!cleanW || seenMap.has(cleanW)) return;
-                    const yt = getYahooTicker(w) || w.ticker;
-                    const stats = dailyStats[yt];
+                    if (!cleanW) return;
+                    const wTipo = w.tipo || (w.mercado === 'NYSE' || w.mercado === 'NASDAQ' || w.mercado === 'NYSE/NASDAQ' ? 'stock' : 'cedear');
+                    const key = `${cleanW}_${wTipo}`;
+                    if (seenMap.has(key)) return;
 
-                    seenMap.set(cleanW, {
+                    const yt = getYahooTicker({ ...w, tipo: wTipo }) || (wTipo === 'stock' ? cleanW : cleanW + '.BA');
+                    const stats = dailyStats[yt];
+                    const catInfo = tickerCatalog[cleanW] || {};
+
+                    seenMap.set(key, {
                       ticker: w.ticker,
-                      nombre: w.nombre || '',
-                      subsector: w.subsector || '',
+                      nombre: w.nombre || catInfo.nombre || cleanW,
+                      subsector: w.subsector || catInfo.subsector || '',
                       yahooTicker: yt,
-                      tipo: w.tipo || 'stock',
-                      sector: w.sector || 'Sin Sector',
-                      pais: w.pais || 'Desconocido',
+                      tipo: wTipo,
+                      sector: w.sector || catInfo.sector || 'Sin Sector',
+                      pais: w.pais || catInfo.pais || (wTipo === 'accion' ? 'Argentina' : 'USA'),
                       value: 0,
                       changePct: stats?.changePct || 0,
                       hist5d: stats?.hist5d ?? null,
@@ -4754,9 +4841,11 @@ function App() {
                           return <span className={css}><strong>{fmtPct(val)}</strong></span>;
                         };
 
+                        const itemKey = `${cleanTickerSymbol(w.ticker)}_${w.tipo || 'stock'}`;
+
                         return (
-                          <React.Fragment key={cleanTickerSymbol(w.ticker)}>
-                            <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === w.ticker ? null : w.ticker)}>
+                          <React.Fragment key={itemKey}>
+                            <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === itemKey ? null : itemKey)}>
                               <td>
                                 <div className="ticker-name">{w.ticker}</div>
                                 {w.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{w.nombre}</div>}
@@ -4806,7 +4895,7 @@ function App() {
                                   </button>
                                   <button 
                                     className="btn btn-sm btn-danger" 
-                                    onClick={(e) => { e.stopPropagation(); eliminarWatchlist(w.ticker); }}
+                                    onClick={(e) => { e.stopPropagation(); eliminarWatchlist(w); }}
                                     disabled={w.isProxy}
                                     title={w.isProxy ? 'Activo de tu cartera' : 'Eliminar de watchlist'}
                                     style={{ opacity: w.isProxy ? 0.3 : 1, cursor: w.isProxy ? 'default' : 'pointer', padding: '2px 7px', fontSize: '12px' }}
@@ -4816,7 +4905,7 @@ function App() {
                                 </div>
                               </td>
                             </tr>
-                            {expandedTicker === w.ticker && (
+                            {expandedTicker === itemKey && (
                               <tr className="expanded-panel-row">
                                 <td colSpan="15">
                                   <HistoricalChart data={stats} ticker={w.ticker} name={w.nombre} />

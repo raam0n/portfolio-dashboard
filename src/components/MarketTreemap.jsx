@@ -345,14 +345,19 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
         else if (period === '1y') activeChange = a.hist1y;
         else if (period === '5y') activeChange = a.hist5y;
 
-        const existing = sectorGroups[sectorKey][subsectorKey].find(item => item.name === a.ticker);
+        const displayName = (a.tipo === 'cedear' && activeTypes.includes('stock')) ? `${a.ticker} (CEDEAR)` : a.ticker;
+        const itemId = `${a.ticker}_${a.tipo}`;
+
+        const existing = sectorGroups[sectorKey][subsectorKey].find(item => item.rawTicker === a.ticker && item.tipo === a.tipo);
         if (existing) {
           existing.portfolioValue = (existing.portfolioValue || 0) + (a.value || 0);
           if (sizing === 'portfolioValue') existing.size = Math.max(1, existing.portfolioValue);
         } else {
           if (sizing === 'portfolioValue' && calcSize <= 0) continue;
           sectorGroups[sectorKey][subsectorKey].push({
-            name: a.ticker,
+            id: itemId,
+            name: displayName,
+            rawTicker: a.ticker,
             nombre: a.nombre,
             subsector: a.subsector,
             size: Math.max(1, calcSize),
@@ -424,14 +429,19 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
       else if (period === '1y') activeChange = a.hist1y;
       else if (period === '5y') activeChange = a.hist5y;
 
-      const existing = groups[groupKey].find(item => item.name === a.ticker);
+      const displayName = (a.tipo === 'cedear' && activeTypes.includes('stock')) ? `${a.ticker} (CEDEAR)` : a.ticker;
+      const itemId = `${a.ticker}_${a.tipo}`;
+
+      const existing = groups[groupKey].find(item => item.rawTicker === a.ticker && item.tipo === a.tipo);
       if (existing) {
         existing.portfolioValue = (existing.portfolioValue || 0) + (a.value || 0);
         if (sizing === 'portfolioValue') existing.size = Math.max(1, existing.portfolioValue);
       } else {
         if (sizing === 'portfolioValue' && calcSize <= 0) continue;
         groups[groupKey].push({
-          name: a.ticker,
+          id: itemId,
+          name: displayName,
+          rawTicker: a.ticker,
           nombre: a.nombre,
           subsector: a.subsector,
           size: Math.max(1, calcSize),
@@ -714,7 +724,7 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
               }
 
               // Leaf node
-              const isHovered = hoveredItem?.name === item.name;
+              const isHovered = (hoveredItem?.id && item.id) ? hoveredItem.id === item.id : hoveredItem?.name === item.name;
               const w = item.w;
               const h = item.h;
               const cx = item.x + w / 2;
