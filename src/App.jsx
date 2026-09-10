@@ -1456,29 +1456,35 @@ function App() {
 
   const getYahooTicker = (h) => {
     if (!h) return null;
-    if (h.tipo === 'efectivo') return null;
+    if (h.tipo === 'efectivo' || h.tipo === 'bono') return null;
     let t = (h.ticker || '').trim().toUpperCase();
     if (!t) return null;
 
+    const cleanT = cleanTickerSymbol(t);
+    // If catalog identifies this instrument as bono or efectivo, Yahoo doesn't track it
+    if (tickerCatalog[cleanT]?.tipo === 'bono' || tickerCatalog[cleanT]?.tipo === 'efectivo') {
+      return null;
+    }
+
     // 1. CEDEARs and Argentine Acciones are BCBA instruments -> ALWAYS .BA
     if (h.tipo === 'accion' || h.tipo === 'cedear') {
-      return t.endsWith('.BA') ? t : t + '.BA';
+      return cleanT.endsWith('.BA') ? cleanT : cleanT + '.BA';
     }
 
     // 2. US Stocks (Wall Street) -> NEVER .BA
     if (h.tipo === 'stock') {
-      return t.replace(/\.BA$/i, '');
+      return cleanT.replace(/\.BA$/i, '');
     }
 
     // 3. Fallback when tipo is not specified: check market or ticker suffix
-    if (h.mercado === 'BCBA' || t.endsWith('.BA')) {
-      return t.endsWith('.BA') ? t : t + '.BA';
+    if (h.mercado === 'BCBA' || cleanT.endsWith('.BA')) {
+      return cleanT.endsWith('.BA') ? cleanT : cleanT + '.BA';
     }
     if (h.mercado === 'NYSE' || h.mercado === 'NASDAQ' || h.mercado === 'NYSE/NASDAQ') {
-      return t.replace(/\.BA$/i, '');
+      return cleanT.replace(/\.BA$/i, '');
     }
 
-    return t;
+    return cleanT;
   };
 
   const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
@@ -1646,7 +1652,10 @@ function App() {
 
       // Fetch Data912 arg bonds live data
       let argBondsData = {};
-      if (trackedItems.some(h => h.tipo === 'bono') || scope === 'all') {
+      const hasBonds = trackedItems.some(h => h.tipo === 'bono' || tickerCatalog[cleanTickerSymbol(h?.ticker)]?.tipo === 'bono') ||
+                       (holdings || []).some(h => h.tipo === 'bono' || tickerCatalog[cleanTickerSymbol(h?.ticker)]?.tipo === 'bono') ||
+                       scope === 'all';
+      if (hasBonds) {
         try {
           const bondsRes = await fetchWithTimeout('https://data912.com/live/arg_bonds', {}, 8000);
           if (bondsRes.ok) {
@@ -1666,16 +1675,25 @@ function App() {
       const itemsToFetchYahoo = new Set();
       for (const h of trackedItems) {
         if (!h || !h.ticker) continue;
-        if (h.tipo === 'bono') {
-          const bondApiData = argBondsData[h.ticker];
+        const cleanT = cleanTickerSymbol(h.ticker);
+        const rawT = (h.ticker || '').trim().toUpperCase();
+        const isBono = h.tipo === 'bono' || tickerCatalog[cleanT]?.tipo === 'bono';
+        if (isBono) {
+          const bondApiData = argBondsData[cleanT] || argBondsData[rawT];
           if (bondApiData) {
             const price = bondApiData.c / 100;
             const changePct = bondApiData.pct_change || 0;
             const prevClose = price / (1 + (changePct / 100));
             const change = price - prevClose;
-            applyData(h.ticker, { price, change, changePct, isOpen: true });
+            const bondStats = { price, change, changePct, isOpen: true };
+            applyData(rawT, bondStats);
+            applyData(cleanT, bondStats);
+            applyData(`${cleanT}.BA`, bondStats);
           } else if (h.precioActual !== undefined) {
-            applyData(h.ticker, { price: h.precioActual, change: 0, changePct: 0 });
+            const bondStats = { price: h.precioActual, change: 0, changePct: 0 };
+            applyData(rawT, bondStats);
+            applyData(cleanT, bondStats);
+            applyData(`${cleanT}.BA`, bondStats);
           }
           continue;
         }
@@ -2991,9 +3009,11 @@ function App() {
   const mepToday = dolarMep || 1;
 
   holdings.forEach(h => {
-    const yt = getYahooTicker(h) || h.ticker;
-    const pc = h.tipo === 'efectivo' ? 1 : (prices[yt] ?? null);
-    const stats = h.tipo === 'efectivo' ? { price: 1, change: 0, changePct: 0 } : (dailyStats[yt] ?? null);
+    const rawT = (h.ticker || '').trim().toUpperCase();
+    const cleanT = cleanTickerSymbol(rawT);
+    const yt = getYahooTicker(h) || cleanT;
+    const pc = h.tipo === 'efectivo' ? 1 : (prices[yt] ?? prices[cleanT] ?? prices[rawT] ?? (h.precioActual !== undefined ? h.precioActual : null));
+    const stats = h.tipo === 'efectivo' ? { price: 1, change: 0, changePct: 0 } : (dailyStats[yt] ?? dailyStats[cleanT] ?? dailyStats[rawT] ?? null);
 
     const qty = h.cantidad;
     const costUnit = h.precioEntrada;
@@ -3749,9 +3769,11 @@ function App() {
                     {(() => {
                       const enriched = holdings.map(h => {
                         const isEfectivo = h.tipo === 'efectivo';
-                        const yt = getYahooTicker(h) || h.ticker;
-                        const pc = isEfectivo ? 1 : (prices[yt] ?? null);
-                        const stats = isEfectivo ? { change: 0, changePct: 0 } : (dailyStats[yt] ?? null);
+                        const rawT = (h.ticker || '').trim().toUpperCase();
+                        const cleanT = cleanTickerSymbol(rawT);
+                        const yt = getYahooTicker(h) || cleanT;
+                        const pc = isEfectivo ? 1 : (prices[yt] ?? prices[cleanT] ?? prices[rawT] ?? (h.precioActual !== undefined ? h.precioActual : null));
+                        const stats = isEfectivo ? { change: 0, changePct: 0 } : (dailyStats[yt] ?? dailyStats[cleanT] ?? dailyStats[rawT] ?? null);
                         const valor = pc !== null ? pc * h.cantidad : null;
                         const costo = h.precioEntrada * h.cantidad;
                         const pnlA = valor !== null ? valor - costo : null;
@@ -3924,8 +3946,10 @@ function App() {
             const bySubsector = {};
 
             holdings.forEach(h => {
-              const yt = getYahooTicker(h) || h.ticker;
-              const pc = prices[yt] ?? null;
+              const rawT = (h.ticker || '').trim().toUpperCase();
+              const cleanT = cleanTickerSymbol(rawT);
+              const yt = getYahooTicker(h) || cleanT;
+              const pc = h.tipo === 'efectivo' ? 1 : (prices[yt] ?? prices[cleanT] ?? prices[rawT] ?? (h.precioActual !== undefined ? h.precioActual : null));
               const valor = pc !== null ? pc * h.cantidad : h.precioEntrada * h.cantidad;
 
               // 1. By Asset
@@ -3998,9 +4022,11 @@ function App() {
 
           pHoldings.forEach(h => {
             const isEfectivo = h.tipo === 'efectivo';
-            const yt = getYahooTicker(h) || h.ticker;
-            const pc = isEfectivo ? 1 : (prices[yt] ?? null);
-            const stats = isEfectivo ? { change: 0, changePct: 0 } : (dailyStats[yt] ?? null);
+            const rawT = (h.ticker || '').trim().toUpperCase();
+            const cleanT = cleanTickerSymbol(rawT);
+            const yt = getYahooTicker(h) || cleanT;
+            const pc = isEfectivo ? 1 : (prices[yt] ?? prices[cleanT] ?? prices[rawT] ?? (h.precioActual !== undefined ? h.precioActual : null));
+            const stats = isEfectivo ? { change: 0, changePct: 0 } : (dailyStats[yt] ?? dailyStats[cleanT] ?? dailyStats[rawT] ?? null);
 
             const isUsdAsset = h.tipo === 'stock' || (isEfectivo && h.ticker === 'USD');
             const mepToday = dolarMep || 1;

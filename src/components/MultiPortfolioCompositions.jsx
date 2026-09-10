@@ -348,8 +348,10 @@ export default function MultiPortfolioCompositions({
 
       pHoldings.forEach(h => {
         const isEfectivo = h.tipo === 'efectivo';
-        const yt = getYahooTicker(h) || h.ticker;
-        const pc = isEfectivo ? 1 : (prices[yt] ?? null);
+        const rawT = (h.ticker || '').trim().toUpperCase();
+        const cleanT = rawT.replace(/\.BA$/i, '');
+        const yt = getYahooTicker(h) || cleanT;
+        const pc = isEfectivo ? 1 : (prices[yt] ?? prices[cleanT] ?? prices[rawT] ?? (h.precioActual !== undefined ? h.precioActual : null));
         const unitVal = pc !== null ? pc : (h.precioEntrada || 0);
         const itemValNative = unitVal * (h.cantidad || 0);
         const isUsdAsset = h.tipo === 'stock' || (isEfectivo && h.ticker === 'USD');
