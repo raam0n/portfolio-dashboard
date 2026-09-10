@@ -1459,15 +1459,25 @@ function App() {
     if (h.tipo === 'efectivo') return null;
     let t = (h.ticker || '').trim().toUpperCase();
     if (!t) return null;
-    // US Stocks on NYSE/NASDAQ must NEVER have .BA
-    if (h.tipo === 'stock' || h.mercado === 'NYSE' || h.mercado === 'NASDAQ' || h.mercado === 'NYSE/NASDAQ') {
-      return t.replace(/\.BA$/i, '');
-    }
-    // Argentine actions and CEDEARs on BCBA get .BA
-    if (h.tipo === 'accion' || h.tipo === 'cedear' || h.mercado === 'BCBA') {
+
+    // 1. CEDEARs and Argentine Acciones are BCBA instruments -> ALWAYS .BA
+    if (h.tipo === 'accion' || h.tipo === 'cedear') {
       return t.endsWith('.BA') ? t : t + '.BA';
     }
-    if (t.endsWith('.BA')) return t;
+
+    // 2. US Stocks (Wall Street) -> NEVER .BA
+    if (h.tipo === 'stock') {
+      return t.replace(/\.BA$/i, '');
+    }
+
+    // 3. Fallback when tipo is not specified: check market or ticker suffix
+    if (h.mercado === 'BCBA' || t.endsWith('.BA')) {
+      return t.endsWith('.BA') ? t : t + '.BA';
+    }
+    if (h.mercado === 'NYSE' || h.mercado === 'NASDAQ' || h.mercado === 'NYSE/NASDAQ') {
+      return t.replace(/\.BA$/i, '');
+    }
+
     return t;
   };
 
