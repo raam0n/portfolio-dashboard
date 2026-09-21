@@ -178,6 +178,12 @@ const SEED_TICKER_CATALOG = {
   'BAC': { ticker: 'BAC', nombre: 'Bank of America Corp.', tipo: 'cedear', mercado: 'BCBA', sector: 'Banking', subsector: 'Bancos', pais: 'USA' },
   'DIS': { ticker: 'DIS', nombre: 'The Walt Disney Company', tipo: 'cedear', mercado: 'BCBA', sector: 'Entretenimiento', subsector: 'Medios', pais: 'USA' },
   'NFLX': { ticker: 'NFLX', nombre: 'Netflix Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Entretenimiento', subsector: 'Medios', pais: 'USA' },
+  'CAT': { ticker: 'CAT', nombre: 'Caterpillar Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Industria', subsector: 'Maquinaria', pais: 'USA' },
+  'MCD': { ticker: 'MCD', nombre: "McDonald's Corporation", tipo: 'cedear', mercado: 'BCBA', sector: 'Consumo', subsector: 'Alimentos', pais: 'USA' },
+  'LLY': { ticker: 'LLY', nombre: 'Eli Lilly and Company', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumo', subsector: 'Farmacia', pais: 'USA' },
+  'UNH': { ticker: 'UNH', nombre: 'UnitedHealth Group Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Salud', subsector: 'Seguros / Salud', pais: 'USA' },
+  'VST': { ticker: 'VST', nombre: 'Vistra Corp', tipo: 'cedear', mercado: 'BCBA', sector: 'Energía', subsector: 'Electricidad', pais: 'USA' },
+  'HSY': { ticker: 'HSY', nombre: 'The Hershey Company', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumo', subsector: 'Alimentos', pais: 'USA' },
 
   // Efectivo
   'ARS': { ticker: 'ARS', nombre: 'Pesos Argentinos', tipo: 'efectivo', mercado: 'BCBA', sector: 'Efectivo', subsector: 'Pesos Argentinos', pais: 'Argentina' },
@@ -295,9 +301,12 @@ const ASSET_SECTOR_FALLBACK_MAP = {
   'KO': { sector: 'Consumo', subsector: 'Alimentos' },
   'PEP': { sector: 'Consumo', subsector: 'Alimentos' },
   'MCD': { sector: 'Consumo', subsector: 'Alimentos' },
+  'HSY': { sector: 'Consumo', subsector: 'Alimentos' },
   'JNJ': { sector: 'Consumo', subsector: 'Farmacia' },
   'PFE': { sector: 'Consumo', subsector: 'Farmacia' },
   'LLY': { sector: 'Consumo', subsector: 'Farmacia' },
+  'UNH': { sector: 'Salud', subsector: 'Seguros' },
+  'CAT': { sector: 'Industria', subsector: 'Maquinaria' },
   'DIS': { sector: 'Entretenimiento', subsector: 'Medios' },
   'NFLX': { sector: 'Entretenimiento', subsector: 'Medios' },
 
