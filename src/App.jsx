@@ -9,6 +9,7 @@ import { analyzeMovement } from './services/aiAnalyzer';
 import { extractPortfolioDataFromImage } from './services/visionService';
 import MultiPortfolioCompositions from './components/MultiPortfolioCompositions';
 import { extractPortfolioInternationalProxy, calculateProxyDailyReturn } from './services/marketProxy';
+import TickerLogo from './components/TickerLogo';
 
 
 // ── Pure SVG Pie Chart ────────────────────────────────────────────────────────
@@ -1448,7 +1449,7 @@ function App() {
     const isToday = d.getDate() === now.getDate() &&
                     d.getMonth() === now.getMonth() &&
                     d.getFullYear() === now.getFullYear();
-    const timeStr = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    const timeStr = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
     if (isToday) return timeStr;
     const dateStr = d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
     return `${dateStr} ${timeStr}`;
@@ -3750,7 +3751,7 @@ function App() {
                 <table>
                   <thead>
                     <tr>
-                      <th onClick={() => setHoldingsSort('alpha')} style={{cursor: 'pointer', maxWidth: '140px'}} title="Ordenar Alfabéticamente">Activo {holdingsSort === 'alpha' ? '↓' : ''}</th>
+                      <th onClick={() => setHoldingsSort('alpha')} style={{cursor: 'pointer', maxWidth: '175px'}} title="Ordenar Alfabéticamente">Activo {holdingsSort === 'alpha' ? '↓' : ''}</th>
                       <th onClick={() => setHoldingsSort('default')} style={{cursor: 'pointer'}} title="Ordenar por Tipo">Tipo {holdingsSort === 'default' ? '↓' : ''}</th>
                       <th onClick={() => setHoldingsSort('sector')} style={{cursor: 'pointer', maxWidth: '120px'}} title="Ordenar por Sector">Sector {holdingsSort === 'sector' ? '↓' : ''}</th>
                       <th onClick={() => setHoldingsSort('subsector')} style={{cursor: 'pointer', maxWidth: '135px'}} title="Ordenar por Subsector">Subsector {holdingsSort === 'subsector' ? '↓' : ''}</th>
@@ -3759,7 +3760,8 @@ function App() {
                       <th>P. Compra</th>
                       <th>P. Actual</th>
                       <th>Últ. Act.</th>
-                      <th>Valor ($)</th>
+                      <th>VALOR OG</th>
+                      <th>VALOR ACT</th>
                       <th onClick={() => setHoldingsSort('pnlA')} style={{cursor: 'pointer'}} title="Ordenar por P&L $">P&L $ {holdingsSort === 'pnlA' ? '↓' : ''}</th>
                       <th onClick={() => setHoldingsSort('pnlP')} style={{cursor: 'pointer'}} title="Ordenar por P&L %">P&L % {holdingsSort === 'pnlP' ? '↓' : ''}</th>
                       <th></th>
@@ -3808,23 +3810,28 @@ function App() {
                         return (
                           <React.Fragment key={h.ticker}>
                             <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === h.ticker ? null : h.ticker)}>
-                              <td style={{ maxWidth: '140px' }}>
-                                <div className="ticker-name">{h.ticker}</div>
-                                {h.nombre && (
-                                  <div style={{
-                                    fontSize: '11px',
-                                    color: 'var(--text-muted)',
-                                    maxWidth: '135px',
-                                    display: '-webkit-box',
-                                    WebkitLineClamp: 2,
-                                    WebkitBoxOrient: 'vertical',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    lineHeight: '1.2'
-                                  }}>
-                                    {h.nombre}
+                              <td style={{ maxWidth: '175px' }}>
+                                <div className="ticker-cell-with-logo">
+                                  <TickerLogo ticker={h.ticker} nombre={h.nombre} tipo={h.tipo} size={30} />
+                                  <div style={{ minWidth: 0, flex: 1 }}>
+                                    <div className="ticker-name">{h.ticker}</div>
+                                    {h.nombre && (
+                                      <div style={{
+                                        fontSize: '11px',
+                                        color: 'var(--text-muted)',
+                                        maxWidth: '135px',
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        lineHeight: '1.2'
+                                      }}>
+                                        {h.nombre}
+                                      </div>
+                                    )}
                                   </div>
-                                )}
+                                </div>
                               </td>
                               <td><span className={`badge badge-${h.tipo}`}>{h.tipo}</span></td>
                               <td style={{ maxWidth: '120px' }}>
@@ -3861,10 +3868,10 @@ function App() {
                               </td>
                               <td><span className="badge badge-neutral" style={{fontSize: '11px', padding: '2px 4px'}}>{fmtPct(pct)}</span></td>
                               <td>{fmt(h.cantidad, 0)}</td>
-                              <td>${fmt(h.precioEntrada)}</td>
+                              <td>${fmt(h.precioEntrada, 0)}</td>
                               <td>
                                 <strong>
-                                  {pc !== null ? (isEfectivo ? '—' : `$${fmt(pc)}`) : (
+                                  {pc !== null ? (isEfectivo ? '—' : `$${fmt(pc, 0)}`) : (
                                     h.tipo === 'bono' ? (
                                       <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); editBonoPrecio(h.ticker); }}>Fijar P.</button>
                                     ) : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>
@@ -3877,12 +3884,13 @@ function App() {
                                 )}
                               </td>
                               <td>
-                                <span style={{ fontSize: '11px', opacity: 0.85 }} title={stats && (stats.updatedAt || stats.regularMarketTime) ? new Date(stats.updatedAt || stats.regularMarketTime * 1000).toLocaleString('es-AR') : ''}>
+                                <span style={{ fontSize: '11px', opacity: 0.85 }} title={stats && (stats.updatedAt || stats.regularMarketTime) ? new Date(stats.updatedAt || stats.regularMarketTime * 1000).toLocaleString('es-AR', { hour12: false }) : ''}>
                                   {isEfectivo ? '—' : formatLastUpdated(stats)}
                                 </span>
                               </td>
-                              <td>{valor !== null ? '$' + fmt(valor) : '—'}</td>
-                              <td className={cssPnl}>{pnlA !== null ? sign + '$' + fmt(pnlA) : '—'}</td>
+                              <td>{costo !== null ? '$' + fmt(costo, 0) : '—'}</td>
+                              <td>{valor !== null ? '$' + fmt(valor, 0) : '—'}</td>
+                              <td className={cssPnl}>{pnlA !== null ? sign + '$' + fmt(pnlA, 0) : '—'}</td>
                               <td className={cssPnl}><strong>{fmtPct(pnlP)}</strong></td>
                               <td>
                                 <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
@@ -3923,7 +3931,7 @@ function App() {
                             </tr>
                             {expandedTicker === h.ticker && (
                               <tr className="expanded-panel-row">
-                                <td colSpan="13">
+                                <td colSpan="14">
                                   <HistoricalChart data={stats} ticker={h.ticker} name={h.nombre} />
                                 </td>
                               </tr>

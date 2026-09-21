@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <clipPath id="circleClip"><circle cx="32" cy="32" r="30"/></clipPath>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="#74ACDF" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+  <g clip-path="url(#circleClip)">
+    <rect x="0" y="21.33" width="64" height="21.33" fill="#FFFFFF"/>
+    <!-- Sun of May (Sol de Mayo) -->
+    <circle cx="32" cy="32" r="5.5" fill="#F6B40E" stroke="#85340A" stroke-width="0.5"/>
+    <circle cx="32" cy="32" r="2" fill="#FDB813"/>
+  </g>
+</svg>

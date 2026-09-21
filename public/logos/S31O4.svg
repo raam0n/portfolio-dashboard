@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <circle cx="32" cy="32" r="30" fill="#2A211B" stroke="#F59E0B" stroke-width="2"/>
+  <defs>
+    <linearGradient id="grad_S31" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#2A211B" stop-opacity="0.8"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="28" fill="url(#grad_S31)"/>
+  <path d="M22 20 Q32 15 42 20" stroke="#F6B40E" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <text x="32" y="37" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle">S31</text>
+  <text x="32" y="47" font-family="Inter, system-ui, sans-serif" font-size="8.5" font-weight="600" fill="#F6B40E" text-anchor="middle" letter-spacing="0.5">LECAP</text>
+</svg>

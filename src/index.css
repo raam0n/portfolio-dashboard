@@ -274,6 +274,22 @@ tr:hover {
   font-size: 13px;
 }
 
+.ticker-cell-with-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ticker-logo-wrap,
+.ticker-logo-avatar {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.expandable-row:hover .ticker-logo-wrap,
+.expandable-row:hover .ticker-logo-avatar {
+  transform: scale(1.08);
+}
+
 /* Badges */
 .badge {
   display: inline-block;
