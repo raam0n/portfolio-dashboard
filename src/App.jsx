@@ -184,6 +184,8 @@ const SEED_TICKER_CATALOG = {
   'UNH': { ticker: 'UNH', nombre: 'UnitedHealth Group Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Salud', subsector: 'Seguros / Salud', pais: 'USA' },
   'VST': { ticker: 'VST', nombre: 'Vistra Corp', tipo: 'cedear', mercado: 'BCBA', sector: 'Energía', subsector: 'Electricidad', pais: 'USA' },
   'HSY': { ticker: 'HSY', nombre: 'The Hershey Company', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumo', subsector: 'Alimentos', pais: 'USA' },
+  'FSLR': { ticker: 'FSLR', nombre: 'First Solar Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Energía', subsector: 'Solar', pais: 'USA' },
+  'TSM': { ticker: 'TSM', nombre: 'Taiwan Semiconductor (TSMC)', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Semiconductores', pais: 'Taiwán' },
 
   // Efectivo
   'ARS': { ticker: 'ARS', nombre: 'Pesos Argentinos', tipo: 'efectivo', mercado: 'BCBA', sector: 'Efectivo', subsector: 'Pesos Argentinos', pais: 'Argentina' },
@@ -252,6 +254,7 @@ const ASSET_SECTOR_FALLBACK_MAP = {
   'GPRK': { sector: 'Energía', subsector: 'Petróleo y Gas' },
   'ICLN': { sector: 'Energía', subsector: 'Renovable' },
   'NEE': { sector: 'Energía', subsector: 'Renovable' },
+  'FSLR': { sector: 'Energía', subsector: 'Solar' },
   'XLE': { sector: 'Energía', subsector: 'Energía' },
   'URA': { sector: 'Energía', subsector: 'Uranio' },
   'XLU': { sector: 'Energía', subsector: 'Utilities' },
