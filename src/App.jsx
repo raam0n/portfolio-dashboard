@@ -186,6 +186,8 @@ const SEED_TICKER_CATALOG = {
   'HSY': { ticker: 'HSY', nombre: 'The Hershey Company', tipo: 'cedear', mercado: 'BCBA', sector: 'Consumo', subsector: 'Alimentos', pais: 'USA' },
   'FSLR': { ticker: 'FSLR', nombre: 'First Solar Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Energía', subsector: 'Solar', pais: 'USA' },
   'TSM': { ticker: 'TSM', nombre: 'Taiwan Semiconductor (TSMC)', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Semiconductores', pais: 'Taiwán' },
+  'SPOT': { ticker: 'SPOT', nombre: 'Spotify Technology S.A.', tipo: 'cedear', mercado: 'BCBA', sector: 'Entretenimiento', subsector: 'Streaming', pais: 'Luxemburgo' },
+  'UBER': { ticker: 'UBER', nombre: 'Uber Technologies Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Movilidad', pais: 'USA' },
 
   // Efectivo
   'ARS': { ticker: 'ARS', nombre: 'Pesos Argentinos', tipo: 'efectivo', mercado: 'BCBA', sector: 'Efectivo', subsector: 'Pesos Argentinos', pais: 'Argentina' },
@@ -238,6 +240,7 @@ const ASSET_SECTOR_FALLBACK_MAP = {
   'GOOG': { sector: 'Tech', subsector: 'Internet' },
   'META': { sector: 'Tech', subsector: 'Internet' },
   'TSLA': { sector: 'Tech', subsector: 'Automotriz' },
+  'UBER': { sector: 'Tech', subsector: 'Movilidad' },
 
   // Energía
   'OKLO': { sector: 'Energía', subsector: 'Nuclear' },
@@ -312,6 +315,7 @@ const ASSET_SECTOR_FALLBACK_MAP = {
   'CAT': { sector: 'Industria', subsector: 'Maquinaria' },
   'DIS': { sector: 'Entretenimiento', subsector: 'Medios' },
   'NFLX': { sector: 'Entretenimiento', subsector: 'Medios' },
+  'SPOT': { sector: 'Entretenimiento', subsector: 'Streaming' },
 
   // Crypto
   'IBIT': { sector: 'Crypto', subsector: 'Bitcoin' },
