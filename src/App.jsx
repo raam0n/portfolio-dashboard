@@ -188,6 +188,7 @@ const SEED_TICKER_CATALOG = {
   'TSM': { ticker: 'TSM', nombre: 'Taiwan Semiconductor (TSMC)', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Semiconductores', pais: 'Taiwán' },
   'SPOT': { ticker: 'SPOT', nombre: 'Spotify Technology S.A.', tipo: 'cedear', mercado: 'BCBA', sector: 'Entretenimiento', subsector: 'Streaming', pais: 'Luxemburgo' },
   'UBER': { ticker: 'UBER', nombre: 'Uber Technologies Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Movilidad', pais: 'USA' },
+  'AXP': { ticker: 'AXP', nombre: 'American Express Company', tipo: 'cedear', mercado: 'BCBA', sector: 'Financial', subsector: 'Servicios Financieros', pais: 'USA' },
 
   // Efectivo
   'ARS': { ticker: 'ARS', nombre: 'Pesos Argentinos', tipo: 'efectivo', mercado: 'BCBA', sector: 'Efectivo', subsector: 'Pesos Argentinos', pais: 'Argentina' },
@@ -282,6 +283,7 @@ const ASSET_SECTOR_FALLBACK_MAP = {
   'GS': { sector: 'Financial', subsector: 'Banca de Inversión' },
   'BRKB': { sector: 'Financial', subsector: 'Holding' },
   'BRK-B': { sector: 'Financial', subsector: 'Holding' },
+  'AXP': { sector: 'Financial', subsector: 'Servicios Financieros' },
 
   // Minería & Materiales
   'MP': { sector: 'Minería', subsector: 'Tierras Raras' },
