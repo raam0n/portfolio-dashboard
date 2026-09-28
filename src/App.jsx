@@ -1034,6 +1034,7 @@ function migratePortfoliosToNames() {
     migrateObjectKeys('all_operaciones');
     migrateObjectKeys('all_trades');
     migrateObjectKeys('all_evals');
+    migrateObjectKeys('all_trackings');
     migrateObjectKeys('all_flujos');
     
     // Save updated portfolios list
@@ -1107,6 +1108,30 @@ function App() {
   }, [rawEvals]);
   const setEvals = (val) => setAllEvals(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
 
+  const [allTrackings, setAllTrackings] = useState(() => {
+    const existing = localStorage.getItem('all_trackings');
+    if (existing) return JSON.parse(existing);
+    return { "Mi Portfolio Principal": JSON.parse(localStorage.getItem('portfolio_trackings') || '[]') };
+  });
+  const rawTrackings = allTrackings[currentPortfolioId] || [];
+  const trackings = useMemo(() => {
+    const list = (rawTrackings || []).map(tr => ({
+      id: tr.id || Date.now().toString(),
+      nombre: tr.nombre || 'Tracking sin nombre',
+      fecha: tr.fecha || new Date().toISOString().split('T')[0],
+      notas: tr.notas || '',
+      items: Array.isArray(tr.items) ? tr.items : [],
+      excluded: !!tr.excluded
+    }));
+    return list.sort((a, b) => {
+      const dateA = a.fecha || '';
+      const dateB = b.fecha || '';
+      if (dateA !== dateB) return dateB.localeCompare(dateA);
+      return String(b.id || '').localeCompare(String(a.id || ''));
+    });
+  }, [rawTrackings]);
+  const setTrackings = (val) => setAllTrackings(prev => ({ ...prev, [currentPortfolioId]: typeof val === 'function' ? val(prev[currentPortfolioId] || []) : val }));
+
 
   const [allFlujos, setAllFlujos] = useState(() => {
     const existing = localStorage.getItem('all_flujos');
@@ -1167,6 +1192,9 @@ function App() {
   const [searchTrades, setSearchTrades] = useState('');
   const [tradesSortOrder, setTradesSortOrder] = useState('dateDesc');
   const [editingTradeId, setEditingTradeId] = useState(null);
+  const [tradeNombre, setTradeNombre] = useState('');
+  const [editingNameTradeId, setEditingNameTradeId] = useState(null);
+  const [tempTradeName, setTempTradeName] = useState('');
   const [expandedTradeIds, setExpandedTradeIds] = useState([]);
   const [evalNombre, setEvalNombre] = useState('');
   const [evalFecha, setEvalFecha] = useState('');
@@ -1174,6 +1202,22 @@ function App() {
   const [evalSelectedOpIds, setEvalSelectedOpIds] = useState([]);
   const [editingGroupId, setEditingGroupId] = useState(null);
   const [evalOpSearch, setEvalOpSearch] = useState('');
+
+  // Tracking form states
+  const [showAddTracking, setShowAddTracking] = useState(false);
+  const [editingTrackingId, setEditingTrackingId] = useState(null);
+  const [trackingNombre, setTrackingNombre] = useState('');
+  const [trackingFecha, setTrackingFecha] = useState('');
+  const [trackingNotas, setTrackingNotas] = useState('');
+  const [trackingItems, setTrackingItems] = useState([]);
+  const [searchTracking, setSearchTracking] = useState('');
+  const [newItemTicker, setNewItemTicker] = useState('');
+  const [newItemTipo, setNewItemTipo] = useState('compra');
+  const [newItemFecha, setNewItemFecha] = useState('');
+  const [newItemPrecio, setNewItemPrecio] = useState('');
+  const [newItemCantidad, setNewItemCantidad] = useState('');
+  const [newItemMonto, setNewItemMonto] = useState('');
+  const [isFetchingHistPrice, setIsFetchingHistPrice] = useState(false);
 
 
   // Form states
@@ -1440,12 +1484,13 @@ function App() {
     safeSetItem('all_operaciones', allOperaciones);
     safeSetItem('all_trades', allTrades);
     safeSetItem('all_evals', allEvals);
+    safeSetItem('all_trackings', allTrackings);
     safeSetItem('all_flujos', allFlujos);
     safeSetItem('all_liquidaciones', allLiquidaciones);
     safeSetItem('portfolio_watchlist', sanitizeWatchlist(watchlist));
     safeSetItem('portfolios_list', portfolios);
     safeSetItem('current_portfolio_id', currentPortfolioId);
-  }, [allHoldings, allOperaciones, allTrades, allEvals, allFlujos, allLiquidaciones, watchlist, portfolios, currentPortfolioId]);
+  }, [allHoldings, allOperaciones, allTrades, allEvals, allTrackings, allFlujos, allLiquidaciones, watchlist, portfolios, currentPortfolioId]);
 
   // Persist prices and exchange rates separately whenever they are successfully updated
   useEffect(() => {
@@ -1624,6 +1669,7 @@ function App() {
     mercados: 'Mercados & Índices Globales',
     insights: 'Insights',
     evaluacion: 'Evaluación de Cartera',
+    tracking: 'Tracking',
     trades: 'Trades',
     'api-dashboard': 'API Dashboard'
   };
@@ -1654,7 +1700,8 @@ function App() {
         const allHoldingsList = Object.values(allHoldings || {}).flat().filter(Boolean);
         const allOpsList = Object.values(allOperaciones || {}).flat().filter(Boolean).map(op => ({ ticker: op.ticker, tipo: op.assetTipo || 'accion' }));
         const allTradesList = Object.values(allTrades || {}).flat().filter(Boolean).map(t => ({ ticker: t.ticker || t.compraTicker, tipo: t.tipo || 'accion' }));
-        trackedItems = [...allHoldingsList, ...watchlist, ...allOpsList, ...allTradesList, ...allProxyUsItems];
+        const allTrackingsList = Object.values(allTrackings || {}).flat().filter(Boolean).flatMap(t => (t.items || []).map(it => ({ ticker: it.ticker, tipo: it.assetTipo || 'accion' })));
+        trackedItems = [...allHoldingsList, ...watchlist, ...allOpsList, ...allTradesList, ...allTrackingsList, ...allProxyUsItems];
       } else {
         if (activeTab === 'watchlist') {
           trackedItems = [...watchlist, ...allProxyUsItems];
@@ -1664,6 +1711,8 @@ function App() {
           trackedItems = [...holdings, ...operaciones.map(op => ({ ticker: op.ticker, tipo: op.assetTipo || 'accion' }))];
         } else if (activeTab === 'trades') {
           trackedItems = [...holdings, ...trades.map(t => ({ ticker: t.ticker || t.compraTicker, tipo: t.tipo || 'accion' }))];
+        } else if (activeTab === 'tracking') {
+          trackedItems = [...holdings, ...((trackings || []).flatMap(t => t.items || [])).map(it => ({ ticker: it.ticker, tipo: it.assetTipo || 'accion' }))];
         } else {
           trackedItems = [...holdings, ...allProxyUsItems];
         }
@@ -2544,6 +2593,7 @@ function App() {
     return {
       ...t,
       id: t.id,
+      nombre: t.nombre || '',
       ticker,
       compras,
       ventas,
@@ -2573,6 +2623,7 @@ function App() {
 
   const abrirNuevoTradeModal = () => {
     setEditingTradeId(null);
+    setTradeNombre('');
     setTradeSelectedCompraIds([]);
     setTradeSelectedVentaIds([]);
     setTradeTickerFilter('');
@@ -2586,6 +2637,7 @@ function App() {
     if (!rawTrade) return;
     const t = normalizeTrade(rawTrade);
     setEditingTradeId(t.id);
+    setTradeNombre(rawTrade.nombre || '');
     setTradeSelectedCompraIds(t.compras.map(c => c.id));
     setTradeSelectedVentaIds(t.ventas.map(v => v.id));
     setTradeTickerFilter(t.ticker !== 'VARIOS' ? t.ticker : '');
@@ -2662,10 +2714,11 @@ function App() {
 
     const tradeData = {
       id: editingTradeId || Date.now().toString(),
+      nombre: tradeNombre.trim(),
       ticker: tradeTicker,
       compras: selectedCompras,
       ventas: selectedVentas,
-      createdAt: new Date().toISOString()
+      createdAt: editingTradeId ? (trades.find(t => t.id === editingTradeId)?.createdAt || new Date().toISOString()) : new Date().toISOString()
     };
 
     if (editingTradeId) {
@@ -2676,6 +2729,7 @@ function App() {
 
     setShowAddTrade(false);
     setEditingTradeId(null);
+    setTradeNombre('');
     setTradeSelectedCompraIds([]);
     setTradeSelectedVentaIds([]);
     setTradeCompraId('');
@@ -2683,6 +2737,12 @@ function App() {
   };
 
   const agregarTrade = guardarTrade;
+
+  const renombrarTrade = (tradeId, nuevoNombre) => {
+    setTrades(prevTrades => (prevTrades || []).map(t =>
+      t.id === tradeId ? { ...t, nombre: (nuevoNombre || '').trim() } : t
+    ));
+  };
 
   const eliminarTrade = (id) => {
     if (!window.confirm('¿Eliminar este trade cerrado?')) return;
@@ -2768,11 +2828,153 @@ function App() {
     setEvals(evals.map(g => g.id === id ? { ...g, excluded: !g.excluded } : g));
   };
 
+  // --- TRACKING BUSINESS LOGIC (CUSTOM ASSET & ROTATION TRACKING) ---
+  const fetchHistoricalPrice = async (rawTicker, targetDate) => {
+    if (!rawTicker || !targetDate) return null;
+    try {
+      const cleanT = cleanTickerSymbol(rawTicker);
+      const cat = tickerCatalog[cleanT] || {};
+      const yt = getYahooTicker({ ticker: cleanT, tipo: cat.tipo || 'cedear' }) || (cleanT.endsWith('.BA') ? cleanT : cleanT + '.BA');
+      if (!yt) return null;
 
+      const url5y = `/api/market/v8/finance/chart/${yt}?interval=1d&range=5y`;
+      const res = await fetchWithTimeout(url5y, {}, 8000);
+      if (!res.ok) return null;
+      const data = await res.json();
+      const result = data?.chart?.result?.[0];
+      const timestamps = result?.timestamp || [];
+      const closes = result?.indicators?.adjclose?.[0]?.adjclose || result?.indicators?.quote?.[0]?.close || [];
+      if (!timestamps.length || !closes.length) return null;
+
+      const targetSec = Math.floor(new Date(targetDate + 'T23:59:59Z').getTime() / 1000);
+      let bestIdx = -1;
+      for (let i = timestamps.length - 1; i >= 0; i--) {
+        if (timestamps[i] <= targetSec && closes[i] !== null && closes[i] !== undefined) {
+          bestIdx = i;
+          break;
+        }
+      }
+      if (bestIdx === -1) {
+        bestIdx = closes.findIndex(c => c !== null && c !== undefined);
+      }
+      return bestIdx !== -1 ? closes[bestIdx] : null;
+    } catch (err) {
+      console.warn("Error fetching historical price:", err);
+      return null;
+    }
+  };
+
+  const abrirNuevoTrackingModal = () => {
+    setEditingTrackingId(null);
+    setTrackingNombre('');
+    const today = new Date().toISOString().split('T')[0];
+    setTrackingFecha(today);
+    setTrackingNotas('');
+    setTrackingItems([]);
+    setNewItemTicker('');
+    setNewItemTipo('compra');
+    setNewItemFecha(today);
+    setNewItemPrecio('');
+    setNewItemCantidad('');
+    setNewItemMonto('');
+    setShowAddTracking(true);
+  };
+
+  const abrirEditarTrackingModal = (group) => {
+    setEditingTrackingId(group.id);
+    setTrackingNombre(group.nombre || '');
+    setTrackingFecha(group.fecha || new Date().toISOString().split('T')[0]);
+    setTrackingNotas(group.notas || '');
+    setTrackingItems(Array.isArray(group.items) ? [...group.items] : []);
+    setNewItemTicker('');
+    setNewItemTipo('compra');
+    setNewItemFecha(group.fecha || new Date().toISOString().split('T')[0]);
+    setNewItemPrecio('');
+    setNewItemCantidad('');
+    setNewItemMonto('');
+    setShowAddTracking(true);
+  };
+
+  const agregarItemATracking = () => {
+    const rawT = (newItemTicker || '').trim().toUpperCase();
+    if (!rawT) return alert('Ingresá el ticker de la empresa / activo.');
+    const cleanT = cleanTickerSymbol(rawT);
+    const p = parseFloat(String(newItemPrecio).replace(',', '.'));
+    if (!p || p <= 0 || isNaN(p)) return alert('Ingresá un precio base válido (mayor a 0).');
+    const q = parseFloat(String(newItemCantidad).replace(',', '.'));
+    if (!q || q <= 0 || isNaN(q)) return alert('Ingresá una cantidad de nominales válida (mayor a 0).');
+
+    const f = newItemFecha || trackingFecha || new Date().toISOString().split('T')[0];
+    const cat = tickerCatalog[cleanT] || {};
+
+    const item = {
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 6),
+      ticker: cleanT,
+      tipo: newItemTipo,
+      fecha: f,
+      precio: p,
+      cantidad: q,
+      assetTipo: cat.tipo || 'cedear'
+    };
+
+    setTrackingItems(prev => [...prev, item]);
+    setNewItemTicker('');
+    setNewItemPrecio('');
+    setNewItemCantidad('');
+    setNewItemMonto('');
+  };
+
+  const eliminarItemDeTracking = (itemId) => {
+    setTrackingItems(prev => prev.filter(it => it.id !== itemId));
+  };
+
+  const guardarTracking = () => {
+    const nombreClean = trackingNombre.trim();
+    if (!nombreClean) return alert('Ingresá un nombre para este tracking.');
+    if (trackingItems.length === 0) return alert('Agregá al menos una empresa o activo al tracking.');
+
+    const fechaClean = trackingFecha.trim() || new Date().toISOString().split('T')[0];
+
+    if (editingTrackingId) {
+      setTrackings(trackings.map(g => g.id === editingTrackingId ? {
+        ...g,
+        nombre: nombreClean,
+        fecha: fechaClean,
+        notas: trackingNotas.trim(),
+        items: [...trackingItems]
+      } : g));
+    } else {
+      const newGroup = {
+        id: Date.now().toString(),
+        nombre: nombreClean,
+        fecha: fechaClean,
+        notas: trackingNotas.trim(),
+        items: [...trackingItems],
+        excluded: false
+      };
+      setTrackings([newGroup, ...trackings]);
+    }
+
+    setTrackingNombre('');
+    setTrackingFecha('');
+    setTrackingNotas('');
+    setTrackingItems([]);
+    setEditingTrackingId(null);
+    setShowAddTracking(false);
+  };
+
+  const eliminarTracking = (id) => {
+    if (!window.confirm('¿Eliminar este grupo de tracking?')) return;
+    setTrackings(trackings.filter(g => g.id !== id));
+  };
+
+  const toggleTrackingExclusion = (id) => {
+    setTrackings(trackings.map(g => g.id === id ? { ...g, excluded: !g.excluded } : g));
+  };
 
   // --- IMP/EXP LOGIC ---
   const exportar = () => {
-    const json = JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, allFlujos, allLiquidaciones, portfolios, currentPortfolioId, watchlist }, null, 2);
+    const json = JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, allTrackings, allFlujos, allLiquidaciones, portfolios, currentPortfolioId, watchlist }, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -2781,7 +2983,7 @@ function App() {
   };
 
   const copiarJSON = () => {
-    const json = JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, allFlujos, allLiquidaciones, portfolios, currentPortfolioId, watchlist }, null, 2);
+    const json = JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, allTrackings, allFlujos, allLiquidaciones, portfolios, currentPortfolioId, watchlist }, null, 2);
     navigator.clipboard.writeText(json).then(() => alert('JSON Copiado'));
   };
 
@@ -2823,6 +3025,7 @@ function App() {
       allOperaciones: migrateDict(data.allOperaciones),
       allTrades: migrateDict(data.allTrades),
       allEvals: migrateDict(data.allEvals),
+      allTrackings: migrateDict(data.allTrackings),
       allFlujos: migrateDict(data.allFlujos),
       allLiquidaciones: migrateDict(data.allLiquidaciones)
     };
@@ -2841,6 +3044,7 @@ function App() {
         setAllOperaciones(data.allOperaciones || {});
         setAllTrades(data.allTrades || {});
         setAllEvals(data.allEvals || {});
+        setAllTrackings(data.allTrackings || {});
         setAllFlujos(data.allFlujos || {});
         setPortfolios(data.portfolios || [{id:'Mi Portfolio Principal', name:'Mi Portfolio Principal'}]);
         setCurrentPortfolioId(data.currentPortfolioId || 'Mi Portfolio Principal');
@@ -2850,6 +3054,7 @@ function App() {
         setAllOperaciones({ "Mi Portfolio Principal": data.operaciones || [] });
         setAllTrades({ "Mi Portfolio Principal": data.trades || [] });
         setAllEvals({ "Mi Portfolio Principal": data.evals || [] });
+        setAllTrackings({ "Mi Portfolio Principal": data.trackings || [] });
         setAllFlujos({ "Mi Portfolio Principal": data.flujos || [] });
         setPortfolios([{id:'Mi Portfolio Principal', name:'Mi Portfolio Principal'}]);
         setCurrentPortfolioId('Mi Portfolio Principal');
@@ -2869,7 +3074,7 @@ function App() {
   const borrarTodo = () => {
     const typed = window.prompt('Escribí "BORRAR" para formatear todo.');
     if (typed === 'BORRAR') {
-      setAllHoldings({}); setAllOperaciones({}); setAllTrades({}); setAllEvals({}); setAllFlujos({}); setAllLiquidaciones({});
+      setAllHoldings({}); setAllOperaciones({}); setAllTrades({}); setAllEvals({}); setAllTrackings({}); setAllFlujos({}); setAllLiquidaciones({});
       setPortfolios([{id:'default', name:'Mi Portfolio Principal'}]);
       setCurrentPortfolioId('default');
       setWatchlist([]); setPrices({});
@@ -3386,6 +3591,7 @@ function App() {
           <button className={`tab-btn ${activeTab === 'mercados' ? 'active' : ''}`} onClick={() => setActiveTab('mercados')}>Mercados</button>
           <button className={`tab-btn ${activeTab === 'insights' ? 'active' : ''}`} onClick={() => setActiveTab('insights')}>Insights</button>
           <button className={`tab-btn ${activeTab === 'evaluacion' ? 'active' : ''}`} onClick={() => setActiveTab('evaluacion')}>Evaluación</button>
+          <button className={`tab-btn ${activeTab === 'tracking' ? 'active' : ''}`} onClick={() => setActiveTab('tracking')}>Tracking</button>
           <button className={`tab-btn ${activeTab === 'trades' ? 'active' : ''}`} onClick={() => setActiveTab('trades')}>Trades</button>
           <button className={`tab-btn ${activeTab === 'api-dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('api-dashboard')}>API Dashboard</button>
         </div>
@@ -3443,6 +3649,7 @@ function App() {
                     setAllOperaciones(renameKey);
                     setAllTrades(renameKey);
                     setAllEvals(renameKey);
+                    setAllTrackings(renameKey);
                     setAllFlujos(renameKey);
                     setAllLiquidaciones(renameKey);
                     
@@ -3467,6 +3674,7 @@ function App() {
                     setAllOperaciones(deleteKey);
                     setAllTrades(deleteKey);
                     setAllEvals(deleteKey);
+                    setAllTrackings(deleteKey);
                     setAllFlujos(deleteKey);
                     setAllLiquidaciones(deleteKey);
                     
@@ -3476,7 +3684,7 @@ function App() {
               </div>
               <label>Exportar Datos (JSON)</label>
               <p className="hint" style={{ marginBottom: '8px' }}>Guardá este JSON de forma segura como backup (incluye todos los portfolios).</p>
-              <textarea readOnly rows="4" style={{ fontFamily: 'monospace', fontSize: '11px' }} value={JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, allFlujos, portfolios, currentPortfolioId, watchlist }, null, 2)}></textarea>
+              <textarea readOnly rows="4" style={{ fontFamily: 'monospace', fontSize: '11px' }} value={JSON.stringify({ allHoldings, allOperaciones, allTrades, allEvals, allTrackings, allFlujos, portfolios, currentPortfolioId, watchlist }, null, 2)}></textarea>
               <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
                 <button className="btn" onClick={exportar}>Descargar Archivo</button>
                 <button className="btn" onClick={copiarJSON}>Copiar</button>
@@ -5263,10 +5471,10 @@ function App() {
               <div className="panel-title" style={{ margin: 0 }}>Operaciones Cerradas (Trades) ({trades.length})</div>
               {trades.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <div style={{ position: 'relative', minWidth: '220px' }}>
+                  <div style={{ position: 'relative', minWidth: '240px' }}>
                     <input
                       type="text"
-                      placeholder="🔍 Buscar trade por ticker o fecha..."
+                      placeholder="🔍 Buscar por nombre, ticker o fecha..."
                       value={searchTrades}
                       onChange={e => setSearchTrades(e.target.value)}
                       style={{
@@ -5451,6 +5659,32 @@ function App() {
                   </div>
                 ) : (
                   <>
+                    {/* Nombre del Trade */}
+                    <div style={{ marginBottom: '14px', background: 'rgba(255,255,255,0.02)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#e2e8f0' }}>
+                        🏷️ Nombre / Etiqueta del Trade (opcional):
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ej: Swing AL30, Rotación Tecnológica, Ganancia Enero..."
+                        value={tradeNombre}
+                        onChange={e => setTradeNombre(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          fontSize: '13px',
+                          background: '#16172e',
+                          border: '1px solid var(--glass-border)',
+                          borderRadius: '6px',
+                          color: '#fff',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        Podés asignarle un nombre identificatorio para encontrarlo rápidamente en el buscador.
+                      </div>
+                    </div>
+
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1rem' }}>
                       
                       {/* COMPRAS PANEL */}
@@ -5623,7 +5857,7 @@ function App() {
                       <button className="btn btn-primary" onClick={guardarTrade}>
                         {editingTradeId ? 'Guardar Cambios' : 'Guardar Trade Cerrado'}
                       </button>
-                      <button className="btn" onClick={() => { setShowAddTrade(false); setEditingTradeId(null); }}>
+                      <button className="btn" onClick={() => { setShowAddTrade(false); setEditingTradeId(null); setTradeNombre(''); }}>
                         Cancelar
                       </button>
                     </div>
@@ -5642,10 +5876,12 @@ function App() {
             const filteredTrades = trades.map(t => normalizeTrade(t)).filter(Boolean).filter(t => {
               if (!searchTrades) return true;
               const q = searchTrades.toLowerCase();
+              const matchNombre = (t.nombre || '').toLowerCase().includes(q);
               const matchTicker = (t.ticker || '').toLowerCase().includes(q);
               const matchCompraFecha = (t.primeraCompraFecha || '').includes(q);
               const matchVentaFecha = (t.ultimaVentaFecha || '').includes(q);
-              return matchTicker || matchCompraFecha || matchVentaFecha;
+              const matchSubTickers = [...(t.compras || []), ...(t.ventas || [])].some(op => (op.ticker || '').toLowerCase().includes(q));
+              return matchNombre || matchTicker || matchCompraFecha || matchVentaFecha || matchSubTickers;
             });
 
             // Sort trades by Criterion 1: primeraCompraFecha, Criterion 2: ultimaVentaFecha
@@ -5692,7 +5928,113 @@ function App() {
                     <div key={trade.id} className="glass-panel" style={{ background: 'rgba(0,0,0,0.2)', position: 'relative' }}>
                       {/* Header */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '8px' }}>
-                        <div>
+                        <div style={{ flex: 1, minWidth: '260px' }}>
+                          {editingNameTradeId === trade.id ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                              <input
+                                type="text"
+                                value={tempTradeName}
+                                onChange={e => setTempTradeName(e.target.value)}
+                                placeholder="Nombre del trade..."
+                                autoFocus
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') {
+                                    renombrarTrade(trade.id, tempTradeName);
+                                    setEditingNameTradeId(null);
+                                  } else if (e.key === 'Escape') {
+                                    setEditingNameTradeId(null);
+                                  }
+                                }}
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '13px',
+                                  background: '#16172e',
+                                  border: '1px solid var(--accent)',
+                                  borderRadius: '6px',
+                                  color: '#fff',
+                                  minWidth: '220px'
+                                }}
+                              />
+                              <button
+                                className="btn btn-sm btn-primary"
+                                onClick={() => {
+                                  renombrarTrade(trade.id, tempTradeName);
+                                  setEditingNameTradeId(null);
+                                }}
+                                style={{ padding: '4px 10px', fontSize: '11px' }}
+                              >
+                                ✓ Guardar
+                              </button>
+                              <button
+                                className="btn btn-sm"
+                                onClick={() => setEditingNameTradeId(null)}
+                                style={{ padding: '4px 8px', fontSize: '11px' }}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                              {trade.nombre ? (
+                                <span style={{
+                                  fontSize: '15px',
+                                  fontWeight: '700',
+                                  color: '#fff',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  background: 'rgba(99, 102, 241, 0.18)',
+                                  border: '1px solid rgba(99, 102, 241, 0.4)',
+                                  padding: '3px 10px',
+                                  borderRadius: '6px'
+                                }}>
+                                  🏷️ {trade.nombre}
+                                  <button
+                                    onClick={() => {
+                                      setEditingNameTradeId(trade.id);
+                                      setTempTradeName(trade.nombre || '');
+                                    }}
+                                    title="Editar nombre"
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      fontSize: '12px',
+                                      color: 'rgba(255,255,255,0.7)',
+                                      padding: '0 2px',
+                                      display: 'flex',
+                                      alignItems: 'center'
+                                    }}
+                                  >
+                                    ✏️
+                                  </button>
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setEditingNameTradeId(trade.id);
+                                    setTempTradeName('');
+                                  }}
+                                  style={{
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px dashed rgba(255,255,255,0.25)',
+                                    borderRadius: '6px',
+                                    color: 'var(--text-muted)',
+                                    fontSize: '11px',
+                                    padding: '3px 8px',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="Asignar un nombre a este trade"
+                                >
+                                  🏷️ + Asignar nombre
+                                </button>
+                              )}
+                            </div>
+                          )}
+
                           <h3 style={{ fontSize: '15px', marginBottom: '4px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                             <span style={{ opacity: 0.7 }}>{trade.primeraCompraFecha} → {trade.ultimaVentaFecha}</span>
                             {duration && (
@@ -6274,6 +6616,709 @@ function App() {
               </div>
             </div>
           );
+          })()}
+        </div>
+      )}
+
+      {/* --- TAB 6: TRACKING --- */}
+      {activeTab === 'tracking' && (
+        <div className="glass-panel">
+          <div className="panel-header" style={{ flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ flex: 1, minWidth: '280px' }}>
+              <div className="panel-title" style={{ margin: 0 }}>
+                Tracking de Empresas & Rotaciones ({trackings.length})
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                Llevá el seguimiento de activos desde un día en particular y evaluá rotaciones entre compras y ventas en tiempo real.
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {trackings.length > 0 && (
+                <div style={{ position: 'relative', minWidth: '240px' }}>
+                  <input
+                    type="text"
+                    placeholder="🔍 Buscar por nombre, ticker o fecha..."
+                    value={searchTracking}
+                    onChange={e => setSearchTracking(e.target.value)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: '6px',
+                      color: '#fff',
+                      width: '100%'
+                    }}
+                  />
+                  {searchTracking && (
+                    <button
+                      onClick={() => setSearchTracking('')}
+                      style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '12px' }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              )}
+              <button className="btn btn-primary btn-sm" onClick={abrirNuevoTrackingModal}>
+                + Nuevo Tracking
+              </button>
+            </div>
+          </div>
+
+          {/* Modal / Formulario de Creación / Edición de Tracking */}
+          {showAddTracking && (
+            <div className="collapsible-content active" style={{ background: 'rgba(0,0,0,0.3)', padding: '1.25rem', borderRadius: '10px', border: '1px solid var(--glass-border)', marginTop: '1rem', marginBottom: '1.5rem' }}>
+              <div className="panel-title" style={{ marginBottom: '12px', fontSize: '15px', color: 'var(--accent)' }}>
+                {editingTrackingId ? '✏️ Editar Grupo de Tracking' : '➕ Crear Nuevo Grupo de Tracking (Seguimiento / Rotación)'}
+              </div>
+
+              {/* Metadatos del Tracking */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600' }}>Nombre / Título del Tracking</label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Seguimiento Pampa post-balance, Rotación Tech Q3..."
+                    value={trackingNombre}
+                    onChange={e => setTrackingNombre(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600' }}>Fecha de Inicio / Referencia</label>
+                  <input
+                    type="date"
+                    value={trackingFecha}
+                    onChange={e => {
+                      setTrackingFecha(e.target.value);
+                      if (!newItemFecha) setNewItemFecha(e.target.value);
+                    }}
+                    style={{ width: '100%', padding: '8px 12px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600' }}>Notas / Racional de Inversión (Opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Hipótesis de suba post-elecciones, arbitraje o costo de oportunidad..."
+                    value={trackingNotas}
+                    onChange={e => setTrackingNotas(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              {/* Caja para agregar una empresa o activo al grupo */}
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.25)', marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: '#818cf8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  📌 Agregar Activo al Tracking
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', alignItems: 'flex-end' }}>
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>Ticker / Instrumento</label>
+                    <input
+                      type="text"
+                      placeholder="Ej: AAPL, PAMP, NVDA..."
+                      value={newItemTicker}
+                      onChange={e => setNewItemTicker(e.target.value.toUpperCase())}
+                      style={{ width: '100%', padding: '7px 10px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>Lado / Posición</label>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setNewItemTipo('compra')}
+                        style={{
+                          flex: 1,
+                          padding: '7px 6px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          borderRadius: '6px',
+                          border: newItemTipo === 'compra' ? '1px solid #10b981' : '1px solid var(--glass-border)',
+                          background: newItemTipo === 'compra' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255,255,255,0.04)',
+                          color: newItemTipo === 'compra' ? '#34d399' : 'var(--text-muted)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🛒 Compra
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewItemTipo('venta')}
+                        style={{
+                          flex: 1,
+                          padding: '7px 6px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          borderRadius: '6px',
+                          border: newItemTipo === 'venta' ? '1px solid #ef4444' : '1px solid var(--glass-border)',
+                          background: newItemTipo === 'venta' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.04)',
+                          color: newItemTipo === 'venta' ? '#f87171' : 'var(--text-muted)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🏷️ Venta
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>Fecha Base</label>
+                    <input
+                      type="date"
+                      value={newItemFecha || trackingFecha}
+                      onChange={e => setNewItemFecha(e.target.value)}
+                      style={{ width: '100%', padding: '7px 10px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>Precio Base ($)</label>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {newItemTicker && (newItemFecha || trackingFecha) && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setIsFetchingHistPrice(true);
+                              const p = await fetchHistoricalPrice(newItemTicker, newItemFecha || trackingFecha);
+                              setIsFetchingHistPrice(false);
+                              if (p !== null) {
+                                setNewItemPrecio(p.toFixed(2));
+                                if (newItemMonto && p > 0) {
+                                  setNewItemCantidad(Math.round(parseFloat(newItemMonto) / p));
+                                }
+                              } else {
+                                alert(`No se encontró cotización histórica automática para ${newItemTicker} en esa fecha. Podés ingresarla manualmente.`);
+                              }
+                            }}
+                            disabled={isFetchingHistPrice}
+                            style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: '10px', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                          >
+                            {isFetchingHistPrice ? '⏳...' : '📅 Histórica'}
+                          </button>
+                        )}
+                        {(() => {
+                          const cleanT = cleanTickerSymbol(newItemTicker);
+                          const yt = getYahooTicker({ ticker: cleanT, tipo: tickerCatalog[cleanT]?.tipo || 'cedear' });
+                          const liveP = (yt && prices[yt]) || prices[cleanT] || null;
+                          if (!liveP) return null;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewItemPrecio(liveP);
+                                if (newItemMonto && liveP > 0) {
+                                  setNewItemCantidad(Math.round(parseFloat(newItemMonto) / liveP));
+                                }
+                              }}
+                              style={{ background: 'none', border: 'none', color: '#34d399', fontSize: '10px', cursor: 'pointer', textDecoration: 'underline', padding: 0, marginLeft: '4px' }}
+                            >
+                              💲 Actual
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="Precio inicial..."
+                      value={newItemPrecio}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setNewItemPrecio(val);
+                        const pr = parseFloat(val);
+                        if (newItemMonto && pr > 0) {
+                          setNewItemCantidad(Math.round(parseFloat(newItemMonto) / pr));
+                        }
+                      }}
+                      style={{ width: '100%', padding: '7px 10px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>Cantidad (Nominales)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="Nominales..."
+                      value={newItemCantidad}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setNewItemCantidad(val);
+                        const pr = parseFloat(newItemPrecio);
+                        if (pr > 0 && val) {
+                          setNewItemMonto((parseFloat(val) * pr).toFixed(0));
+                        }
+                      }}
+                      style={{ width: '100%', padding: '7px 10px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>O Monto Total ($)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="Monto total ($)..."
+                      value={newItemMonto}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setNewItemMonto(val);
+                        const pr = parseFloat(newItemPrecio);
+                        if (pr > 0 && val) {
+                          setNewItemCantidad(Math.round(parseFloat(val) / pr));
+                        }
+                      }}
+                      style={{ width: '100%', padding: '7px 10px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={agregarItemATracking}
+                      style={{ width: '100%', padding: '7px 12px', fontSize: '12px' }}
+                    >
+                      + Agregar Activo
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items agregados al grupo actual */}
+              {(() => {
+                const compras = trackingItems.filter(it => it.tipo === 'compra');
+                const ventas = trackingItems.filter(it => it.tipo === 'venta');
+
+                return (
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                      Activos en este Tracking ({trackingItems.length})
+                    </div>
+
+                    {trackingItems.length === 0 ? (
+                      <div className="empty-state" style={{ padding: '1rem', fontSize: '12px' }}>
+                        Todavía no agregaste ningún activo. Ingresá el ticker y precio base arriba para agregarlo.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: compras.length > 0 && ventas.length > 0 ? '1fr 1fr' : '1fr', gap: '1rem' }}>
+                        {/* Lado Compras */}
+                        {compras.length > 0 && (
+                          <div style={{ background: 'rgba(16, 185, 129, 0.05)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                            <div style={{ fontSize: '12px', fontWeight: '700', color: '#34d399', marginBottom: '6px' }}>
+                              🛒 Lado Compras ({compras.length})
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {compras.map(it => (
+                                <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '5px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{it.fecha}</span>
+                                    <strong style={{ color: '#fff' }}>{it.ticker}</strong>
+                                    <span>{fmt(it.cantidad, 0)} @ ${fmt(it.precio)}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <strong style={{ color: '#fff' }}>${fmt(it.precio * it.cantidad)}</strong>
+                                    <button
+                                      type="button"
+                                      onClick={() => eliminarItemDeTracking(it.id)}
+                                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}
+                                      title="Quitar"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Lado Ventas */}
+                        {ventas.length > 0 && (
+                          <div style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                            <div style={{ fontSize: '12px', fontWeight: '700', color: '#f87171', marginBottom: '6px' }}>
+                              🏷️ Lado Ventas ({ventas.length})
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {ventas.map(it => (
+                                <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '5px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{it.fecha}</span>
+                                    <strong style={{ color: '#fff' }}>{it.ticker}</strong>
+                                    <span>{fmt(it.cantidad, 0)} @ ${fmt(it.precio)}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <strong style={{ color: '#fff' }}>${fmt(it.precio * it.cantidad)}</strong>
+                                    <button
+                                      type="button"
+                                      onClick={() => eliminarItemDeTracking(it.id)}
+                                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}
+                                      title="Quitar"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button className="btn btn-primary" onClick={guardarTracking}>
+                  {editingTrackingId ? 'Guardar Cambios' : 'Crear Grupo de Tracking'}
+                </button>
+                <button className="btn" onClick={() => { setShowAddTracking(false); setEditingTrackingId(null); }}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Listado de Tarjetas de Tracking */}
+          {trackings.length === 0 && !showAddTracking ? (
+            <div className="empty-state" style={{ marginTop: '1.5rem', padding: '3rem 1rem' }}>
+              <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>No hay grupos de tracking creados todavía.</div>
+              <p className="hint">Creá un seguimiento para medir el rendimiento de una empresa desde una fecha clave o evaluar rotaciones hipotéticas entre compras y ventas.</p>
+              <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={abrirNuevoTrackingModal}>
+                + Crear Primer Tracking
+              </button>
+            </div>
+          ) : (() => {
+            const filteredTrackings = trackings.filter(g => {
+              if (!searchTracking) return true;
+              const q = searchTracking.toLowerCase();
+              const matchNombre = (g.nombre || '').toLowerCase().includes(q);
+              const matchFecha = (g.fecha || '').includes(q);
+              const matchItems = (g.items || []).some(it => (it.ticker || '').toLowerCase().includes(q) || (it.fecha || '').includes(q));
+              return matchNombre || matchFecha || matchItems;
+            });
+
+            if (filteredTrackings.length === 0 && searchTracking) {
+              return (
+                <div className="empty-state" style={{ marginTop: '1.5rem' }}>
+                  No se encontraron grupos de tracking que coincidan con "{searchTracking}".
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1.5rem' }}>
+                {filteredTrackings.map(group => {
+                  const comprasItems = (group.items || []).filter(it => it.tipo === 'compra');
+                  const ventasItems = (group.items || []).filter(it => it.tipo === 'venta');
+
+                  let groupBuyCost = 0;
+                  let groupBuyValue = 0;
+                  let groupSellProceeds = 0;
+                  let groupSellValue = 0;
+
+                  comprasItems.forEach(it => {
+                    const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || 'accion' });
+                    const curPrice = yt ? prices[yt] : (prices[it.ticker] ?? null);
+                    const cost = it.precio * it.cantidad;
+                    groupBuyCost += cost;
+                    if (curPrice !== null) {
+                      groupBuyValue += curPrice * it.cantidad;
+                    } else {
+                      groupBuyValue += cost;
+                    }
+                  });
+
+                  ventasItems.forEach(it => {
+                    const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || 'accion' });
+                    const curPrice = yt ? prices[yt] : (prices[it.ticker] ?? null);
+                    const proceed = it.precio * it.cantidad;
+                    groupSellProceeds += proceed;
+                    if (curPrice !== null) {
+                      groupSellValue += curPrice * it.cantidad;
+                    } else {
+                      groupSellValue += proceed;
+                    }
+                  });
+
+                  const buyPnL = groupBuyValue - groupBuyCost;
+                  const salePnL = groupSellProceeds - groupSellValue; // Positivo si vendiste por encima del valor actual
+                  const netGroupPnL = buyPnL + salePnL;
+                  const baseDenom = groupBuyCost + groupSellValue;
+                  const netGroupPct = baseDenom > 0 ? (netGroupPnL / baseDenom) * 100 : 0;
+                  const isGroupPos = netGroupPnL >= 0;
+
+                  return (
+                    <div
+                      key={group.id}
+                      className="glass-panel"
+                      style={{
+                        background: 'rgba(15, 16, 35, 0.6)',
+                        border: '1px solid var(--glass-border)',
+                        padding: '1.25rem',
+                        opacity: group.excluded ? 0.5 : 1,
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {/* Header de la Tarjeta */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap', gap: '8px' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '18px', fontWeight: '700', color: '#fff' }}>{group.nombre}</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px' }}>
+                              {group.fecha}
+                            </span>
+                            {comprasItems.length > 0 && ventasItems.length > 0 ? (
+                              <span style={{ fontSize: '10px', background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', padding: '2px 8px', borderRadius: '12px', fontWeight: '600' }}>
+                                ROTACIÓN TRACKEADA
+                              </span>
+                            ) : comprasItems.length > 0 ? (
+                              <span style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 8px', borderRadius: '12px', fontWeight: '600' }}>
+                                SEGUIMIENTO COMPRAS
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '10px', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '2px 8px', borderRadius: '12px', fontWeight: '600' }}>
+                                SEGUIMIENTO VENTAS
+                              </span>
+                            )}
+                          </div>
+                          {group.notas && (
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', fontStyle: 'italic' }}>
+                              💡 {group.notas}
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <label className="mcd-option" style={{ margin: 0, padding: '4px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', border: '1px solid var(--glass-border)', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={!group.excluded}
+                              onChange={() => toggleTrackingExclusion(group.id)}
+                              style={{ width: '13px', height: '13px' }}
+                            />
+                            <span style={{ fontSize: '11px', marginLeft: '6px' }}>Incluir en Totales</span>
+                          </label>
+                          <button className="btn btn-sm" onClick={() => abrirEditarTrackingModal(group)} style={{ fontSize: '11px', padding: '4px 10px' }}>
+                            ✏️ Editar
+                          </button>
+                          <button className="btn btn-sm btn-danger" onClick={() => eliminarTracking(group.id)} style={{ fontSize: '11px', padding: '4px 8px' }}>
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Detalle de Posiciones en el Grupo */}
+                      <div style={{ display: 'grid', gridTemplateColumns: comprasItems.length > 0 && ventasItems.length > 0 ? '1fr 1fr' : '1fr', gap: '1rem' }}>
+                        {/* Sección Compras */}
+                        {comprasItems.length > 0 && (
+                          <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+                            <div style={{ fontSize: '12px', fontWeight: '700', color: '#34d399', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                              <span>🛒 COMPRAS / ENTRADAS TRACKEADAS ({comprasItems.length})</span>
+                              <span>Invertido: ${fmt(groupBuyCost)}</span>
+                            </div>
+                            <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'left' }}>
+                                  <th style={{ padding: '4px' }}>Fecha</th>
+                                  <th style={{ padding: '4px' }}>Ticker</th>
+                                  <th style={{ padding: '4px', textAlign: 'right' }}>Cant. @ Base</th>
+                                  <th style={{ padding: '4px', textAlign: 'right' }}>Total Base</th>
+                                  <th style={{ padding: '4px', textAlign: 'right' }}>Actual</th>
+                                  <th style={{ padding: '4px', textAlign: 'right' }}>Resultado</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {comprasItems.map(it => {
+                                  const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || 'accion' });
+                                  const curPrice = yt ? prices[yt] : (prices[it.ticker] ?? null);
+                                  const diff = curPrice !== null ? curPrice - it.precio : null;
+                                  const pct = it.precio > 0 && diff !== null ? (diff / it.precio) * 100 : null;
+                                  const pnl = diff !== null ? diff * it.cantidad : null;
+                                  const isPos = pnl >= 0;
+                                  const itTotal = it.precio * it.cantidad;
+
+                                  return (
+                                    <tr key={it.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                                      <td style={{ padding: '4px', color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>{it.fecha}</td>
+                                      <td style={{ padding: '4px 0', fontWeight: '600' }}>{it.ticker.replace(/\.BA$/i, '')}</td>
+                                      <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(it.cantidad, 0)} @ ${fmt(it.precio)}</td>
+                                      <td style={{ padding: '4px', textAlign: 'right', fontWeight: '600' }}>${fmt(itTotal)}</td>
+                                      <td style={{ padding: '4px', textAlign: 'right' }}>{curPrice !== null ? `$${fmt(curPrice)}` : '—'}</td>
+                                      <td style={{ padding: '4px', textAlign: 'right' }} className={isPos ? 'positive' : 'negative'}>
+                                        {pnl !== null ? `${fmtPct(pct)} (${isPos ? '+' : '-'}${fmt(Math.abs(pnl))})` : '—'}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                              <tfoot style={{ borderTop: '1px solid rgba(255,255,255,0.15)', fontWeight: '700' }}>
+                                <tr>
+                                  <td colSpan={2} style={{ padding: '6px 0', color: '#fff' }}>TOTAL COMPRAS</td>
+                                  <td style={{ padding: '6px', textAlign: 'right', color: 'var(--text-muted)' }}>—</td>
+                                  <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupBuyCost)}</td>
+                                  <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupBuyValue)}</td>
+                                  <td style={{ padding: '6px', textAlign: 'right' }} className={buyPnL >= 0 ? 'positive' : 'negative'}>
+                                    {fmtPct(groupBuyCost > 0 ? (buyPnL / groupBuyCost) * 100 : 0)} ({buyPnL >= 0 ? '+' : '-'}${fmt(Math.abs(buyPnL))})
+                                  </td>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </div>
+                        )}
+
+                        {/* Sección Ventas */}
+                        {ventasItems.length > 0 && (
+                          <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                            <div style={{ fontSize: '12px', fontWeight: '700', color: '#f87171', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                              <span>🏷️ VENTAS / SALIDAS TRACKEADAS ({ventasItems.length})</span>
+                              <span>Liberado: ${fmt(groupSellProceeds)}</span>
+                            </div>
+                            <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'left' }}>
+                                  <th style={{ padding: '4px' }}>Fecha</th>
+                                  <th style={{ padding: '4px' }}>Ticker</th>
+                                  <th style={{ padding: '4px', textAlign: 'right' }}>Cant. @ Base</th>
+                                  <th style={{ padding: '4px', textAlign: 'right' }}>Total Base</th>
+                                  <th style={{ padding: '4px', textAlign: 'right' }}>Actual</th>
+                                  <th style={{ padding: '4px', textAlign: 'right' }}>Resultado</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {ventasItems.map(it => {
+                                  const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || 'accion' });
+                                  const curPrice = yt ? prices[yt] : (prices[it.ticker] ?? null);
+                                  const diff = curPrice !== null ? it.precio - curPrice : null; // Positivo si vendiste arriba del precio actual
+                                  const pct = it.precio > 0 && curPrice !== null ? ((it.precio - curPrice) / it.precio) * 100 : null;
+                                  const oppPnL = diff !== null ? diff * it.cantidad : null;
+                                  const isGoodSale = oppPnL >= 0;
+                                  const itTotal = it.precio * it.cantidad;
+
+                                  return (
+                                    <tr key={it.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                                      <td style={{ padding: '4px', color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>{it.fecha}</td>
+                                      <td style={{ padding: '4px 0', fontWeight: '600' }}>{it.ticker.replace(/\.BA$/i, '')}</td>
+                                      <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(it.cantidad, 0)} @ ${fmt(it.precio)}</td>
+                                      <td style={{ padding: '4px', textAlign: 'right', fontWeight: '600' }}>${fmt(itTotal)}</td>
+                                      <td style={{ padding: '4px', textAlign: 'right' }}>{curPrice !== null ? `$${fmt(curPrice)}` : '—'}</td>
+                                      <td style={{ padding: '4px', textAlign: 'right' }} className={isGoodSale ? 'positive' : 'negative'}>
+                                        {oppPnL !== null ? `${fmtPct(pct)} (${isGoodSale ? '+' : '-'}${fmt(Math.abs(oppPnL))})` : '—'}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                              <tfoot style={{ borderTop: '1px solid rgba(255,255,255,0.15)', fontWeight: '700' }}>
+                                <tr>
+                                  <td colSpan={2} style={{ padding: '6px 0', color: '#fff' }}>TOTAL VENTAS</td>
+                                  <td style={{ padding: '6px', textAlign: 'right', color: 'var(--text-muted)' }}>—</td>
+                                  <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupSellProceeds)}</td>
+                                  <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupSellValue)}</td>
+                                  <td style={{ padding: '6px', textAlign: 'right' }} className={salePnL >= 0 ? 'positive' : 'negative'}>
+                                    {fmtPct(groupSellProceeds > 0 ? (salePnL / groupSellProceeds) * 100 : 0)} ({salePnL >= 0 ? '+' : '-'}${fmt(Math.abs(salePnL))})
+                                  </td>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Resumen Neto del Tracking */}
+                      <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          Impacto Neto de este Tracking:
+                        </div>
+                        <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                            Resultado Combinado:
+                          </div>
+                          <div className={isGroupPos ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '800' }}>
+                            {fmtPct(netGroupPct)} ({isGroupPos ? '+' : '-'}${fmt(Math.abs(netGroupPnL))})
+                            {dolarMep && (
+                              <span style={{ fontSize: '12px', fontWeight: '400', opacity: 0.8, marginLeft: '8px' }}>
+                                ≈ US$ {fmt(Math.abs(netGroupPnL) / dolarMep)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {/* Panel Consolidado Total de Trackings Activos */}
+          {trackings.filter(t => !t.excluded).length > 0 && (() => {
+            let totalNetPnL = 0;
+            let totalBuyVol = 0;
+            let totalSellVol = 0;
+
+            trackings.filter(t => !t.excluded).forEach(group => {
+              (group.items || []).forEach(it => {
+                const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || 'accion' });
+                const curPrice = yt ? prices[yt] : (prices[it.ticker] ?? null);
+                const itTotal = it.precio * it.cantidad;
+
+                if (it.tipo === 'compra') {
+                  totalBuyVol += itTotal;
+                  if (curPrice !== null) {
+                    totalNetPnL += (curPrice - it.precio) * it.cantidad;
+                  }
+                } else {
+                  totalSellVol += itTotal;
+                  if (curPrice !== null) {
+                    totalNetPnL += (it.precio - curPrice) * it.cantidad;
+                  }
+                }
+              });
+            });
+
+            const totalVol = totalBuyVol + totalSellVol;
+            const netPct = totalBuyVol > 0 ? (totalNetPnL / totalBuyVol) * 100 : 0;
+            const isPos = totalNetPnL >= 0;
+
+            return (
+              <div className="glass-panel" style={{ marginTop: '2rem', background: 'rgba(94, 106, 210, 0.08)', border: '1px solid rgba(94, 106, 210, 0.25)', padding: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div>
+                    <div className="panel-title" style={{ fontSize: '18px', marginBottom: '4px' }}>
+                      🌐 Resultado Neto Consolidado de Trackings Activos
+                    </div>
+                    <p className="hint" style={{ fontSize: '12px' }}>
+                      Rendimiento total sumando todos los grupos de tracking y rotaciones activas.
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Impacto Neto Total</div>
+                    <div className={isPos ? 'positive' : 'negative'} style={{ fontSize: '28px', fontWeight: '800' }}>
+                      {fmtPct(netPct)} ({isPos ? '+' : '-'}${fmt(Math.abs(totalNetPnL))})
+                      {dolarMep && (
+                        <span style={{ fontSize: '14px', fontWeight: '400', opacity: 0.8, marginLeft: '10px' }}>
+                          ≈ US$ {fmt(Math.abs(totalNetPnL) / dolarMep)}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      Volumen Compras: ${fmt(totalBuyVol)} · Volumen Ventas: ${fmt(totalSellVol)} (Total: ${fmt(totalVol)})
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
           })()}
         </div>
       )}
