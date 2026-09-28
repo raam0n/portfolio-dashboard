@@ -189,6 +189,9 @@ const SEED_TICKER_CATALOG = {
   'SPOT': { ticker: 'SPOT', nombre: 'Spotify Technology S.A.', tipo: 'cedear', mercado: 'BCBA', sector: 'Entretenimiento', subsector: 'Streaming', pais: 'Luxemburgo' },
   'UBER': { ticker: 'UBER', nombre: 'Uber Technologies Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Movilidad', pais: 'USA' },
   'AXP': { ticker: 'AXP', nombre: 'American Express Company', tipo: 'cedear', mercado: 'BCBA', sector: 'Financial', subsector: 'Servicios Financieros', pais: 'USA' },
+  'ARM': { ticker: 'ARM', nombre: 'Arm Holdings plc', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Semiconductores', pais: 'Reino Unido' },
+  'HUT': { ticker: 'HUT', nombre: 'Hut 8 Corp', tipo: 'cedear', mercado: 'BCBA', sector: 'Crypto', subsector: 'Minería Bitcoin', pais: 'USA' },
+  'NU': { ticker: 'NU', nombre: 'Nu Holdings Ltd. (Nubank)', tipo: 'cedear', mercado: 'BCBA', sector: 'Banking', subsector: 'Fintech', pais: 'Brasil' },
 
   // Efectivo
   'ARS': { ticker: 'ARS', nombre: 'Pesos Argentinos', tipo: 'efectivo', mercado: 'BCBA', sector: 'Efectivo', subsector: 'Pesos Argentinos', pais: 'Argentina' },
@@ -322,6 +325,7 @@ const ASSET_SECTOR_FALLBACK_MAP = {
   // Crypto
   'IBIT': { sector: 'Crypto', subsector: 'Bitcoin' },
   'MSTR': { sector: 'Crypto', subsector: 'Bitcoin' },
+  'HUT': { sector: 'Crypto', subsector: 'Minería Bitcoin' },
   'BTC-USD': { sector: 'Crypto', subsector: 'Bitcoin' },
   'ETH-USD': { sector: 'Crypto', subsector: 'Criptomoneda' },
 
