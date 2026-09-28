@@ -1044,9 +1044,44 @@ function migratePortfoliosToNames() {
     console.error("Error during portfolio migration:", e);
   }
 }
+
+// --- NORMALIZE HOLDINGS: Ensure CEDEARs always have tipo='cedear' and mercado='BCBA' ---
+function normalizeHoldingsOnLoad() {
+  try {
+    const raw = localStorage.getItem('all_holdings');
+    if (!raw) return;
+    const allH = JSON.parse(raw);
+    let changed = false;
+    for (const portId of Object.keys(allH)) {
+      if (Array.isArray(allH[portId])) {
+        allH[portId] = allH[portId].map(h => {
+          if (!h) return h;
+          const tipoNorm = String(h.tipo || '').trim().toLowerCase();
+          const cleanT = cleanTickerSymbol(h.ticker);
+          const isSeedCedear = SEED_TICKER_CATALOG[cleanT]?.tipo === 'cedear';
+          if (tipoNorm === 'cedear' || (isSeedCedear && (h.mercado === 'BCBA' || !h.mercado))) {
+            if (h.tipo !== 'cedear' || h.mercado !== 'BCBA') {
+              changed = true;
+              return { ...h, tipo: 'cedear', mercado: 'BCBA' };
+            }
+          }
+          return h;
+        });
+      }
+    }
+    if (changed) {
+      safeSetItem('all_holdings', allH);
+      console.log("Normalized CEDEAR holdings to BCBA in localStorage!");
+    }
+  } catch (e) {
+    console.error("Error normalizing holdings on load:", e);
+  }
+}
+
 // Execute migration immediately on script load
 if (typeof window !== 'undefined' && window.localStorage) {
   migratePortfoliosToNames();
+  normalizeHoldingsOnLoad();
 }
 
 function App() {
@@ -1298,37 +1333,49 @@ function App() {
       const key = rawT.trim().toUpperCase();
       const existing = catalog[key] || {};
       const fallback = getAssetSectorAndSubsector(key, item.tipo || existing.tipo, item);
+
+      const itemTipoNorm = String(item.tipo || '').trim().toLowerCase();
+      const existingTipoNorm = String(existing.tipo || '').trim().toLowerCase();
+      let resolvedTipo = item.tipo || existing.tipo || 'accion';
+      let resolvedMercado = item.mercado || existing.mercado || 'BCBA';
+
+      // If existing item is already a known CEDEAR, do NOT let a watchlist stock entry overwrite its CEDEAR type or BCBA market!
+      if (existingTipoNorm === 'cedear' && itemTipoNorm === 'stock') {
+        resolvedTipo = 'cedear';
+        resolvedMercado = 'BCBA';
+      }
+
       catalog[key] = {
         ticker: key,
         nombre: item.nombre || existing.nombre || '',
-        tipo: item.tipo || existing.tipo || 'accion',
-        mercado: item.mercado || existing.mercado || 'BCBA',
+        tipo: resolvedTipo,
+        mercado: resolvedMercado,
         sector: item.sector && item.sector.trim() !== '' && item.sector !== 'Otros' ? item.sector : (existing.sector || fallback.sector),
         subsector: item.subsector && item.subsector.trim() !== '' && item.subsector !== 'Otros' ? item.subsector : (existing.subsector || fallback.subsector),
         pais: item.pais || existing.pais || ''
       };
     };
 
-    // Merge holdings
-    Object.values(allHoldings).forEach(holdingsList => {
-      if (Array.isArray(holdingsList)) {
-        holdingsList.forEach(h => h && mergeItem(h.ticker, h));
-      }
-    });
-
-    // Merge watchlist
+    // 1. Merge watchlist first
     if (Array.isArray(watchlist)) {
       watchlist.forEach(w => w && mergeItem(w.ticker, w));
     }
 
-    // Merge operations
+    // 2. Merge operations
     Object.values(allOperaciones).forEach(opList => {
       if (Array.isArray(opList)) {
         opList.forEach(op => op && mergeItem(op.ticker, { tipo: op.assetTipo }));
       }
     });
 
-    // Merge custom tickers
+    // 3. Merge holdings (real portfolio holdings have priority over watchlist)
+    Object.values(allHoldings).forEach(holdingsList => {
+      if (Array.isArray(holdingsList)) {
+        holdingsList.forEach(h => h && mergeItem(h.ticker, h));
+      }
+    });
+
+    // 4. Merge custom tickers (explicit user customizations have highest priority)
     Object.keys(customTickers).forEach(t => mergeItem(t, customTickers[t]));
 
     return catalog;
@@ -1340,8 +1387,17 @@ function App() {
     const match = tickerCatalog[upper.trim()];
     if (match) {
       if (match.nombre) setNewNombre(match.nombre);
-      if (match.tipo) setNewTipo(match.tipo);
-      if (match.mercado) setNewMercado(match.mercado);
+      const matchTipo = String(match.tipo || '').toLowerCase();
+      if (newTipo === 'cedear') {
+        setNewMercado('BCBA');
+      } else {
+        if (match.tipo) setNewTipo(match.tipo);
+        if (matchTipo === 'cedear') {
+          setNewMercado('BCBA');
+        } else if (match.mercado) {
+          setNewMercado(match.mercado);
+        }
+      }
     }
   };
 
@@ -1524,43 +1580,96 @@ function App() {
 
   const getYahooTicker = (h) => {
     if (!h) return null;
-    if (h.tipo === 'efectivo' || h.tipo === 'bono') return null;
+    const tipoNorm = String(h.tipo || h.assetTipo || '').trim().toLowerCase();
+    const mercadoNorm = String(h.mercado || '').trim().toUpperCase();
+
+    if (tipoNorm === 'efectivo' || tipoNorm === 'bono') return null;
     let t = (h.ticker || '').trim().toUpperCase();
     if (!t) return null;
 
     const cleanT = cleanTickerSymbol(t);
     // If catalog identifies this instrument as bono or efectivo, Yahoo doesn't track it
-    if (tickerCatalog[cleanT]?.tipo === 'bono' || tickerCatalog[cleanT]?.tipo === 'efectivo') {
+    const catTipo = String(tickerCatalog[cleanT]?.tipo || '').trim().toLowerCase();
+    if (catTipo === 'bono' || catTipo === 'efectivo') {
       return null;
     }
 
-    // 0. If mercado is explicitly set, prioritize it over catalog/tipo:
-    if (h.mercado === 'NYSE' || h.mercado === 'NASDAQ' || h.mercado === 'NYSE/NASDAQ' || h.mercado === 'US' || h.mercado === 'Internacional') {
+    // 1. CEDEARs are ALWAYS BCBA instruments (quoted in ARS on Yahoo as <TICKER>.BA).
+    // When an asset is marked as CEDEAR, ALWAYS make the call for the .BA ticker, regardless of any US mercado tag!
+    if (tipoNorm === 'cedear' || tipoNorm === 'cedears') {
+      return cleanT.endsWith('.BA') ? cleanT : cleanT + '.BA';
+    }
+
+    // 2. Argentine Acciones (BCBA) -> ALWAYS .BA unless explicitly an international ADR (NYSE/NASDAQ/US)
+    if (tipoNorm === 'accion' || tipoNorm === 'acciones') {
+      if (mercadoNorm === 'NYSE' || mercadoNorm === 'NASDAQ' || mercadoNorm === 'NYSE/NASDAQ' || mercadoNorm === 'US' || mercadoNorm === 'INTERNACIONAL') {
+        return cleanT.replace(/\.BA$/i, '');
+      }
+      return cleanT.endsWith('.BA') ? cleanT : cleanT + '.BA';
+    }
+
+    // 3. US Stocks (Wall Street) -> NEVER .BA
+    if (tipoNorm === 'stock' || tipoNorm === 'stocks') {
       return cleanT.replace(/\.BA$/i, '');
     }
-    if (h.mercado === 'BCBA' || h.mercado === 'Local') {
+
+    // 4. Mercado explicitly set (for items where tipo is not explicitly specified):
+    if (mercadoNorm === 'BCBA' || mercadoNorm === 'LOCAL' || cleanT.endsWith('.BA')) {
       return cleanT.endsWith('.BA') ? cleanT : cleanT + '.BA';
     }
-
-    // 1. CEDEARs and Argentine Acciones are BCBA instruments -> ALWAYS .BA
-    if (h.tipo === 'accion' || h.tipo === 'cedear') {
-      return cleanT.endsWith('.BA') ? cleanT : cleanT + '.BA';
-    }
-
-    // 2. US Stocks (Wall Street) -> NEVER .BA
-    if (h.tipo === 'stock') {
+    if (mercadoNorm === 'NYSE' || mercadoNorm === 'NASDAQ' || mercadoNorm === 'NYSE/NASDAQ' || mercadoNorm === 'US' || mercadoNorm === 'INTERNACIONAL') {
       return cleanT.replace(/\.BA$/i, '');
     }
 
-    // 3. Fallback when tipo is not specified: check market or ticker suffix
-    if (h.mercado === 'BCBA' || cleanT.endsWith('.BA')) {
+    // 5. Fallback to catalog:
+    if (catTipo === 'cedear' || catTipo === 'cedears' || catTipo === 'accion' || catTipo === 'acciones') {
       return cleanT.endsWith('.BA') ? cleanT : cleanT + '.BA';
     }
-    if (h.mercado === 'NYSE' || h.mercado === 'NASDAQ' || h.mercado === 'NYSE/NASDAQ') {
+    if (catTipo === 'stock' || catTipo === 'stocks') {
       return cleanT.replace(/\.BA$/i, '');
     }
 
     return cleanT;
+  };
+
+  // Centralized price and stats lookup helper that prevents local Argentine instruments (CEDEARs / Acciones)
+  // from incorrectly falling back to the US underlying stock price (e.g. NFLX, CAT in USD)
+  const getAssetPriceAndStats = (h) => {
+    if (!h) return { pc: null, stats: null, yt: null };
+    const rawT = (h.ticker || '').trim().toUpperCase();
+    const cleanT = cleanTickerSymbol(rawT);
+    const tipoNorm = String(h.tipo || h.assetTipo || '').trim().toLowerCase();
+    const isEfectivo = tipoNorm === 'efectivo' || rawT === 'ARS' || rawT === 'USD' || rawT === 'AR$';
+    if (isEfectivo) {
+      return { pc: 1, stats: { price: 1, change: 0, changePct: 0 }, yt: null };
+    }
+
+    const isCedear = tipoNorm === 'cedear' || tipoNorm === 'cedears';
+    const isAccion = tipoNorm === 'accion' || tipoNorm === 'acciones';
+    const yt = getYahooTicker(h) || (isCedear ? `${cleanT}.BA` : cleanT);
+    const isLocalAr = isCedear || (isAccion && yt?.endsWith('.BA')) || (yt && yt.endsWith('.BA'));
+
+    let pc = null;
+    let stats = null;
+
+    if (isLocalAr) {
+      // NEVER fall back to cleanT (the US ticker in USD) for CEDEARs or BCBA Acciones
+      pc = (yt && prices[yt] !== undefined)
+        ? prices[yt]
+        : (prices[`${cleanT}.BA`] ?? prices[`${rawT}.BA`] ?? (rawT.endsWith('.BA') ? prices[rawT] : null) ?? (h.precioActual !== undefined ? h.precioActual : null));
+      stats = (yt && dailyStats[yt] !== undefined)
+        ? dailyStats[yt]
+        : (dailyStats[`${cleanT}.BA`] ?? dailyStats[`${rawT}.BA`] ?? (rawT.endsWith('.BA') ? dailyStats[rawT] : null) ?? null);
+    } else {
+      pc = (yt && prices[yt] !== undefined)
+        ? prices[yt]
+        : (prices[cleanT] ?? prices[rawT] ?? (h.precioActual !== undefined ? h.precioActual : null));
+      stats = (yt && dailyStats[yt] !== undefined)
+        ? dailyStats[yt]
+        : (dailyStats[cleanT] ?? dailyStats[rawT] ?? null);
+    }
+
+    return { pc, stats, yt };
   };
 
   const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
@@ -3465,9 +3574,7 @@ function App() {
   holdings.forEach(h => {
     const rawT = (h.ticker || '').trim().toUpperCase();
     const cleanT = cleanTickerSymbol(rawT);
-    const yt = getYahooTicker(h) || cleanT;
-    const pc = h.tipo === 'efectivo' ? 1 : (prices[yt] ?? prices[cleanT] ?? prices[rawT] ?? (h.precioActual !== undefined ? h.precioActual : null));
-    const stats = h.tipo === 'efectivo' ? { price: 1, change: 0, changePct: 0 } : (dailyStats[yt] ?? dailyStats[cleanT] ?? dailyStats[rawT] ?? null);
+    const { pc, stats, yt } = getAssetPriceAndStats(h);
 
     const qty = h.cantidad;
     const costUnit = h.precioEntrada;
@@ -4226,12 +4333,10 @@ function App() {
                   <tbody>
                     {(() => {
                       const enriched = holdings.map(h => {
-                        const isEfectivo = h.tipo === 'efectivo';
                         const rawT = (h.ticker || '').trim().toUpperCase();
                         const cleanT = cleanTickerSymbol(rawT);
-                        const yt = getYahooTicker(h) || cleanT;
-                        const pc = isEfectivo ? 1 : (prices[yt] ?? prices[cleanT] ?? prices[rawT] ?? (h.precioActual !== undefined ? h.precioActual : null));
-                        const stats = isEfectivo ? { change: 0, changePct: 0 } : (dailyStats[yt] ?? dailyStats[cleanT] ?? dailyStats[rawT] ?? null);
+                        const { pc, stats, yt } = getAssetPriceAndStats(h);
+                        const isEfectivo = h.tipo === 'efectivo' || rawT === 'ARS' || rawT === 'USD' || rawT === 'AR$';
                         const valor = pc !== null ? pc * h.cantidad : null;
                         const costo = h.precioEntrada * h.cantidad;
                         const pnlA = valor !== null ? valor - costo : null;
@@ -4411,9 +4516,7 @@ function App() {
 
             holdings.forEach(h => {
               const rawT = (h.ticker || '').trim().toUpperCase();
-              const cleanT = cleanTickerSymbol(rawT);
-              const yt = getYahooTicker(h) || cleanT;
-              const pc = h.tipo === 'efectivo' ? 1 : (prices[yt] ?? prices[cleanT] ?? prices[rawT] ?? (h.precioActual !== undefined ? h.precioActual : null));
+              const { pc } = getAssetPriceAndStats(h);
               const valor = pc !== null ? pc * h.cantidad : h.precioEntrada * h.cantidad;
 
               // 1. By Asset
@@ -4485,12 +4588,9 @@ function App() {
           let totalCostUSD = 0;
 
           pHoldings.forEach(h => {
-            const isEfectivo = h.tipo === 'efectivo';
             const rawT = (h.ticker || '').trim().toUpperCase();
-            const cleanT = cleanTickerSymbol(rawT);
-            const yt = getYahooTicker(h) || cleanT;
-            const pc = isEfectivo ? 1 : (prices[yt] ?? prices[cleanT] ?? prices[rawT] ?? (h.precioActual !== undefined ? h.precioActual : null));
-            const stats = isEfectivo ? { change: 0, changePct: 0 } : (dailyStats[yt] ?? dailyStats[cleanT] ?? dailyStats[rawT] ?? null);
+            const { pc, stats } = getAssetPriceAndStats(h);
+            const isEfectivo = h.tipo === 'efectivo' || rawT === 'ARS' || rawT === 'USD' || rawT === 'AR$';
 
             const isUsdAsset = h.tipo === 'stock' || (isEfectivo && h.ticker === 'USD');
             const mepToday = dolarMep || 1;
@@ -7105,9 +7205,11 @@ function App() {
                         {(() => {
                           const cleanT = cleanTickerSymbol(newItemTicker);
                           if (!cleanT) return null;
-                          const isUS = newItemMercado === 'NYSE/NASDAQ' || newItemMercado === 'US';
-                          const yt = getYahooTicker({ ticker: cleanT, tipo: isUS ? 'stock' : (tickerCatalog[cleanT]?.tipo || 'cedear'), mercado: isUS ? 'NYSE/NASDAQ' : 'BCBA' });
-                          const liveP = (yt && prices[yt]) || (!isUS ? prices[cleanT] : null) || null;
+                          const assetTipo = (tickerCatalog[cleanT]?.tipo || '').toLowerCase();
+                          const isCedear = assetTipo === 'cedear' || assetTipo === 'cedears';
+                          const isUS = (newItemMercado === 'NYSE/NASDAQ' || newItemMercado === 'US') && !isCedear;
+                          const yt = getYahooTicker({ ticker: cleanT, tipo: isCedear ? 'cedear' : (isUS ? 'stock' : (assetTipo || 'cedear')), mercado: isUS ? 'NYSE/NASDAQ' : 'BCBA' });
+                          const liveP = (yt && prices[yt]) || (isUS ? prices[cleanT] : null) || null;
                           return (
                             <button
                               type="button"
@@ -8061,9 +8163,11 @@ function App() {
                         {(() => {
                           const cleanT = cleanTickerSymbol(quickEditItem.item.ticker);
                           if (!cleanT) return null;
-                          const isUS = quickEditItem.item.mercado === 'NYSE/NASDAQ' || quickEditItem.item.mercado === 'US';
-                          const yt = getYahooTicker({ ticker: cleanT, tipo: isUS ? 'stock' : (tickerCatalog[cleanT]?.tipo || 'cedear'), mercado: isUS ? 'NYSE/NASDAQ' : 'BCBA' });
-                          const liveP = (yt && prices[yt]) || (!isUS ? prices[cleanT] : null) || null;
+                          const assetTipo = (quickEditItem.item.tipo || tickerCatalog[cleanT]?.tipo || '').toLowerCase();
+                          const isCedear = assetTipo === 'cedear' || assetTipo === 'cedears';
+                          const isUS = (quickEditItem.item.mercado === 'NYSE/NASDAQ' || quickEditItem.item.mercado === 'US') && !isCedear;
+                          const yt = getYahooTicker({ ticker: cleanT, tipo: isCedear ? 'cedear' : (isUS ? 'stock' : (assetTipo || 'cedear')), mercado: isUS ? 'NYSE/NASDAQ' : 'BCBA' });
+                          const liveP = (yt && prices[yt]) || (isUS ? prices[cleanT] : null) || null;
                           return (
                             <button
                               type="button"

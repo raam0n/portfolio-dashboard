@@ -350,8 +350,16 @@ export default function MultiPortfolioCompositions({
         const isEfectivo = h.tipo === 'efectivo';
         const rawT = (h.ticker || '').trim().toUpperCase();
         const cleanT = rawT.replace(/\.BA$/i, '');
-        const yt = getYahooTicker(h) || cleanT;
-        const pc = isEfectivo ? 1 : (prices[yt] ?? prices[cleanT] ?? prices[rawT] ?? (h.precioActual !== undefined ? h.precioActual : null));
+        const tipoNorm = String(h.tipo || '').trim().toLowerCase();
+        const yt = getYahooTicker(h) || (tipoNorm === 'cedear' ? `${cleanT}.BA` : cleanT);
+        const isCedear = tipoNorm === 'cedear';
+        const isLocalAr = isCedear || (tipoNorm === 'accion' && yt?.endsWith('.BA')) || (yt && yt.endsWith('.BA'));
+
+        const pc = isEfectivo 
+          ? 1 
+          : isLocalAr
+            ? (prices[yt] ?? prices[`${cleanT}.BA`] ?? prices[`${rawT}.BA`] ?? (rawT.endsWith('.BA') ? prices[rawT] : null) ?? (h.precioActual !== undefined ? h.precioActual : null))
+            : (prices[yt] ?? prices[cleanT] ?? prices[rawT] ?? (h.precioActual !== undefined ? h.precioActual : null));
         const unitVal = pc !== null ? pc : (h.precioEntrada || 0);
         const itemValNative = unitVal * (h.cantidad || 0);
         const isUsdAsset = h.tipo === 'stock' || (isEfectivo && h.ticker === 'USD');

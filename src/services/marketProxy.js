@@ -158,14 +158,19 @@ export function extractPortfolioInternationalProxy(holdings = [], catalog = {}, 
     if (!h || !h.ticker) return;
 
     const rawTicker = h.ticker.trim().toUpperCase().replace(/\.BA$/i, '');
-    const isEfectivo = h.tipo === 'efectivo' || rawTicker === 'ARS' || rawTicker === 'USD' || rawTicker === 'AR$';
-    const isUsd = h.tipo === 'stock' || (isEfectivo && rawTicker === 'USD');
+    const tipoNorm = String(h.tipo || '').trim().toLowerCase();
+    const isEfectivo = tipoNorm === 'efectivo' || rawTicker === 'ARS' || rawTicker === 'USD' || rawTicker === 'AR$';
+    const isUsd = tipoNorm === 'stock' || (isEfectivo && rawTicker === 'USD');
+    const isCedearOrAccion = tipoNorm === 'accion' || tipoNorm === 'cedear' || !tipoNorm;
 
     // Get current price with robust fallback (.BA, raw ticker, or entry price)
-    const ytBA = (h.tipo === 'accion' || h.tipo === 'cedear' || !h.tipo) ? `${rawTicker}.BA` : rawTicker;
+    // Local BCBA assets (CEDEARs and Acciones) must never fall back to rawTicker which has US stock price
+    const ytBA = isCedearOrAccion ? `${rawTicker}.BA` : rawTicker;
     const pc = isEfectivo 
       ? 1 
-      : (prices[ytBA] ?? prices[rawTicker] ?? prices[h.ticker] ?? h.precioEntrada ?? 0);
+      : isCedearOrAccion
+        ? (prices[ytBA] ?? prices[`${rawTicker}.BA`] ?? (h.ticker.endsWith('.BA') ? prices[h.ticker] : null) ?? h.precioEntrada ?? 0)
+        : (prices[rawTicker] ?? prices[h.ticker] ?? h.precioEntrada ?? 0);
 
     const cantidad = Number(h.cantidad) || 0;
     const unitPrice = pc !== null && !isNaN(pc) ? Number(pc) : (Number(h.precioEntrada) || 0);

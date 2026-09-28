@@ -68,8 +68,16 @@ export function HonorariosDashboard({
     holdings.forEach(h => {
       const rawT = (h.ticker || '').trim().toUpperCase();
       const cleanT = rawT.replace(/\.BA$/i, '');
-      const yt = getYahooTicker(h) || cleanT;
-      const pc = h.tipo === 'efectivo' ? 1 : (prices[yt] ?? prices[cleanT] ?? prices[rawT] ?? (h.precioActual !== undefined ? h.precioActual : null));
+      const tipoNorm = String(h.tipo || '').trim().toLowerCase();
+      const yt = getYahooTicker(h) || (tipoNorm === 'cedear' ? `${cleanT}.BA` : cleanT);
+      const isCedear = tipoNorm === 'cedear';
+      const isLocalAr = isCedear || (tipoNorm === 'accion' && yt?.endsWith('.BA')) || (yt && yt.endsWith('.BA'));
+
+      const pc = h.tipo === 'efectivo' 
+        ? 1 
+        : isLocalAr
+          ? (prices[yt] ?? prices[`${cleanT}.BA`] ?? prices[`${rawT}.BA`] ?? (rawT.endsWith('.BA') ? prices[rawT] : null) ?? (h.precioActual !== undefined ? h.precioActual : null))
+          : (prices[yt] ?? prices[cleanT] ?? prices[rawT] ?? (h.precioActual !== undefined ? h.precioActual : null));
       const qty = h.cantidad || 0;
 
       if (pc !== null) {
