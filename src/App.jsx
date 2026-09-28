@@ -1213,6 +1213,7 @@ function App() {
   const [searchTracking, setSearchTracking] = useState('');
   const [newItemTicker, setNewItemTicker] = useState('');
   const [newItemTipo, setNewItemTipo] = useState('compra');
+  const [newItemMercado, setNewItemMercado] = useState('BCBA');
   const [newItemFecha, setNewItemFecha] = useState('');
   const [newItemPrecio, setNewItemPrecio] = useState('');
   const [newItemCantidad, setNewItemCantidad] = useState('');
@@ -1530,6 +1531,14 @@ function App() {
       return null;
     }
 
+    // 0. If mercado is explicitly set, prioritize it over catalog/tipo:
+    if (h.mercado === 'NYSE' || h.mercado === 'NASDAQ' || h.mercado === 'NYSE/NASDAQ' || h.mercado === 'US' || h.mercado === 'Internacional') {
+      return cleanT.replace(/\.BA$/i, '');
+    }
+    if (h.mercado === 'BCBA' || h.mercado === 'Local') {
+      return cleanT.endsWith('.BA') ? cleanT : cleanT + '.BA';
+    }
+
     // 1. CEDEARs and Argentine Acciones are BCBA instruments -> ALWAYS .BA
     if (h.tipo === 'accion' || h.tipo === 'cedear') {
       return cleanT.endsWith('.BA') ? cleanT : cleanT + '.BA';
@@ -1700,7 +1709,11 @@ function App() {
         const allHoldingsList = Object.values(allHoldings || {}).flat().filter(Boolean);
         const allOpsList = Object.values(allOperaciones || {}).flat().filter(Boolean).map(op => ({ ticker: op.ticker, tipo: op.assetTipo || 'accion' }));
         const allTradesList = Object.values(allTrades || {}).flat().filter(Boolean).map(t => ({ ticker: t.ticker || t.compraTicker, tipo: t.tipo || 'accion' }));
-        const allTrackingsList = Object.values(allTrackings || {}).flat().filter(Boolean).flatMap(t => (t.items || []).map(it => ({ ticker: it.ticker, tipo: it.assetTipo || 'accion' })));
+        const allTrackingsList = Object.values(allTrackings || {}).flat().filter(Boolean).flatMap(t => (t.items || []).map(it => ({
+          ticker: it.ticker,
+          tipo: it.assetTipo || (it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US' ? 'stock' : 'accion'),
+          mercado: it.mercado || 'BCBA'
+        })));
         trackedItems = [...allHoldingsList, ...watchlist, ...allOpsList, ...allTradesList, ...allTrackingsList, ...allProxyUsItems];
       } else {
         if (activeTab === 'watchlist') {
@@ -1712,7 +1725,11 @@ function App() {
         } else if (activeTab === 'trades') {
           trackedItems = [...holdings, ...trades.map(t => ({ ticker: t.ticker || t.compraTicker, tipo: t.tipo || 'accion' }))];
         } else if (activeTab === 'tracking') {
-          trackedItems = [...holdings, ...((trackings || []).flatMap(t => t.items || [])).map(it => ({ ticker: it.ticker, tipo: it.assetTipo || 'accion' }))];
+          trackedItems = [...holdings, ...((trackings || []).flatMap(t => t.items || [])).map(it => ({
+            ticker: it.ticker,
+            tipo: it.assetTipo || (it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US' ? 'stock' : 'accion'),
+            mercado: it.mercado || 'BCBA'
+          }))];
         } else {
           trackedItems = [...holdings, ...allProxyUsItems];
         }
@@ -2829,12 +2846,13 @@ function App() {
   };
 
   // --- TRACKING BUSINESS LOGIC (CUSTOM ASSET & ROTATION TRACKING) ---
-  const fetchHistoricalPrice = async (rawTicker, targetDate) => {
+  const fetchHistoricalPrice = async (rawTicker, targetDate, mercado = 'BCBA') => {
     if (!rawTicker || !targetDate) return null;
     try {
       const cleanT = cleanTickerSymbol(rawTicker);
+      const isUS = mercado === 'NYSE' || mercado === 'NASDAQ' || mercado === 'NYSE/NASDAQ' || mercado === 'US';
       const cat = tickerCatalog[cleanT] || {};
-      const yt = getYahooTicker({ ticker: cleanT, tipo: cat.tipo || 'cedear' }) || (cleanT.endsWith('.BA') ? cleanT : cleanT + '.BA');
+      const yt = getYahooTicker({ ticker: cleanT, tipo: isUS ? 'stock' : (cat.tipo || 'cedear'), mercado: isUS ? 'NYSE/NASDAQ' : 'BCBA' });
       if (!yt) return null;
 
       const url5y = `/api/market/v8/finance/chart/${yt}?interval=1d&range=5y`;
@@ -2873,6 +2891,7 @@ function App() {
     setTrackingItems([]);
     setNewItemTicker('');
     setNewItemTipo('compra');
+    setNewItemMercado('BCBA');
     setNewItemFecha(today);
     setNewItemPrecio('');
     setNewItemCantidad('');
@@ -2888,6 +2907,7 @@ function App() {
     setTrackingItems(Array.isArray(group.items) ? [...group.items] : []);
     setNewItemTicker('');
     setNewItemTipo('compra');
+    setNewItemMercado('BCBA');
     setNewItemFecha(group.fecha || new Date().toISOString().split('T')[0]);
     setNewItemPrecio('');
     setNewItemCantidad('');
@@ -2895,7 +2915,7 @@ function App() {
     setShowAddTracking(true);
   };
 
-  const agregarItemATracking = () => {
+  const agregarItemATracking = async () => {
     const rawT = (newItemTicker || '').trim().toUpperCase();
     if (!rawT) return alert('Ingresá el ticker de la empresa / activo.');
     const cleanT = cleanTickerSymbol(rawT);
@@ -2905,16 +2925,18 @@ function App() {
     if (!q || q <= 0 || isNaN(q)) return alert('Ingresá una cantidad de nominales válida (mayor a 0).');
 
     const f = newItemFecha || trackingFecha || new Date().toISOString().split('T')[0];
+    const isUS = newItemMercado === 'NYSE/NASDAQ' || newItemMercado === 'US';
     const cat = tickerCatalog[cleanT] || {};
 
     const item = {
       id: Date.now().toString() + Math.random().toString(36).substring(2, 6),
       ticker: cleanT,
       tipo: newItemTipo,
+      mercado: isUS ? 'NYSE/NASDAQ' : 'BCBA',
       fecha: f,
       precio: p,
       cantidad: q,
-      assetTipo: cat.tipo || 'cedear'
+      assetTipo: isUS ? 'stock' : (cat.tipo || 'cedear')
     };
 
     setTrackingItems(prev => [...prev, item]);
@@ -2922,6 +2944,85 @@ function App() {
     setNewItemPrecio('');
     setNewItemCantidad('');
     setNewItemMonto('');
+
+    // Pre-fetch live price if not already loaded
+    const yt = getYahooTicker(item);
+    if (yt && !prices[yt]) {
+      try {
+        const data = await fetchPrice(yt);
+        if (data && data.price) {
+          setPrices(prev => ({ ...prev, [yt]: data.price }));
+          setDailyStats(prev => ({ ...prev, [yt]: data }));
+        }
+      } catch (err) {
+        console.warn('Error fetching price for added tracking item:', err);
+      }
+    }
+  };
+
+  const changeItemMercado = async (itemId, newMercado) => {
+    let tickerToFetch = null;
+    const isUS = newMercado === 'NYSE/NASDAQ' || newMercado === 'US';
+    setTrackingItems(prev => prev.map(it => {
+      if (it.id !== itemId) return it;
+      const updated = { ...it, mercado: newMercado, assetTipo: isUS ? 'stock' : (tickerCatalog[it.ticker]?.tipo || 'cedear') };
+      tickerToFetch = getYahooTicker(updated);
+      return updated;
+    }));
+
+    if (tickerToFetch && !prices[tickerToFetch]) {
+      try {
+        const data = await fetchPrice(tickerToFetch);
+        if (data && data.price) {
+          setPrices(prev => ({ ...prev, [tickerToFetch]: data.price }));
+          setDailyStats(prev => ({ ...prev, [tickerToFetch]: data }));
+        }
+      } catch (err) {
+        console.warn('Error fetching price on changeItemMercado:', err);
+      }
+    }
+  };
+
+  const toggleItemMercado = (itemId) => {
+    const it = trackingItems.find(x => x.id === itemId);
+    if (!it) return;
+    const newMercado = (it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US') ? 'BCBA' : 'NYSE/NASDAQ';
+    changeItemMercado(itemId, newMercado);
+  };
+
+  const changeTrackingItemMercado = async (groupId, itemId, newMercado) => {
+    let tickerToFetch = null;
+    const isUS = newMercado === 'NYSE/NASDAQ' || newMercado === 'US';
+    setTrackings(prev => prev.map(g => {
+      if (g.id !== groupId) return g;
+      const updatedItems = (g.items || []).map(it => {
+        if (it.id !== itemId) return it;
+        const updated = { ...it, mercado: newMercado, assetTipo: isUS ? 'stock' : (tickerCatalog[it.ticker]?.tipo || 'cedear') };
+        tickerToFetch = getYahooTicker(updated);
+        return updated;
+      });
+      return { ...g, items: updatedItems };
+    }));
+
+    if (tickerToFetch && !prices[tickerToFetch]) {
+      try {
+        const data = await fetchPrice(tickerToFetch);
+        if (data && data.price) {
+          setPrices(prev => ({ ...prev, [tickerToFetch]: data.price }));
+          setDailyStats(prev => ({ ...prev, [tickerToFetch]: data }));
+        }
+      } catch (err) {
+        console.warn('Error fetching price on changeTrackingItemMercado:', err);
+      }
+    }
+  };
+
+  const toggleTrackingItemMercado = (groupId, itemId) => {
+    const group = trackings.find(g => g.id === groupId);
+    const it = (group?.items || []).find(x => x.id === itemId);
+    if (!it) return;
+    const newMercado = (it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US') ? 'BCBA' : 'NYSE/NASDAQ';
+    changeTrackingItemMercado(groupId, itemId, newMercado);
   };
 
   const eliminarItemDeTracking = (itemId) => {
@@ -6716,16 +6817,65 @@ function App() {
                   📌 Agregar Activo al Tracking
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', alignItems: 'flex-end' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', alignItems: 'flex-end' }}>
                   <div>
                     <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>Ticker / Instrumento</label>
                     <input
                       type="text"
                       placeholder="Ej: AAPL, PAMP, NVDA..."
                       value={newItemTicker}
-                      onChange={e => setNewItemTicker(e.target.value.toUpperCase())}
+                      onChange={e => {
+                        const val = e.target.value.toUpperCase();
+                        setNewItemTicker(val);
+                        const cleanT = cleanTickerSymbol(val);
+                        if (val.endsWith('.BA')) {
+                          setNewItemMercado('BCBA');
+                        } else if (tickerCatalog[cleanT]?.tipo === 'stock' || tickerCatalog[cleanT]?.mercado === 'NASDAQ' || tickerCatalog[cleanT]?.mercado === 'NYSE') {
+                          setNewItemMercado('NYSE/NASDAQ');
+                        }
+                      }}
                       style={{ width: '100%', padding: '7px 10px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
                     />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>Mercado</label>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setNewItemMercado('BCBA')}
+                        style={{
+                          flex: 1,
+                          padding: '7px 6px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          borderRadius: '6px',
+                          border: newItemMercado === 'BCBA' ? '1px solid #3b82f6' : '1px solid var(--glass-border)',
+                          background: newItemMercado === 'BCBA' ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255,255,255,0.04)',
+                          color: newItemMercado === 'BCBA' ? '#60a5fa' : 'var(--text-muted)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🇦🇷 BCBA (Local)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewItemMercado('NYSE/NASDAQ')}
+                        style={{
+                          flex: 1,
+                          padding: '7px 6px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          borderRadius: '6px',
+                          border: newItemMercado === 'NYSE/NASDAQ' || newItemMercado === 'US' ? '1px solid #8b5cf6' : '1px solid var(--glass-border)',
+                          background: newItemMercado === 'NYSE/NASDAQ' || newItemMercado === 'US' ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255,255,255,0.04)',
+                          color: newItemMercado === 'NYSE/NASDAQ' || newItemMercado === 'US' ? '#c084fc' : 'var(--text-muted)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🇺🇸 US (Internac.)
+                      </button>
+                    </div>
                   </div>
 
                   <div>
@@ -6780,14 +6930,16 @@ function App() {
 
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>Precio Base ($)</label>
+                      <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>
+                        Precio Base ({newItemMercado === 'BCBA' ? '$ ARS' : 'US$ USD'})
+                      </label>
                       <div style={{ display: 'flex', gap: '4px' }}>
                         {newItemTicker && (newItemFecha || trackingFecha) && (
                           <button
                             type="button"
                             onClick={async () => {
                               setIsFetchingHistPrice(true);
-                              const p = await fetchHistoricalPrice(newItemTicker, newItemFecha || trackingFecha);
+                              const p = await fetchHistoricalPrice(newItemTicker, newItemFecha || trackingFecha, newItemMercado);
                               setIsFetchingHistPrice(false);
                               if (p !== null) {
                                 setNewItemPrecio(p.toFixed(2));
@@ -6795,7 +6947,7 @@ function App() {
                                   setNewItemCantidad(Math.round(parseFloat(newItemMonto) / p));
                                 }
                               } else {
-                                alert(`No se encontró cotización histórica automática para ${newItemTicker} en esa fecha. Podés ingresarla manualmente.`);
+                                alert(`No se encontró cotización histórica automática para ${newItemTicker} (${newItemMercado === 'BCBA' ? 'BCBA' : 'US'}) en esa fecha. Podés ingresarla manualmente.`);
                               }
                             }}
                             disabled={isFetchingHistPrice}
@@ -6806,21 +6958,38 @@ function App() {
                         )}
                         {(() => {
                           const cleanT = cleanTickerSymbol(newItemTicker);
-                          const yt = getYahooTicker({ ticker: cleanT, tipo: tickerCatalog[cleanT]?.tipo || 'cedear' });
-                          const liveP = (yt && prices[yt]) || prices[cleanT] || null;
-                          if (!liveP) return null;
+                          if (!cleanT) return null;
+                          const isUS = newItemMercado === 'NYSE/NASDAQ' || newItemMercado === 'US';
+                          const yt = getYahooTicker({ ticker: cleanT, tipo: isUS ? 'stock' : (tickerCatalog[cleanT]?.tipo || 'cedear'), mercado: isUS ? 'NYSE/NASDAQ' : 'BCBA' });
+                          const liveP = (yt && prices[yt]) || (!isUS ? prices[cleanT] : null) || null;
                           return (
                             <button
                               type="button"
-                              onClick={() => {
-                                setNewItemPrecio(liveP);
-                                if (newItemMonto && liveP > 0) {
-                                  setNewItemCantidad(Math.round(parseFloat(newItemMonto) / liveP));
+                              onClick={async () => {
+                                if (liveP) {
+                                  setNewItemPrecio(liveP);
+                                  if (newItemMonto && liveP > 0) {
+                                    setNewItemCantidad(Math.round(parseFloat(newItemMonto) / liveP));
+                                  }
+                                } else if (yt) {
+                                  setIsFetchingHistPrice(true);
+                                  const data = await fetchPrice(yt);
+                                  setIsFetchingHistPrice(false);
+                                  if (data && data.price) {
+                                    setPrices(prev => ({ ...prev, [yt]: data.price }));
+                                    setDailyStats(prev => ({ ...prev, [yt]: data }));
+                                    setNewItemPrecio(data.price);
+                                    if (newItemMonto && data.price > 0) {
+                                      setNewItemCantidad(Math.round(parseFloat(newItemMonto) / data.price));
+                                    }
+                                  } else {
+                                    alert(`No se pudo obtener la cotización actual para ${yt}.`);
+                                  }
                                 }
                               }}
                               style={{ background: 'none', border: 'none', color: '#34d399', fontSize: '10px', cursor: 'pointer', textDecoration: 'underline', padding: 0, marginLeft: '4px' }}
                             >
-                              💲 Actual
+                              💲 {isUS ? 'US$ Actual' : 'ARS Actual'}
                             </button>
                           );
                         })()}
@@ -6829,7 +6998,7 @@ function App() {
                     <input
                       type="number"
                       step="any"
-                      placeholder="Precio inicial..."
+                      placeholder={newItemMercado === 'BCBA' ? 'Precio inicial ARS...' : 'Precio inicial US$...'}
                       value={newItemPrecio}
                       onChange={e => {
                         const val = e.target.value;
@@ -6863,11 +7032,13 @@ function App() {
                   </div>
 
                   <div>
-                    <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>O Monto Total ($)</label>
+                    <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>
+                      O Monto Total ({newItemMercado === 'BCBA' ? '$ ARS' : 'US$ USD'})
+                    </label>
                     <input
                       type="number"
                       step="any"
-                      placeholder="Monto total ($)..."
+                      placeholder={newItemMercado === 'BCBA' ? 'Monto total ($)...' : 'Monto total (US$)...'}
                       value={newItemMonto}
                       onChange={e => {
                         const val = e.target.value;
@@ -6918,26 +7089,48 @@ function App() {
                               🛒 Lado Compras ({compras.length})
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              {compras.map(it => (
-                                <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '5px 8px', borderRadius: '4px', fontSize: '12px' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{it.fecha}</span>
-                                    <strong style={{ color: '#fff' }}>{it.ticker}</strong>
-                                    <span>{fmt(it.cantidad, 0)} @ ${fmt(it.precio)}</span>
+                              {compras.map(it => {
+                                const isUS = it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US';
+                                const currSym = isUS ? 'US$' : '$';
+                                return (
+                                  <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '4px', fontSize: '12px', flexWrap: 'wrap', gap: '6px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{it.fecha}</span>
+                                      <strong style={{ color: '#fff' }}>{it.ticker}</strong>
+                                      <select
+                                        value={isUS ? 'NYSE/NASDAQ' : 'BCBA'}
+                                        onChange={(e) => changeItemMercado(it.id, e.target.value)}
+                                        title="Mercado del activo (Local BCBA o Wall Street US)"
+                                        style={{
+                                          padding: '2px 6px',
+                                          fontSize: '10px',
+                                          fontWeight: '600',
+                                          borderRadius: '4px',
+                                          background: isUS ? 'rgba(139, 92, 246, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                                          color: isUS ? '#c084fc' : '#60a5fa',
+                                          border: isUS ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid rgba(59, 130, 246, 0.4)',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <option value="BCBA" style={{ background: '#16172e', color: '#fff' }}>🇦🇷 BCBA (Local)</option>
+                                        <option value="NYSE/NASDAQ" style={{ background: '#16172e', color: '#fff' }}>🇺🇸 US (Internacional)</option>
+                                      </select>
+                                      <span>{fmt(it.cantidad, 0)} @ {currSym}{fmt(it.precio)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <strong style={{ color: '#fff' }}>{currSym}{fmt(it.precio * it.cantidad)}</strong>
+                                      <button
+                                        type="button"
+                                        onClick={() => eliminarItemDeTracking(it.id)}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}
+                                        title="Quitar"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
                                   </div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <strong style={{ color: '#fff' }}>${fmt(it.precio * it.cantidad)}</strong>
-                                    <button
-                                      type="button"
-                                      onClick={() => eliminarItemDeTracking(it.id)}
-                                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}
-                                      title="Quitar"
-                                    >
-                                      ✕
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -6949,26 +7142,48 @@ function App() {
                               🏷️ Lado Ventas ({ventas.length})
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              {ventas.map(it => (
-                                <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '5px 8px', borderRadius: '4px', fontSize: '12px' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{it.fecha}</span>
-                                    <strong style={{ color: '#fff' }}>{it.ticker}</strong>
-                                    <span>{fmt(it.cantidad, 0)} @ ${fmt(it.precio)}</span>
+                              {ventas.map(it => {
+                                const isUS = it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US';
+                                const currSym = isUS ? 'US$' : '$';
+                                return (
+                                  <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '4px', fontSize: '12px', flexWrap: 'wrap', gap: '6px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{it.fecha}</span>
+                                      <strong style={{ color: '#fff' }}>{it.ticker}</strong>
+                                      <select
+                                        value={isUS ? 'NYSE/NASDAQ' : 'BCBA'}
+                                        onChange={(e) => changeItemMercado(it.id, e.target.value)}
+                                        title="Mercado del activo (Local BCBA o Wall Street US)"
+                                        style={{
+                                          padding: '2px 6px',
+                                          fontSize: '10px',
+                                          fontWeight: '600',
+                                          borderRadius: '4px',
+                                          background: isUS ? 'rgba(139, 92, 246, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                                          color: isUS ? '#c084fc' : '#60a5fa',
+                                          border: isUS ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid rgba(59, 130, 246, 0.4)',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <option value="BCBA" style={{ background: '#16172e', color: '#fff' }}>🇦🇷 BCBA (Local)</option>
+                                        <option value="NYSE/NASDAQ" style={{ background: '#16172e', color: '#fff' }}>🇺🇸 US (Internacional)</option>
+                                      </select>
+                                      <span>{fmt(it.cantidad, 0)} @ {currSym}{fmt(it.precio)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <strong style={{ color: '#fff' }}>{currSym}{fmt(it.precio * it.cantidad)}</strong>
+                                      <button
+                                        type="button"
+                                        onClick={() => eliminarItemDeTracking(it.id)}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}
+                                        title="Quitar"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
                                   </div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <strong style={{ color: '#fff' }}>${fmt(it.precio * it.cantidad)}</strong>
-                                    <button
-                                      type="button"
-                                      onClick={() => eliminarItemDeTracking(it.id)}
-                                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}
-                                      title="Quitar"
-                                    >
-                                      ✕
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -7022,32 +7237,43 @@ function App() {
                   const comprasItems = (group.items || []).filter(it => it.tipo === 'compra');
                   const ventasItems = (group.items || []).filter(it => it.tipo === 'venta');
 
+                  const allItems = group.items || [];
+                  const allAreUS = allItems.length > 0 && allItems.every(it => it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US');
+                  const someAreUS = allItems.some(it => it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US');
+                  const someAreARS = allItems.some(it => it.mercado !== 'NYSE/NASDAQ' && it.mercado !== 'US');
+                  const isMixed = someAreUS && someAreARS;
+                  const groupCurrSym = allAreUS ? 'US$ ' : '$';
+
                   let groupBuyCost = 0;
                   let groupBuyValue = 0;
                   let groupSellProceeds = 0;
                   let groupSellValue = 0;
 
                   comprasItems.forEach(it => {
-                    const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || 'accion' });
+                    const isUS = it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US';
+                    const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || (isUS ? 'stock' : 'accion'), mercado: it.mercado || 'BCBA' });
                     const curPrice = yt ? prices[yt] : (prices[it.ticker] ?? null);
                     const cost = it.precio * it.cantidad;
-                    groupBuyCost += cost;
+                    const conv = (isMixed && isUS && dolarMep) ? dolarMep : 1;
+                    groupBuyCost += cost * conv;
                     if (curPrice !== null) {
-                      groupBuyValue += curPrice * it.cantidad;
+                      groupBuyValue += (curPrice * it.cantidad) * conv;
                     } else {
-                      groupBuyValue += cost;
+                      groupBuyValue += cost * conv;
                     }
                   });
 
                   ventasItems.forEach(it => {
-                    const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || 'accion' });
+                    const isUS = it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US';
+                    const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || (isUS ? 'stock' : 'accion'), mercado: it.mercado || 'BCBA' });
                     const curPrice = yt ? prices[yt] : (prices[it.ticker] ?? null);
                     const proceed = it.precio * it.cantidad;
-                    groupSellProceeds += proceed;
+                    const conv = (isMixed && isUS && dolarMep) ? dolarMep : 1;
+                    groupSellProceeds += proceed * conv;
                     if (curPrice !== null) {
-                      groupSellValue += curPrice * it.cantidad;
+                      groupSellValue += (curPrice * it.cantidad) * conv;
                     } else {
-                      groupSellValue += proceed;
+                      groupSellValue += proceed * conv;
                     }
                   });
 
@@ -7125,7 +7351,7 @@ function App() {
                           <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
                             <div style={{ fontSize: '12px', fontWeight: '700', color: '#34d399', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
                               <span>🛒 COMPRAS / ENTRADAS TRACKEADAS ({comprasItems.length})</span>
-                              <span>Invertido: ${fmt(groupBuyCost)}</span>
+                              <span>Invertido: {groupCurrSym}{fmt(groupBuyCost)}</span>
                             </div>
                             <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
                               <thead>
@@ -7140,7 +7366,9 @@ function App() {
                               </thead>
                               <tbody>
                                 {comprasItems.map(it => {
-                                  const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || 'accion' });
+                                  const isUS = it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US';
+                                  const currSym = isUS ? 'US$ ' : '$';
+                                  const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || (isUS ? 'stock' : 'accion'), mercado: it.mercado || 'BCBA' });
                                   const curPrice = yt ? prices[yt] : (prices[it.ticker] ?? null);
                                   const diff = curPrice !== null ? curPrice - it.precio : null;
                                   const pct = it.precio > 0 && diff !== null ? (diff / it.precio) * 100 : null;
@@ -7151,12 +7379,32 @@ function App() {
                                   return (
                                     <tr key={it.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
                                       <td style={{ padding: '4px', color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>{it.fecha}</td>
-                                      <td style={{ padding: '4px 0', fontWeight: '600' }}>{it.ticker.replace(/\.BA$/i, '')}</td>
-                                      <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(it.cantidad, 0)} @ ${fmt(it.precio)}</td>
-                                      <td style={{ padding: '4px', textAlign: 'right', fontWeight: '600' }}>${fmt(itTotal)}</td>
-                                      <td style={{ padding: '4px', textAlign: 'right' }}>{curPrice !== null ? `$${fmt(curPrice)}` : '—'}</td>
+                                      <td style={{ padding: '4px 0', fontWeight: '600' }}>
+                                        <span>{it.ticker.replace(/\.BA$/i, '')}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleTrackingItemMercado(group.id, it.id)}
+                                          title="Click para alternar mercado (🇦🇷 BCBA / 🇺🇸 US)"
+                                          style={{
+                                            marginLeft: '6px',
+                                            padding: '1px 5px',
+                                            fontSize: '10px',
+                                            fontWeight: '600',
+                                            borderRadius: '4px',
+                                            border: isUS ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid rgba(59, 130, 246, 0.4)',
+                                            background: isUS ? 'rgba(139, 92, 246, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                                            color: isUS ? '#c084fc' : '#60a5fa',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          {isUS ? '🇺🇸 US' : '🇦🇷 BCBA'} ⇄
+                                        </button>
+                                      </td>
+                                      <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(it.cantidad, 0)} @ {currSym}{fmt(it.precio)}</td>
+                                      <td style={{ padding: '4px', textAlign: 'right', fontWeight: '600' }}>{currSym}{fmt(itTotal)}</td>
+                                      <td style={{ padding: '4px', textAlign: 'right' }}>{curPrice !== null ? `${currSym}${fmt(curPrice)}` : '—'}</td>
                                       <td style={{ padding: '4px', textAlign: 'right' }} className={isPos ? 'positive' : 'negative'}>
-                                        {pnl !== null ? `${fmtPct(pct)} (${isPos ? '+' : '-'}${fmt(Math.abs(pnl))})` : '—'}
+                                        {pnl !== null ? `${fmtPct(pct)} (${isPos ? '+' : '-'}${currSym}${fmt(Math.abs(pnl))})` : '—'}
                                       </td>
                                     </tr>
                                   );
@@ -7166,10 +7414,10 @@ function App() {
                                 <tr>
                                   <td colSpan={2} style={{ padding: '6px 0', color: '#fff' }}>TOTAL COMPRAS</td>
                                   <td style={{ padding: '6px', textAlign: 'right', color: 'var(--text-muted)' }}>—</td>
-                                  <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupBuyCost)}</td>
-                                  <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupBuyValue)}</td>
+                                  <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>{groupCurrSym}{fmt(groupBuyCost)}</td>
+                                  <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>{groupCurrSym}{fmt(groupBuyValue)}</td>
                                   <td style={{ padding: '6px', textAlign: 'right' }} className={buyPnL >= 0 ? 'positive' : 'negative'}>
-                                    {fmtPct(groupBuyCost > 0 ? (buyPnL / groupBuyCost) * 100 : 0)} ({buyPnL >= 0 ? '+' : '-'}${fmt(Math.abs(buyPnL))})
+                                    {fmtPct(groupBuyCost > 0 ? (buyPnL / groupBuyCost) * 100 : 0)} ({buyPnL >= 0 ? '+' : '-'}{groupCurrSym}{fmt(Math.abs(buyPnL))})
                                   </td>
                                 </tr>
                               </tfoot>
@@ -7182,7 +7430,7 @@ function App() {
                           <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
                             <div style={{ fontSize: '12px', fontWeight: '700', color: '#f87171', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
                               <span>🏷️ VENTAS / SALIDAS TRACKEADAS ({ventasItems.length})</span>
-                              <span>Liberado: ${fmt(groupSellProceeds)}</span>
+                              <span>Liberado: {groupCurrSym}{fmt(groupSellProceeds)}</span>
                             </div>
                             <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
                               <thead>
@@ -7197,7 +7445,9 @@ function App() {
                               </thead>
                               <tbody>
                                 {ventasItems.map(it => {
-                                  const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || 'accion' });
+                                  const isUS = it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US';
+                                  const currSym = isUS ? 'US$ ' : '$';
+                                  const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || (isUS ? 'stock' : 'accion'), mercado: it.mercado || 'BCBA' });
                                   const curPrice = yt ? prices[yt] : (prices[it.ticker] ?? null);
                                   const diff = curPrice !== null ? it.precio - curPrice : null; // Positivo si vendiste arriba del precio actual
                                   const pct = it.precio > 0 && curPrice !== null ? ((it.precio - curPrice) / it.precio) * 100 : null;
@@ -7208,12 +7458,32 @@ function App() {
                                   return (
                                     <tr key={it.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
                                       <td style={{ padding: '4px', color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>{it.fecha}</td>
-                                      <td style={{ padding: '4px 0', fontWeight: '600' }}>{it.ticker.replace(/\.BA$/i, '')}</td>
-                                      <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(it.cantidad, 0)} @ ${fmt(it.precio)}</td>
-                                      <td style={{ padding: '4px', textAlign: 'right', fontWeight: '600' }}>${fmt(itTotal)}</td>
-                                      <td style={{ padding: '4px', textAlign: 'right' }}>{curPrice !== null ? `$${fmt(curPrice)}` : '—'}</td>
+                                      <td style={{ padding: '4px 0', fontWeight: '600' }}>
+                                        <span>{it.ticker.replace(/\.BA$/i, '')}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleTrackingItemMercado(group.id, it.id)}
+                                          title="Click para alternar mercado (🇦🇷 BCBA / 🇺🇸 US)"
+                                          style={{
+                                            marginLeft: '6px',
+                                            padding: '1px 5px',
+                                            fontSize: '10px',
+                                            fontWeight: '600',
+                                            borderRadius: '4px',
+                                            border: isUS ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid rgba(59, 130, 246, 0.4)',
+                                            background: isUS ? 'rgba(139, 92, 246, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                                            color: isUS ? '#c084fc' : '#60a5fa',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          {isUS ? '🇺🇸 US' : '🇦🇷 BCBA'} ⇄
+                                        </button>
+                                      </td>
+                                      <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(it.cantidad, 0)} @ {currSym}{fmt(it.precio)}</td>
+                                      <td style={{ padding: '4px', textAlign: 'right', fontWeight: '600' }}>{currSym}{fmt(itTotal)}</td>
+                                      <td style={{ padding: '4px', textAlign: 'right' }}>{curPrice !== null ? `${currSym}${fmt(curPrice)}` : '—'}</td>
                                       <td style={{ padding: '4px', textAlign: 'right' }} className={isGoodSale ? 'positive' : 'negative'}>
-                                        {oppPnL !== null ? `${fmtPct(pct)} (${isGoodSale ? '+' : '-'}${fmt(Math.abs(oppPnL))})` : '—'}
+                                        {oppPnL !== null ? `${fmtPct(pct)} (${isGoodSale ? '+' : '-'}${currSym}${fmt(Math.abs(oppPnL))})` : '—'}
                                       </td>
                                     </tr>
                                   );
@@ -7223,10 +7493,10 @@ function App() {
                                 <tr>
                                   <td colSpan={2} style={{ padding: '6px 0', color: '#fff' }}>TOTAL VENTAS</td>
                                   <td style={{ padding: '6px', textAlign: 'right', color: 'var(--text-muted)' }}>—</td>
-                                  <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupSellProceeds)}</td>
-                                  <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>${fmt(groupSellValue)}</td>
+                                  <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>{groupCurrSym}{fmt(groupSellProceeds)}</td>
+                                  <td style={{ padding: '6px', textAlign: 'right', color: '#fff' }}>{groupCurrSym}{fmt(groupSellValue)}</td>
                                   <td style={{ padding: '6px', textAlign: 'right' }} className={salePnL >= 0 ? 'positive' : 'negative'}>
-                                    {fmtPct(groupSellProceeds > 0 ? (salePnL / groupSellProceeds) * 100 : 0)} ({salePnL >= 0 ? '+' : '-'}${fmt(Math.abs(salePnL))})
+                                    {fmtPct(groupSellProceeds > 0 ? (salePnL / groupSellProceeds) * 100 : 0)} ({salePnL >= 0 ? '+' : '-'}{groupCurrSym}{fmt(Math.abs(salePnL))})
                                   </td>
                                 </tr>
                               </tfoot>
@@ -7245,10 +7515,20 @@ function App() {
                             Resultado Combinado:
                           </div>
                           <div className={isGroupPos ? 'positive' : 'negative'} style={{ fontSize: '18px', fontWeight: '800' }}>
-                            {fmtPct(netGroupPct)} ({isGroupPos ? '+' : '-'}${fmt(Math.abs(netGroupPnL))})
-                            {dolarMep && (
+                            {fmtPct(netGroupPct)} ({isGroupPos ? '+' : '-'}{groupCurrSym}{fmt(Math.abs(netGroupPnL))})
+                            {dolarMep && allAreUS && (
+                              <span style={{ fontSize: '12px', fontWeight: '400', opacity: 0.8, marginLeft: '8px' }}>
+                                ≈ $ {fmt(Math.abs(netGroupPnL) * dolarMep)} ARS
+                              </span>
+                            )}
+                            {dolarMep && !allAreUS && (
                               <span style={{ fontSize: '12px', fontWeight: '400', opacity: 0.8, marginLeft: '8px' }}>
                                 ≈ US$ {fmt(Math.abs(netGroupPnL) / dolarMep)}
+                              </span>
+                            )}
+                            {isMixed && (
+                              <span style={{ fontSize: '10px', fontWeight: '400', color: 'var(--text-muted)', marginLeft: '8px' }}>
+                                (Valores USD convertidos a ARS al MEP)
                               </span>
                             )}
                           </div>
@@ -7269,19 +7549,21 @@ function App() {
 
             trackings.filter(t => !t.excluded).forEach(group => {
               (group.items || []).forEach(it => {
-                const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || 'accion' });
+                const isUS = it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US';
+                const yt = getYahooTicker({ ticker: it.ticker, tipo: it.assetTipo || (isUS ? 'stock' : 'accion'), mercado: it.mercado || 'BCBA' });
                 const curPrice = yt ? prices[yt] : (prices[it.ticker] ?? null);
-                const itTotal = it.precio * it.cantidad;
+                const conv = (isUS && dolarMep) ? dolarMep : 1;
+                const itTotal = (it.precio * it.cantidad) * conv;
 
                 if (it.tipo === 'compra') {
                   totalBuyVol += itTotal;
                   if (curPrice !== null) {
-                    totalNetPnL += (curPrice - it.precio) * it.cantidad;
+                    totalNetPnL += ((curPrice - it.precio) * it.cantidad) * conv;
                   }
                 } else {
                   totalSellVol += itTotal;
                   if (curPrice !== null) {
-                    totalNetPnL += (it.precio - curPrice) * it.cantidad;
+                    totalNetPnL += ((it.precio - curPrice) * it.cantidad) * conv;
                   }
                 }
               });
