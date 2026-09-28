@@ -1219,6 +1219,9 @@ function App() {
   const [newItemCantidad, setNewItemCantidad] = useState('');
   const [newItemMonto, setNewItemMonto] = useState('');
   const [isFetchingHistPrice, setIsFetchingHistPrice] = useState(false);
+  const [editingTrackingItemId, setEditingTrackingItemId] = useState(null);
+  const [quickEditItem, setQuickEditItem] = useState(null);
+  const [isFetchingQuickHistPrice, setIsFetchingQuickHistPrice] = useState(false);
 
 
   // Form states
@@ -2884,6 +2887,7 @@ function App() {
 
   const abrirNuevoTrackingModal = () => {
     setEditingTrackingId(null);
+    setEditingTrackingItemId(null);
     setTrackingNombre('');
     const today = new Date().toISOString().split('T')[0];
     setTrackingFecha(today);
@@ -2901,6 +2905,7 @@ function App() {
 
   const abrirEditarTrackingModal = (group) => {
     setEditingTrackingId(group.id);
+    setEditingTrackingItemId(null);
     setTrackingNombre(group.nombre || '');
     setTrackingFecha(group.fecha || new Date().toISOString().split('T')[0]);
     setTrackingNotas(group.notas || '');
@@ -2913,6 +2918,77 @@ function App() {
     setNewItemCantidad('');
     setNewItemMonto('');
     setShowAddTracking(true);
+  };
+
+  const cargarItemParaEditar = (it) => {
+    setEditingTrackingItemId(it.id);
+    setNewItemTicker(it.ticker || '');
+    setNewItemTipo(it.tipo || 'compra');
+    setNewItemMercado(it.mercado || 'BCBA');
+    setNewItemFecha(it.fecha || trackingFecha || new Date().toISOString().split('T')[0]);
+    setNewItemPrecio(it.precio !== undefined ? String(it.precio) : '');
+    setNewItemCantidad(it.cantidad !== undefined ? String(it.cantidad) : '');
+    const p = parseFloat(it.precio);
+    const q = parseFloat(it.cantidad);
+    if (p > 0 && q > 0) {
+      setNewItemMonto((p * q).toFixed(0));
+    } else {
+      setNewItemMonto('');
+    }
+  };
+
+  const cancelarEdicionItem = () => {
+    setEditingTrackingItemId(null);
+    setNewItemTicker('');
+    setNewItemPrecio('');
+    setNewItemCantidad('');
+    setNewItemMonto('');
+    setNewItemFecha(trackingFecha || new Date().toISOString().split('T')[0]);
+    setNewItemTipo('compra');
+    setNewItemMercado('BCBA');
+  };
+
+  const guardarEdicionItem = async () => {
+    if (!editingTrackingItemId) return;
+    const rawT = (newItemTicker || '').trim().toUpperCase();
+    if (!rawT) return alert('Ingresá el ticker de la empresa / activo.');
+    const cleanT = cleanTickerSymbol(rawT);
+    const p = parseFloat(String(newItemPrecio).replace(',', '.'));
+    if (!p || p <= 0 || isNaN(p)) return alert('Ingresá un precio base válido (mayor a 0).');
+    const q = parseFloat(String(newItemCantidad).replace(',', '.'));
+    if (!q || q <= 0 || isNaN(q)) return alert('Ingresá una cantidad de nominales válida (mayor a 0).');
+
+    const f = newItemFecha || trackingFecha || new Date().toISOString().split('T')[0];
+    const isUS = newItemMercado === 'NYSE/NASDAQ' || newItemMercado === 'US';
+    const cat = tickerCatalog[cleanT] || {};
+
+    const updatedItem = {
+      id: editingTrackingItemId,
+      ticker: cleanT,
+      tipo: newItemTipo,
+      mercado: isUS ? 'NYSE/NASDAQ' : 'BCBA',
+      fecha: f,
+      precio: p,
+      cantidad: q,
+      assetTipo: isUS ? 'stock' : (cat.tipo || 'cedear')
+    };
+
+    setTrackingItems(prev => prev.map(it => it.id === editingTrackingItemId ? updatedItem : it));
+    cancelarEdicionItem();
+
+    // Pre-fetch live price if not already loaded
+    const yt = getYahooTicker(updatedItem);
+    if (yt && !prices[yt]) {
+      try {
+        const data = await fetchPrice(yt);
+        if (data && data.price) {
+          setPrices(prev => ({ ...prev, [yt]: data.price }));
+          setDailyStats(prev => ({ ...prev, [yt]: data }));
+        }
+      } catch (err) {
+        console.warn('Error fetching price for updated tracking item:', err);
+      }
+    }
   };
 
   const agregarItemATracking = async () => {
@@ -3026,7 +3102,59 @@ function App() {
   };
 
   const eliminarItemDeTracking = (itemId) => {
+    if (editingTrackingItemId === itemId) cancelarEdicionItem();
     setTrackingItems(prev => prev.filter(it => it.id !== itemId));
+  };
+
+  const guardarQuickEditItem = async () => {
+    if (!quickEditItem) return;
+    const { groupId, item } = quickEditItem;
+    const rawT = (item.ticker || '').trim().toUpperCase();
+    if (!rawT) return alert('Ingresá el ticker de la empresa / activo.');
+    const cleanT = cleanTickerSymbol(rawT);
+    const p = parseFloat(String(item.precio).replace(',', '.'));
+    if (!p || p <= 0 || isNaN(p)) return alert('Ingresá un precio base válido (mayor a 0).');
+    const q = parseFloat(String(item.cantidad).replace(',', '.'));
+    if (!q || q <= 0 || isNaN(q)) return alert('Ingresá una cantidad de nominales válida (mayor a 0).');
+
+    const f = item.fecha || new Date().toISOString().split('T')[0];
+    const isUS = item.mercado === 'NYSE/NASDAQ' || item.mercado === 'US';
+    const cat = tickerCatalog[cleanT] || {};
+
+    const updatedItem = {
+      ...item,
+      ticker: cleanT,
+      tipo: item.tipo || 'compra',
+      mercado: isUS ? 'NYSE/NASDAQ' : 'BCBA',
+      fecha: f,
+      precio: p,
+      cantidad: q,
+      assetTipo: isUS ? 'stock' : (cat.tipo || 'cedear')
+    };
+
+    setTrackings(prev => prev.map(g => {
+      if (g.id !== groupId) return g;
+      return {
+        ...g,
+        items: (g.items || []).map(it => it.id === item.id ? updatedItem : it)
+      };
+    }));
+
+    setQuickEditItem(null);
+
+    // Pre-fetch live price if needed
+    const yt = getYahooTicker(updatedItem);
+    if (yt && !prices[yt]) {
+      try {
+        const data = await fetchPrice(yt);
+        if (data && data.price) {
+          setPrices(prev => ({ ...prev, [yt]: data.price }));
+          setDailyStats(prev => ({ ...prev, [yt]: data }));
+        }
+      } catch (e) {
+        console.warn('Error fetching price on quick edit:', e);
+      }
+    }
   };
 
   const guardarTracking = () => {
@@ -3061,6 +3189,7 @@ function App() {
     setTrackingNotas('');
     setTrackingItems([]);
     setEditingTrackingId(null);
+    setEditingTrackingItemId(null);
     setShowAddTracking(false);
   };
 
@@ -6812,9 +6941,26 @@ function App() {
               </div>
 
               {/* Caja para agregar una empresa o activo al grupo */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.25)', marginBottom: '1.25rem' }}>
-                <div style={{ fontSize: '13px', fontWeight: '700', color: '#818cf8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  📌 Agregar Activo al Tracking
+              <div style={{
+                background: 'rgba(255,255,255,0.02)',
+                padding: '14px',
+                borderRadius: '8px',
+                border: editingTrackingItemId ? '1px solid rgba(251, 191, 36, 0.6)' : '1px solid rgba(99, 102, 241, 0.25)',
+                marginBottom: '1.25rem',
+                transition: 'all 0.2s',
+                boxShadow: editingTrackingItemId ? '0 0 12px rgba(251, 191, 36, 0.15)' : 'none'
+              }}>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: editingTrackingItemId ? '#fbbf24' : '#818cf8', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>{editingTrackingItemId ? `✏️ Modificar Activo (${newItemTicker || 'Seleccionado'})` : '📌 Agregar Activo al Tracking'}</span>
+                  {editingTrackingItemId && (
+                    <button
+                      type="button"
+                      onClick={cancelarEdicionItem}
+                      style={{ background: 'none', border: 'none', color: '#fbbf24', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      ✕ Cancelar Edición
+                    </button>
+                  )}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', alignItems: 'flex-end' }}>
@@ -7053,14 +7199,36 @@ function App() {
                   </div>
 
                   <div>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={agregarItemATracking}
-                      style={{ width: '100%', padding: '7px 12px', fontSize: '12px' }}
-                    >
-                      + Agregar Activo
-                    </button>
+                    {editingTrackingItemId ? (
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={guardarEdicionItem}
+                          style={{ flex: 1, padding: '7px 10px', fontSize: '12px', background: '#d97706', borderColor: '#d97706' }}
+                        >
+                          💾 Actualizar
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={cancelarEdicionItem}
+                          style={{ padding: '7px 10px', fontSize: '12px' }}
+                          title="Cancelar"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={agregarItemATracking}
+                        style={{ width: '100%', padding: '7px 12px', fontSize: '12px' }}
+                      >
+                        + Agregar Activo
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -7092,8 +7260,24 @@ function App() {
                               {compras.map(it => {
                                 const isUS = it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US';
                                 const currSym = isUS ? 'US$' : '$';
+                                const isBeingEdited = it.id === editingTrackingItemId;
                                 return (
-                                  <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '4px', fontSize: '12px', flexWrap: 'wrap', gap: '6px' }}>
+                                  <div
+                                    key={it.id}
+                                    style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                      background: isBeingEdited ? 'rgba(251, 191, 36, 0.12)' : 'rgba(255,255,255,0.03)',
+                                      border: isBeingEdited ? '1px solid #fbbf24' : '1px solid transparent',
+                                      padding: '6px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '12px',
+                                      flexWrap: 'wrap',
+                                      gap: '6px',
+                                      transition: 'all 0.15s'
+                                    }}
+                                  >
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                       <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{it.fecha}</span>
                                       <strong style={{ color: '#fff' }}>{it.ticker}</strong>
@@ -7121,8 +7305,19 @@ function App() {
                                       <strong style={{ color: '#fff' }}>{currSym}{fmt(it.precio * it.cantidad)}</strong>
                                       <button
                                         type="button"
-                                        onClick={() => eliminarItemDeTracking(it.id)}
-                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}
+                                        onClick={() => cargarItemParaEditar(it)}
+                                        style={{ background: 'none', border: 'none', color: isBeingEdited ? '#fbbf24' : '#818cf8', cursor: 'pointer', fontSize: '13px', padding: '0 2px' }}
+                                        title="Editar este activo"
+                                      >
+                                        ✏️
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (editingTrackingItemId === it.id) cancelarEdicionItem();
+                                          eliminarItemDeTracking(it.id);
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', padding: '0 2px' }}
                                         title="Quitar"
                                       >
                                         ✕
@@ -7145,8 +7340,24 @@ function App() {
                               {ventas.map(it => {
                                 const isUS = it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US';
                                 const currSym = isUS ? 'US$' : '$';
+                                const isBeingEdited = it.id === editingTrackingItemId;
                                 return (
-                                  <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '4px', fontSize: '12px', flexWrap: 'wrap', gap: '6px' }}>
+                                  <div
+                                    key={it.id}
+                                    style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                      background: isBeingEdited ? 'rgba(251, 191, 36, 0.12)' : 'rgba(255,255,255,0.03)',
+                                      border: isBeingEdited ? '1px solid #fbbf24' : '1px solid transparent',
+                                      padding: '6px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '12px',
+                                      flexWrap: 'wrap',
+                                      gap: '6px',
+                                      transition: 'all 0.15s'
+                                    }}
+                                  >
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                       <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{it.fecha}</span>
                                       <strong style={{ color: '#fff' }}>{it.ticker}</strong>
@@ -7174,8 +7385,19 @@ function App() {
                                       <strong style={{ color: '#fff' }}>{currSym}{fmt(it.precio * it.cantidad)}</strong>
                                       <button
                                         type="button"
-                                        onClick={() => eliminarItemDeTracking(it.id)}
-                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}
+                                        onClick={() => cargarItemParaEditar(it)}
+                                        style={{ background: 'none', border: 'none', color: isBeingEdited ? '#fbbf24' : '#818cf8', cursor: 'pointer', fontSize: '13px', padding: '0 2px' }}
+                                        title="Editar este activo"
+                                      >
+                                        ✏️
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (editingTrackingItemId === it.id) cancelarEdicionItem();
+                                          eliminarItemDeTracking(it.id);
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', padding: '0 2px' }}
                                         title="Quitar"
                                       >
                                         ✕
@@ -7399,6 +7621,23 @@ function App() {
                                         >
                                           {isUS ? '🇺🇸 US' : '🇦🇷 BCBA'} ⇄
                                         </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setQuickEditItem({ groupId: group.id, item: { ...it } })}
+                                          title="Editar este activo (fecha, precio, cantidad)"
+                                          style={{
+                                            marginLeft: '4px',
+                                            padding: '1px 5px',
+                                            fontSize: '10px',
+                                            borderRadius: '4px',
+                                            border: '1px solid var(--glass-border)',
+                                            background: 'rgba(255, 255, 255, 0.06)',
+                                            color: '#818cf8',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          ✏️
+                                        </button>
                                       </td>
                                       <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(it.cantidad, 0)} @ {currSym}{fmt(it.precio)}</td>
                                       <td style={{ padding: '4px', textAlign: 'right', fontWeight: '600' }}>{currSym}{fmt(itTotal)}</td>
@@ -7477,6 +7716,23 @@ function App() {
                                           }}
                                         >
                                           {isUS ? '🇺🇸 US' : '🇦🇷 BCBA'} ⇄
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setQuickEditItem({ groupId: group.id, item: { ...it } })}
+                                          title="Editar este activo (fecha, precio, cantidad)"
+                                          style={{
+                                            marginLeft: '4px',
+                                            padding: '1px 5px',
+                                            fontSize: '10px',
+                                            borderRadius: '4px',
+                                            border: '1px solid var(--glass-border)',
+                                            background: 'rgba(255, 255, 255, 0.06)',
+                                            color: '#818cf8',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          ✏️
                                         </button>
                                       </td>
                                       <td style={{ padding: '4px', textAlign: 'right' }}>{fmt(it.cantidad, 0)} @ {currSym}{fmt(it.precio)}</td>
@@ -7602,6 +7858,296 @@ function App() {
               </div>
             );
           })()}
+
+          {/* Modal Edición Rápida de Activo */}
+          {quickEditItem && (
+            <div
+              className="modal-overlay"
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'rgba(0,0,0,0.75)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 9999,
+                backdropFilter: 'blur(4px)',
+                padding: '16px'
+              }}
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setQuickEditItem(null);
+              }}
+            >
+              <div
+                className="glass-panel"
+                style={{
+                  width: '100%',
+                  maxWidth: '520px',
+                  padding: '24px',
+                  backgroundColor: 'var(--bg-main)',
+                  border: '1px solid rgba(251, 191, 36, 0.4)',
+                  borderRadius: '12px',
+                  boxShadow: '0 12px 36px rgba(0,0,0,0.6)',
+                  color: '#fff'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    ✏️ Editar Activo: {quickEditItem.item.ticker}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setQuickEditItem(null)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '18px', cursor: 'pointer', padding: '4px' }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Ticker & Mercado */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                        Ticker / Símbolo
+                      </label>
+                      <input
+                        type="text"
+                        value={quickEditItem.item.ticker || ''}
+                        onChange={e => {
+                          const val = e.target.value.toUpperCase();
+                          setQuickEditItem(prev => ({
+                            ...prev,
+                            item: {
+                              ...prev.item,
+                              ticker: val,
+                              mercado: val.endsWith('.BA') ? 'BCBA' : prev.item.mercado
+                            }
+                          }));
+                        }}
+                        style={{ width: '100%', padding: '8px 10px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                        Mercado
+                      </label>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setQuickEditItem(prev => ({ ...prev, item: { ...prev.item, mercado: 'BCBA' } }))}
+                          style={{
+                            flex: 1,
+                            padding: '7px 4px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            borderRadius: '6px',
+                            border: quickEditItem.item.mercado !== 'NYSE/NASDAQ' && quickEditItem.item.mercado !== 'US' ? '1px solid #3b82f6' : '1px solid var(--glass-border)',
+                            background: quickEditItem.item.mercado !== 'NYSE/NASDAQ' && quickEditItem.item.mercado !== 'US' ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255,255,255,0.04)',
+                            color: quickEditItem.item.mercado !== 'NYSE/NASDAQ' && quickEditItem.item.mercado !== 'US' ? '#60a5fa' : 'var(--text-muted)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          🇦🇷 BCBA
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setQuickEditItem(prev => ({ ...prev, item: { ...prev.item, mercado: 'NYSE/NASDAQ' } }))}
+                          style={{
+                            flex: 1,
+                            padding: '7px 4px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            borderRadius: '6px',
+                            border: quickEditItem.item.mercado === 'NYSE/NASDAQ' || quickEditItem.item.mercado === 'US' ? '1px solid #8b5cf6' : '1px solid var(--glass-border)',
+                            background: quickEditItem.item.mercado === 'NYSE/NASDAQ' || quickEditItem.item.mercado === 'US' ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255,255,255,0.04)',
+                            color: quickEditItem.item.mercado === 'NYSE/NASDAQ' || quickEditItem.item.mercado === 'US' ? '#c084fc' : 'var(--text-muted)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          🇺🇸 US
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lado / Posición & Fecha */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                        Lado / Posición
+                      </label>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setQuickEditItem(prev => ({ ...prev, item: { ...prev.item, tipo: 'compra' } }))}
+                          style={{
+                            flex: 1,
+                            padding: '7px 4px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            borderRadius: '6px',
+                            border: quickEditItem.item.tipo === 'compra' ? '1px solid #10b981' : '1px solid var(--glass-border)',
+                            background: quickEditItem.item.tipo === 'compra' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255,255,255,0.04)',
+                            color: quickEditItem.item.tipo === 'compra' ? '#34d399' : 'var(--text-muted)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          🛒 Compra
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setQuickEditItem(prev => ({ ...prev, item: { ...prev.item, tipo: 'venta' } }))}
+                          style={{
+                            flex: 1,
+                            padding: '7px 4px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            borderRadius: '6px',
+                            border: quickEditItem.item.tipo === 'venta' ? '1px solid #ef4444' : '1px solid var(--glass-border)',
+                            background: quickEditItem.item.tipo === 'venta' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.04)',
+                            color: quickEditItem.item.tipo === 'venta' ? '#f87171' : 'var(--text-muted)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          🏷️ Venta
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                        Fecha Base
+                      </label>
+                      <input
+                        type="date"
+                        value={quickEditItem.item.fecha || ''}
+                        onChange={e => setQuickEditItem(prev => ({ ...prev, item: { ...prev.item, fecha: e.target.value } }))}
+                        style={{ width: '100%', padding: '7px 10px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Precio Base (con Histórica y Actual) */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>
+                        Precio Base ({quickEditItem.item.mercado === 'NYSE/NASDAQ' || quickEditItem.item.mercado === 'US' ? 'US$ USD' : '$ ARS'})
+                      </label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {quickEditItem.item.ticker && quickEditItem.item.fecha && (
+                          <button
+                            type="button"
+                            disabled={isFetchingQuickHistPrice}
+                            onClick={async () => {
+                              setIsFetchingQuickHistPrice(true);
+                              const p = await fetchHistoricalPrice(quickEditItem.item.ticker, quickEditItem.item.fecha, quickEditItem.item.mercado);
+                              setIsFetchingQuickHistPrice(false);
+                              if (p !== null) {
+                                setQuickEditItem(prev => ({ ...prev, item: { ...prev.item, precio: p.toFixed(2) } }));
+                              } else {
+                                alert(`No se encontró cotización histórica para ${quickEditItem.item.ticker} en esa fecha.`);
+                              }
+                            }}
+                            style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                          >
+                            {isFetchingQuickHistPrice ? '⏳...' : '📅 Histórica'}
+                          </button>
+                        )}
+                        {(() => {
+                          const cleanT = cleanTickerSymbol(quickEditItem.item.ticker);
+                          if (!cleanT) return null;
+                          const isUS = quickEditItem.item.mercado === 'NYSE/NASDAQ' || quickEditItem.item.mercado === 'US';
+                          const yt = getYahooTicker({ ticker: cleanT, tipo: isUS ? 'stock' : (tickerCatalog[cleanT]?.tipo || 'cedear'), mercado: isUS ? 'NYSE/NASDAQ' : 'BCBA' });
+                          const liveP = (yt && prices[yt]) || (!isUS ? prices[cleanT] : null) || null;
+                          return (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (liveP) {
+                                  setQuickEditItem(prev => ({ ...prev, item: { ...prev.item, precio: liveP } }));
+                                } else if (yt) {
+                                  setIsFetchingQuickHistPrice(true);
+                                  const data = await fetchPrice(yt);
+                                  setIsFetchingQuickHistPrice(false);
+                                  if (data && data.price) {
+                                    setPrices(prev => ({ ...prev, [yt]: data.price }));
+                                    setDailyStats(prev => ({ ...prev, [yt]: data }));
+                                    setQuickEditItem(prev => ({ ...prev, item: { ...prev.item, precio: data.price } }));
+                                  }
+                                }
+                              }}
+                              style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                            >
+                              💲 Actual
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="0.00"
+                      value={quickEditItem.item.precio !== undefined ? quickEditItem.item.precio : ''}
+                      onChange={e => setQuickEditItem(prev => ({ ...prev, item: { ...prev.item, precio: e.target.value } }))}
+                      style={{ width: '100%', padding: '8px 10px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  {/* Cantidad & Total Calculado */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                        Cantidad (Nominales)
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="Ej: 100"
+                        value={quickEditItem.item.cantidad !== undefined ? quickEditItem.item.cantidad : ''}
+                        onChange={e => setQuickEditItem(prev => ({ ...prev, item: { ...prev.item, cantidad: e.target.value } }))}
+                        style={{ width: '100%', padding: '8px 10px', background: '#16172e', border: '1px solid var(--glass-border)', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                        Monto Base Resultante
+                      </label>
+                      <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', fontWeight: '600', boxSizing: 'border-box' }}>
+                        {quickEditItem.item.mercado === 'NYSE/NASDAQ' || quickEditItem.item.mercado === 'US' ? 'US$ ' : '$ '}
+                        {fmt((parseFloat(quickEditItem.item.precio) || 0) * (parseFloat(quickEditItem.item.cantidad) || 0))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={guardarQuickEditItem}
+                      style={{ flex: 1, padding: '10px', fontWeight: '700', background: '#d97706', borderColor: '#d97706' }}
+                    >
+                      💾 Guardar Cambios
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => setQuickEditItem(null)}
+                      style={{ padding: '10px 16px' }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
