@@ -50,6 +50,34 @@ const cleanTickerSymbol = (t) => {
   return String(t).trim().toUpperCase().replace(/\.BA$/i, '');
 };
 
+export const parseTrackingDate = (dStr) => {
+  if (!dStr) return 0;
+  const s = String(dStr).trim();
+  if (s.includes('/')) {
+    const parts = s.split('/');
+    if (parts.length === 3) {
+      const d = parts[0].padStart(2, '0');
+      const m = parts[1].padStart(2, '0');
+      const y = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+      const t = new Date(`${y}-${m}-${d}T00:00:00`).getTime();
+      if (!isNaN(t)) return t;
+    }
+  }
+  const t = new Date(s.includes('T') ? s : `${s}T00:00:00`).getTime();
+  return isNaN(t) ? 0 : t;
+};
+
+export const sortTrackingItemsByFechaDesc = (a, b) => {
+  const tsA = parseTrackingDate(a?.fecha);
+  const tsB = parseTrackingDate(b?.fecha);
+  if (tsA !== tsB) return tsB - tsA; // Descending: fechas más recientes primero
+  const fA = a?.fecha || '';
+  const fB = b?.fecha || '';
+  const comp = fB.localeCompare(fA);
+  if (comp !== 0) return comp;
+  return (a?.ticker || '').localeCompare(b?.ticker || '');
+};
+
 // Sanitizes and deduplicates watchlist entries by clean ticker symbol AND asset type
 export const sanitizeWatchlist = (rawList) => {
   if (!Array.isArray(rawList)) return [];
@@ -1159,7 +1187,7 @@ function App() {
       nombre: tr.nombre || 'Tracking sin nombre',
       fecha: tr.fecha || new Date().toISOString().split('T')[0],
       notas: tr.notas || '',
-      items: Array.isArray(tr.items) ? tr.items : [],
+      items: Array.isArray(tr.items) ? [...tr.items].sort(sortTrackingItemsByFechaDesc) : [],
       excluded: !!tr.excluded
     }));
     return list.sort((a, b) => {
@@ -3022,7 +3050,7 @@ function App() {
     setTrackingNombre(group.nombre || '');
     setTrackingFecha(group.fecha || new Date().toISOString().split('T')[0]);
     setTrackingNotas(group.notas || '');
-    setTrackingItems(Array.isArray(group.items) ? [...group.items] : []);
+    setTrackingItems(Array.isArray(group.items) ? [...group.items].sort(sortTrackingItemsByFechaDesc) : []);
     setNewItemTicker('');
     setNewItemTipo('compra');
     setNewItemMercado('BCBA');
@@ -3086,7 +3114,7 @@ function App() {
       assetTipo: isUS ? 'stock' : (cat.tipo || 'cedear')
     };
 
-    setTrackingItems(prev => prev.map(it => it.id === editingTrackingItemId ? updatedItem : it));
+    setTrackingItems(prev => prev.map(it => it.id === editingTrackingItemId ? updatedItem : it).sort(sortTrackingItemsByFechaDesc));
     cancelarEdicionItem();
 
     // Pre-fetch live price if not already loaded
@@ -3128,7 +3156,7 @@ function App() {
       assetTipo: isUS ? 'stock' : (cat.tipo || 'cedear')
     };
 
-    setTrackingItems(prev => [...prev, item]);
+    setTrackingItems(prev => [...prev, item].sort(sortTrackingItemsByFechaDesc));
     setNewItemTicker('');
     setNewItemPrecio('');
     setNewItemCantidad('');
@@ -3249,7 +3277,7 @@ function App() {
       if (g.id !== groupId) return g;
       return {
         ...g,
-        items: (g.items || []).map(it => it.id === item.id ? updatedItem : it)
+        items: (g.items || []).map(it => it.id === item.id ? updatedItem : it).sort(sortTrackingItemsByFechaDesc)
       };
     }));
 
@@ -3283,7 +3311,7 @@ function App() {
         nombre: nombreClean,
         fecha: fechaClean,
         notas: trackingNotas.trim(),
-        items: [...trackingItems]
+        items: [...trackingItems].sort(sortTrackingItemsByFechaDesc)
       } : g));
     } else {
       const newGroup = {
@@ -3291,7 +3319,7 @@ function App() {
         nombre: nombreClean,
         fecha: fechaClean,
         notas: trackingNotas.trim(),
-        items: [...trackingItems],
+        items: [...trackingItems].sort(sortTrackingItemsByFechaDesc),
         excluded: false
       };
       setTrackings([newGroup, ...trackings]);
@@ -7341,8 +7369,8 @@ function App() {
 
               {/* Items agregados al grupo actual */}
               {(() => {
-                const compras = trackingItems.filter(it => it.tipo === 'compra');
-                const ventas = trackingItems.filter(it => it.tipo === 'venta');
+                const compras = trackingItems.filter(it => it.tipo === 'compra').sort(sortTrackingItemsByFechaDesc);
+                const ventas = trackingItems.filter(it => it.tipo === 'venta').sort(sortTrackingItemsByFechaDesc);
 
                 return (
                   <div style={{ marginBottom: '1.25rem' }}>
@@ -7562,8 +7590,8 @@ function App() {
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1.5rem' }}>
                 {filteredTrackings.map(group => {
-                  const comprasItems = (group.items || []).filter(it => it.tipo === 'compra');
-                  const ventasItems = (group.items || []).filter(it => it.tipo === 'venta');
+                  const comprasItems = (group.items || []).filter(it => it.tipo === 'compra').sort(sortTrackingItemsByFechaDesc);
+                  const ventasItems = (group.items || []).filter(it => it.tipo === 'venta').sort(sortTrackingItemsByFechaDesc);
 
                   const allItems = group.items || [];
                   const allAreUS = allItems.length > 0 && allItems.every(it => it.mercado === 'NYSE/NASDAQ' || it.mercado === 'US');
