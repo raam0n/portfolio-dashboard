@@ -220,6 +220,9 @@ const SEED_TICKER_CATALOG = {
   'ARM': { ticker: 'ARM', nombre: 'Arm Holdings plc', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Semiconductores', pais: 'Reino Unido' },
   'HUT': { ticker: 'HUT', nombre: 'Hut 8 Corp', tipo: 'cedear', mercado: 'BCBA', sector: 'Crypto', subsector: 'Minería Bitcoin', pais: 'USA' },
   'NU': { ticker: 'NU', nombre: 'Nu Holdings Ltd. (Nubank)', tipo: 'cedear', mercado: 'BCBA', sector: 'Banking', subsector: 'Fintech', pais: 'Brasil' },
+  'CRWV': { ticker: 'CRWV', nombre: 'CoreWeave Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Infraestructura Cloud', pais: 'USA' },
+  'IREN': { ticker: 'IREN', nombre: 'IREN Limited', tipo: 'cedear', mercado: 'BCBA', sector: 'Crypto', subsector: 'Datacenters', pais: 'Australia' },
+  'PANW': { ticker: 'PANW', nombre: 'Palo Alto Networks Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Cyberseguridad', pais: 'USA' },
 
   // Efectivo
   'ARS': { ticker: 'ARS', nombre: 'Pesos Argentinos', tipo: 'efectivo', mercado: 'BCBA', sector: 'Efectivo', subsector: 'Pesos Argentinos', pais: 'Argentina' },
@@ -264,6 +267,7 @@ const ASSET_SECTOR_FALLBACK_MAP = {
   'CRWD': { sector: 'Tech', subsector: 'Cyberseguridad' },
   'PANW': { sector: 'Tech', subsector: 'Cyberseguridad' },
   'FTNT': { sector: 'Tech', subsector: 'Cyberseguridad' },
+  'CRWV': { sector: 'Tech', subsector: 'Infraestructura Cloud' },
 
   // Tech / Internet & E-commerce
   'AMZN': { sector: 'Tech', subsector: 'E-commerce' },
@@ -354,6 +358,7 @@ const ASSET_SECTOR_FALLBACK_MAP = {
   'IBIT': { sector: 'Crypto', subsector: 'Bitcoin' },
   'MSTR': { sector: 'Crypto', subsector: 'Bitcoin' },
   'HUT': { sector: 'Crypto', subsector: 'Minería Bitcoin' },
+  'IREN': { sector: 'Crypto', subsector: 'Datacenters' },
   'BTC-USD': { sector: 'Crypto', subsector: 'Bitcoin' },
   'ETH-USD': { sector: 'Crypto', subsector: 'Criptomoneda' },
 
