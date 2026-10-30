@@ -5371,7 +5371,14 @@ function App() {
                     hist6m: stats?.hist6m ?? null,
                     hist1y: stats?.hist1y ?? null,
                     hist5y: stats?.hist5y ?? null,
-                    inPortfolio: true
+                    inPortfolio: true,
+                    price: pc,
+                    fulldayPrice: stats?.fulldayPrice ?? null,
+                    fulldayChangePercent: stats?.fulldayChangePercent ?? null,
+                    hasExtendedActivity: Boolean(stats?.hasExtendedActivity),
+                    extendedSession: stats?.extendedSession ?? null,
+                    hasPrePostMarketData: Boolean(stats?.hasPrePostMarketData),
+                    isOpen: Boolean(stats?.isOpen)
                   };
                 })
               : (() => {
@@ -5413,7 +5420,14 @@ function App() {
                       hist6m: stats?.hist6m ?? null,
                       hist1y: stats?.hist1y ?? null,
                       hist5y: stats?.hist5y ?? null,
-                      inPortfolio: true
+                      inPortfolio: true,
+                      price: pc,
+                      fulldayPrice: stats?.fulldayPrice ?? null,
+                      fulldayChangePercent: stats?.fulldayChangePercent ?? null,
+                      hasExtendedActivity: Boolean(stats?.hasExtendedActivity),
+                      extendedSession: stats?.extendedSession ?? null,
+                      hasPrePostMarketData: Boolean(stats?.hasPrePostMarketData),
+                      isOpen: Boolean(stats?.isOpen)
                     });
                   });
 
@@ -5427,6 +5441,7 @@ function App() {
 
                     const yt = getYahooTicker({ ...w, tipo: wTipo }) || (wTipo === 'stock' ? cleanW : cleanW + '.BA');
                     const stats = dailyStats[yt];
+                    const pc = prices[yt] ?? null;
                     const catInfo = tickerCatalog[cleanW] || {};
 
                     seenMap.set(key, {
@@ -5444,13 +5459,30 @@ function App() {
                       hist6m: stats?.hist6m ?? null,
                       hist1y: stats?.hist1y ?? null,
                       hist5y: stats?.hist5y ?? null,
-                      inPortfolio: false
+                      inPortfolio: false,
+                      price: pc,
+                      fulldayPrice: stats?.fulldayPrice ?? null,
+                      fulldayChangePercent: stats?.fulldayChangePercent ?? null,
+                      hasExtendedActivity: Boolean(stats?.hasExtendedActivity),
+                      extendedSession: stats?.extendedSession ?? null,
+                      hasPrePostMarketData: Boolean(stats?.hasPrePostMarketData),
+                      isOpen: Boolean(stats?.isOpen)
                     });
                   });
 
                   return Array.from(seenMap.values());
                 })();
-            return <MarketTreemap assets={treemapAssets} dolarCcl={dolarCcl} />;
+            return (
+              <MarketTreemap
+                assets={treemapAssets}
+                dolarCcl={dolarCcl}
+                showExtendedHours={showExtendedHours}
+                onlyActiveExtended={onlyActiveExtended}
+                onToggleExtendedHours={toggleExtendedHours}
+                onToggleOnlyActiveExtended={toggleOnlyActiveExtended}
+                activeExtendedCount={activeExtendedCount}
+              />
+            );
           })()}
 
           <div className="glass-panel">

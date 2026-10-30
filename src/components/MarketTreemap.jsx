@@ -113,11 +113,11 @@ const TYPE_OPTIONS = [
 ];
 
 // ── Tooltip component ─────────────────────────────────────────────────────────
-const Tooltip = ({ data, mousePos, containerRect, period = '1d' }) => {
+const Tooltip = ({ data, mousePos, containerRect, period = '1d', showExtendedHours = false }) => {
   if (!data || !containerRect) return null;
   
-  const estimatedWidth = 240;
-  const estimatedHeight = 220;
+  const estimatedWidth = 250;
+  const estimatedHeight = 250;
   let left = mousePos.x - containerRect.left + 12;
   let top = mousePos.y - containerRect.top - 10;
   
@@ -131,10 +131,10 @@ const Tooltip = ({ data, mousePos, containerRect, period = '1d' }) => {
 
   const fmtMcap = (v, curr = 'USD') => {
     if (!v) return 'N/A';
-    if (v >= 1e12) return `$${(v / 1e12).toFixed(2)}T (${curr})`;
-    if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B (${curr})`;
-    if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M (${curr})`;
-    return `$${v.toLocaleString()} (${curr})`;
+    if (v >= 1e12) return `${(v / 1e12).toFixed(2)}T (${curr})`;
+    if (v >= 1e9) return `${(v / 1e9).toFixed(2)}B (${curr})`;
+    if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M (${curr})`;
+    return `${v.toLocaleString()} (${curr})`;
   };
 
   const tipoLabels = { accion: 'Acción AR', cedear: 'CEDEAR', stock: 'Stock US' };
@@ -148,12 +148,15 @@ const Tooltip = ({ data, mousePos, containerRect, period = '1d' }) => {
     '5y': '5A'
   };
 
+  const isExt = Boolean(data.isExtended);
+  const extSessionLabel = data.extendedSession === 'post' ? '🌙 After-Hours' : '🌅 Pre-Market';
+
   return (
     <div style={{
       position: 'absolute', left, top, zIndex: 100, pointerEvents: 'none',
       background: 'rgba(20,20,30,0.95)', border: '1px solid rgba(255,255,255,0.15)',
       borderRadius: '8px', padding: '12px 16px', color: '#fff',
-      fontSize: '13px', minWidth: '180px', maxWidth: '280px',
+      fontSize: '13px', minWidth: '190px', maxWidth: '290px',
       backdropFilter: 'blur(12px)',
       boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
     }}>
@@ -163,11 +166,49 @@ const Tooltip = ({ data, mousePos, containerRect, period = '1d' }) => {
       {data.sector && <div style={{ color: '#ccc', marginBottom: '2px' }}>Sector: <span style={{color: '#fff'}}>{data.sector}</span></div>}
       {data.subsector && <div style={{ color: '#ccc', marginBottom: '2px' }}>Subsector: <span style={{color: '#fff'}}>{data.subsector}</span></div>}
       {data.pais && <div style={{ color: '#ccc', marginBottom: '2px' }}>País: <span style={{color: '#fff'}}>{data.pais}</span></div>}
-      <div style={{ marginBottom: '2px' }}>
-        Cambio ({periodLabels[period] || '1D'}): <strong style={{ color: data.changePct > 0 ? '#28a745' : data.changePct < 0 ? '#dc3545' : '#aaa' }}>
-          {data.changePct != null ? `${data.changePct > 0 ? '+' : ''}${data.changePct.toFixed(2)}%` : 'N/A'}
-        </strong>
-      </div>
+      
+      {isExt ? (
+        <div style={{
+          margin: '6px 0',
+          padding: '6px 8px',
+          borderRadius: '6px',
+          background: data.extendedSession === 'post' ? 'rgba(168,85,247,0.15)' : 'rgba(245,158,11,0.15)',
+          border: `1px solid ${data.extendedSession === 'post' ? 'rgba(168,85,247,0.35)' : 'rgba(245,158,11,0.35)'}`
+        }}>
+          <div style={{
+            fontSize: '11px',
+            color: data.extendedSession === 'post' ? '#c084fc' : '#fbbf24',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.4px',
+            marginBottom: '2px'
+          }}>
+            {extSessionLabel}
+          </div>
+          <div style={{ fontSize: '13px' }}>
+            Precio: <strong style={{ color: '#fff' }}>${data.extendedPrice != null ? data.extendedPrice.toFixed(2) : '—'}</strong>
+            {' '}(<span style={{ color: data.changePct >= 0 ? '#4ade80' : '#f87171', fontWeight: 700 }}>{data.changePct > 0 ? '+' : ''}{data.changePct.toFixed(2)}%</span>)
+          </div>
+          {data.regularPrice != null && (
+            <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>
+              Cierre Regular: ${data.regularPrice.toFixed(2)} ({data.regularChange > 0 ? '+' : ''}{data.regularChange?.toFixed(2)}%)
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ marginBottom: '2px' }}>
+          Cambio ({periodLabels[period] || '1D'}): <strong style={{ color: data.changePct > 0 ? '#28a745' : data.changePct < 0 ? '#dc3545' : '#aaa' }}>
+            {data.changePct != null ? `${data.changePct > 0 ? '+' : ''}${data.changePct.toFixed(2)}%` : 'N/A'}
+          </strong>
+        </div>
+      )}
+
+      {showExtendedHours && !isExt && period === '1d' && (
+        <div style={{ color: '#888', fontSize: '10.5px', margin: '4px 0', fontStyle: 'italic' }}>
+          {data.hasPrePostMarketData ? '⏸️ Sin operaciones en horario extendido' : '🔒 Solo cotiza en horario regular BCBA'}
+        </div>
+      )}
+
       {data.marketCap > 0 && <div>Market Cap: {fmtMcap(data.marketCap, data.marketCapCurrency)}</div>}
       {data.portfolioValue > 0 && <div style={{ marginTop: '4px' }}>Valor Portafolio: ${data.portfolioValue.toLocaleString()}</div>}
     </div>
@@ -202,7 +243,15 @@ const TypeToggle = ({ option, active, onClick }) => (
 );
 
 // ── Main Component ────────────────────────────────────────────────────────────
-const MarketTreemap = ({ assets = [], dolarCcl }) => {
+const MarketTreemap = ({
+  assets = [],
+  dolarCcl,
+  showExtendedHours = false,
+  onlyActiveExtended = false,
+  onToggleExtendedHours,
+  onToggleOnlyActiveExtended,
+  activeExtendedCount = 0
+}) => {
   const [grouping, setGrouping] = useState('sector_subsector');
   const [sizing, setSizing] = useState('marketCap');
   const [period, setPeriod] = useState('1d');
@@ -236,10 +285,16 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
     });
   }, []);
 
-  // Filter assets by selected types
+  // Filter assets by selected types & extended hours active activity
   const filteredAssets = useMemo(() => {
-    return assets.filter(a => activeTypes.includes(a.tipo));
-  }, [assets, activeTypes]);
+    return assets.filter(a => {
+      if (!activeTypes.includes(a.tipo)) return false;
+      if (showExtendedHours && onlyActiveExtended && period === '1d') {
+        return Boolean(a.hasExtendedActivity);
+      }
+      return true;
+    });
+  }, [assets, activeTypes, showExtendedHours, onlyActiveExtended, period]);
 
   // Resize observer
   useEffect(() => {
@@ -339,11 +394,27 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
         }
 
         let activeChange = a.changePct;
-        if (period === '5d') activeChange = a.hist5d;
-        else if (period === '1m') activeChange = a.hist1m;
-        else if (period === '6m') activeChange = a.hist6m;
-        else if (period === '1y') activeChange = a.hist1y;
-        else if (period === '5y') activeChange = a.hist5y;
+        const isExtended = Boolean(
+          showExtendedHours &&
+          period === '1d' &&
+          !a.isOpen &&
+          a.hasExtendedActivity &&
+          a.fulldayPrice !== null
+        );
+
+        if (isExtended && a.fulldayChangePercent !== null) {
+          activeChange = a.fulldayChangePercent;
+        } else if (period === '5d') {
+          activeChange = a.hist5d;
+        } else if (period === '1m') {
+          activeChange = a.hist1m;
+        } else if (period === '6m') {
+          activeChange = a.hist6m;
+        } else if (period === '1y') {
+          activeChange = a.hist1y;
+        } else if (period === '5y') {
+          activeChange = a.hist5y;
+        }
 
         const displayName = (a.tipo === 'cedear' && activeTypes.includes('stock')) ? `${a.ticker} (CEDEAR)` : a.ticker;
         const itemId = `${a.ticker}_${a.tipo}`;
@@ -368,6 +439,14 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
             marketCap: mcapRaw,
             marketCapCurrency: currency,
             portfolioValue: a.value || 0,
+            isExtended,
+            extendedSession: a.extendedSession,
+            extendedPrice: a.fulldayPrice,
+            regularPrice: a.price,
+            regularChange: a.changePct,
+            hasPrePostMarketData: a.hasPrePostMarketData,
+            hasExtendedActivity: a.hasExtendedActivity,
+            isOpen: a.isOpen
           });
         }
       }
@@ -423,11 +502,27 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
       }
 
       let activeChange = a.changePct;
-      if (period === '5d') activeChange = a.hist5d;
-      else if (period === '1m') activeChange = a.hist1m;
-      else if (period === '6m') activeChange = a.hist6m;
-      else if (period === '1y') activeChange = a.hist1y;
-      else if (period === '5y') activeChange = a.hist5y;
+      const isExtended = Boolean(
+        showExtendedHours &&
+        period === '1d' &&
+        !a.isOpen &&
+        a.hasExtendedActivity &&
+        a.fulldayPrice !== null
+      );
+
+      if (isExtended && a.fulldayChangePercent !== null) {
+        activeChange = a.fulldayChangePercent;
+      } else if (period === '5d') {
+        activeChange = a.hist5d;
+      } else if (period === '1m') {
+        activeChange = a.hist1m;
+      } else if (period === '6m') {
+        activeChange = a.hist6m;
+      } else if (period === '1y') {
+        activeChange = a.hist1y;
+      } else if (period === '5y') {
+        activeChange = a.hist5y;
+      }
 
       const displayName = (a.tipo === 'cedear' && activeTypes.includes('stock')) ? `${a.ticker} (CEDEAR)` : a.ticker;
       const itemId = `${a.ticker}_${a.tipo}`;
@@ -452,6 +547,14 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
           marketCap: mcapRaw,
           marketCapCurrency: currency,
           portfolioValue: a.value || 0,
+          isExtended,
+          extendedSession: a.extendedSession,
+          extendedPrice: a.fulldayPrice,
+          regularPrice: a.price,
+          regularChange: a.changePct,
+          hasPrePostMarketData: a.hasPrePostMarketData,
+          hasExtendedActivity: a.hasExtendedActivity,
+          isOpen: a.isOpen
         });
       }
     }
@@ -464,7 +567,7 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
         const sb = b.children.reduce((s, c) => s + c.size, 0);
         return sb - sa;
       });
-  }, [filteredAssets, grouping, sizing, period, marketCaps, dolarCcl]);
+  }, [filteredAssets, grouping, sizing, period, marketCaps, dolarCcl, showExtendedHours, activeTypes]);
 
   // Compute layout
   const layout = useMemo(() => {
@@ -656,6 +759,59 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
             onClick={() => toggleType(opt.value)}
           />
         ))}
+
+        {onToggleExtendedHours && (
+          <>
+            <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
+
+            <button
+              onClick={onToggleExtendedHours}
+              title="Alternar precios y variaciones de Pre-Market y After-Hours"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                padding: '5px 12px', borderRadius: '20px',
+                fontSize: '12px', fontWeight: showExtendedHours ? 600 : 400,
+                cursor: 'pointer',
+                border: showExtendedHours ? '1.5px solid rgba(245, 158, 11, 0.6)' : '1px solid rgba(255,255,255,0.12)',
+                background: showExtendedHours ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(139, 92, 246, 0.25))' : 'rgba(255,255,255,0.04)',
+                color: showExtendedHours ? '#fef08a' : 'rgba(255,255,255,0.6)',
+                transition: 'all 0.2s ease',
+                outline: 'none',
+              }}
+            >
+              <span>{showExtendedHours ? '🌅/🌙 Pre/Post (ON)' : '🌅 Horario Extendido'}</span>
+            </button>
+
+            {showExtendedHours && onToggleOnlyActiveExtended && (
+              <button
+                onClick={onToggleOnlyActiveExtended}
+                title="Mostrar exclusivamente los activos que registran operaciones en horario extendido"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '5px',
+                  padding: '5px 12px', borderRadius: '20px',
+                  fontSize: '12px', fontWeight: onlyActiveExtended ? 600 : 400,
+                  cursor: 'pointer',
+                  border: onlyActiveExtended ? '1.5px solid var(--accent)' : '1px solid rgba(255,255,255,0.12)',
+                  background: onlyActiveExtended ? 'var(--accent)' : 'rgba(255,255,255,0.04)',
+                  color: onlyActiveExtended ? '#fff' : 'rgba(255,255,255,0.6)',
+                  transition: 'all 0.2s ease',
+                  outline: 'none',
+                }}
+              >
+                <span>⚡ Solo con actividad</span>
+                <span style={{
+                  background: 'rgba(0,0,0,0.35)',
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  fontSize: '10px',
+                  fontWeight: 600
+                }}>
+                  {activeExtendedCount}
+                </span>
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       {loadingCaps && Object.keys(marketCaps).length === 0 && (
@@ -729,7 +885,11 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
               const h = item.h;
               const cx = item.x + w / 2;
               const cy = item.y + h / 2;
-              const changeStr = item.changePct != null ? `${item.changePct > 0 ? '+' : ''}${item.changePct.toFixed(2)}%` : null;
+              const isExt = Boolean(item.isExtended);
+              const extIcon = item.extendedSession === 'post' ? '🌙' : '🌅';
+              const rawPctStr = item.changePct != null ? `${item.changePct > 0 ? '+' : ''}${item.changePct.toFixed(2)}%` : null;
+              const changeStr = rawPctStr ? (isExt ? `${extIcon} ${rawPctStr}` : rawPctStr) : null;
+              const isDimmed = Boolean(showExtendedHours && period === '1d' && !isExt && !onlyActiveExtended);
 
               // Layout adaptive logic:
               // 1. Can we fit anything?
@@ -753,9 +913,9 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
                     width={Math.max(0, item.w - 2)} height={Math.max(0, item.h - 2)}
                     rx="3" ry="3"
                     fill={getBlockColor(item.changePct)}
-                    stroke={isHovered ? '#fff' : 'rgba(0,0,0,0.4)'}
-                    strokeWidth={isHovered ? 2 : 1}
-                    opacity={hoveredItem && !isHovered ? 0.6 : 1}
+                    stroke={isHovered ? '#fff' : (isExt ? (item.extendedSession === 'post' ? 'rgba(192, 132, 252, 0.7)' : 'rgba(251, 191, 36, 0.7)') : 'rgba(0,0,0,0.4)')}
+                    strokeWidth={isHovered ? 2 : (isExt ? 1.5 : 1)}
+                    opacity={isHovered ? 1 : (hoveredItem ? 0.6 : (isDimmed ? 0.6 : 1))}
                     style={{ transition: 'opacity 0.15s, stroke 0.15s' }}
                   />
 
@@ -860,13 +1020,23 @@ const MarketTreemap = ({ assets = [], dolarCcl }) => {
             })}
           </svg>
         ) : (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-            {filteredAssets.length === 0 ? 'No hay activos del tipo seleccionado. Probá activando otro filtro.' : 'Cargando mapa...'}
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: '8px' }}>
+            {showExtendedHours && onlyActiveExtended && period === '1d' ? (
+              <>
+                <span style={{ fontSize: '1.75rem' }}>🌙</span>
+                <span style={{ fontWeight: '600' }}>Sin cotizaciones extendidas activas</span>
+                <span style={{ fontSize: '12px' }}>Ningún activo registra operaciones en Pre-Market o After-Hours en este momento.</span>
+              </>
+            ) : filteredAssets.length === 0 ? (
+              'No hay activos del tipo seleccionado. Probá activando otro filtro.'
+            ) : (
+              'Cargando mapa...'
+            )}
           </div>
         )}
 
         {/* Hover Tooltip */}
-        <Tooltip data={hoveredItem} mousePos={mousePos} containerRect={containerRect} period={period} />
+        <Tooltip data={hoveredItem} mousePos={mousePos} containerRect={containerRect} period={period} showExtendedHours={showExtendedHours} />
       </div>
     </div>
   );
