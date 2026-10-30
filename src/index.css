@@ -793,6 +793,16 @@ textarea:focus {
   background: rgba(250, 204, 21, 0.04);
 }
 
+.mkt-pill--pre {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.mkt-pill--post {
+  border-color: rgba(168, 85, 247, 0.3);
+  background: rgba(168, 85, 247, 0.05);
+}
+
 .mkt-pill__dot {
   width: 8px;
   height: 8px;
@@ -814,6 +824,28 @@ textarea:focus {
 .mkt-pill__dot--always {
   background: #facc15;
   box-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+}
+
+.mkt-pill__dot--pre {
+  background: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
+  animation: mktPulsePre 2s ease-in-out infinite;
+}
+
+.mkt-pill__dot--post {
+  background: #a855f7;
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.7);
+  animation: mktPulsePost 2s ease-in-out infinite;
+}
+
+@keyframes mktPulsePre {
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 8px rgba(245, 158, 11, 0.6); }
+  50% { opacity: 0.75; transform: scale(0.85); box-shadow: 0 0 14px rgba(245, 158, 11, 0.9); }
+}
+
+@keyframes mktPulsePost {
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 8px rgba(168, 85, 247, 0.6); }
+  50% { opacity: 0.75; transform: scale(0.85); box-shadow: 0 0 14px rgba(168, 85, 247, 0.9); }
 }
 
 @keyframes mktPulse {
@@ -973,6 +1005,14 @@ textarea:focus {
   color: #facc15;
 }
 
+.mkt-pill__status--pre {
+  color: #fbbf24;
+}
+
+.mkt-pill__status--post {
+  color: #c084fc;
+}
+
 .mkt-pill__sub {
   font-size: 10px;
   color: var(--text-muted);
@@ -1020,6 +1060,39 @@ textarea:focus {
 
 .mkt-price-badge--closed .mkt-price-badge__dot {
   background: var(--text-muted);
+}
+
+.mkt-price-badge--pre {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.mkt-price-badge--pre .mkt-price-badge__dot {
+  background: #f59e0b;
+  box-shadow: 0 0 5px rgba(245, 158, 11, 0.8);
+  animation: mktPulsePre 2s ease-in-out infinite;
+}
+
+.mkt-price-badge--post {
+  color: #c084fc;
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+}
+
+.mkt-price-badge--post .mkt-price-badge__dot {
+  background: #a855f7;
+  box-shadow: 0 0 5px rgba(168, 85, 247, 0.8);
+  animation: mktPulsePost 2s ease-in-out infinite;
+}
+
+.row-extended-dimmed {
+  opacity: 0.65;
+  transition: opacity 0.2s ease;
+}
+
+.row-extended-dimmed:hover {
+  opacity: 0.95;
 }
 
 /* --- Chart Tooltip --- */

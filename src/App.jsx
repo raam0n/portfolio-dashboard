@@ -800,7 +800,7 @@ function MarketStatusBar({ dailyStats, watchlist }) {
   const usOpen = usStats ? (usStats.isOpen ?? null) : null;
   const arOpen = arStats ? (arStats.isOpen ?? null) : null;
 
-  const renderPill = ({ flag, name, isOpen, lastTs, alwaysOn }) => {
+  const renderPill = ({ flag, name, isOpen, session, lastTs, alwaysOn }) => {
     let pillMod, dotMod, statusMod, statusLabel, subText;
 
     if (alwaysOn) {
@@ -821,6 +821,18 @@ function MarketStatusBar({ dailyStats, watchlist }) {
       statusMod = 'mkt-pill__status--open';
       statusLabel = 'Abierto';
       subText = 'Cotizaciones en vivo';
+    } else if (session === 'pre') {
+      pillMod = 'mkt-pill--pre';
+      dotMod = 'mkt-pill__dot--pre';
+      statusMod = 'mkt-pill__status--pre';
+      statusLabel = 'Pre-Market 🌅';
+      subText = 'Sesión extendida';
+    } else if (session === 'post') {
+      pillMod = 'mkt-pill--post';
+      dotMod = 'mkt-pill__dot--post';
+      statusMod = 'mkt-pill__status--post';
+      statusLabel = 'After-Hours 🌙';
+      subText = 'Sesión extendida';
     } else {
       pillMod = 'mkt-pill--closed';
       dotMod = 'mkt-pill__dot--closed';
@@ -850,8 +862,8 @@ function MarketStatusBar({ dailyStats, watchlist }) {
 
   return (
     <div className="market-status-bar">
-      {renderPill({ flag: 'US', name: 'NYSE / NASDAQ', isOpen: usOpen, lastTs: usStats?.regularMarketTime })}
-      {renderPill({ flag: 'AR', name: 'BCBA', isOpen: arOpen, lastTs: arStats?.regularMarketTime })}
+      {renderPill({ flag: 'US', name: 'NYSE / NASDAQ', isOpen: usOpen, session: usStats?.marketSession, lastTs: usStats?.regularMarketTime })}
+      {renderPill({ flag: 'AR', name: 'BCBA', isOpen: arOpen, session: arStats?.marketSession, lastTs: arStats?.regularMarketTime })}
       {renderPill({ flag: '⚡', name: 'Cripto', alwaysOn: true })}
     </div>
   );
@@ -1247,6 +1259,28 @@ function App() {
   const [showAddOp, setShowAddOp] = useState(false);
   const [showAddWatchlist, setShowAddWatchlist] = useState(false);
   const [wlPortfolioOnly, setWlPortfolioOnly] = useState(false);
+  const [showExtendedHours, setShowExtendedHours] = useState(() => {
+    return localStorage.getItem('watchlist_show_extended_hours') === 'true';
+  });
+  const [onlyActiveExtended, setOnlyActiveExtended] = useState(() => {
+    return localStorage.getItem('watchlist_only_active_extended') === 'true';
+  });
+
+  const toggleExtendedHours = () => {
+    setShowExtendedHours(prev => {
+      const next = !prev;
+      localStorage.setItem('watchlist_show_extended_hours', String(next));
+      return next;
+    });
+  };
+
+  const toggleOnlyActiveExtended = () => {
+    setOnlyActiveExtended(prev => {
+      const next = !prev;
+      localStorage.setItem('watchlist_only_active_extended', String(next));
+      return next;
+    });
+  };
   const [showSettings, setShowSettings] = useState(false);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [showAddEval, setShowAddEval] = useState(false);
@@ -1725,7 +1759,7 @@ function App() {
   const fetchPrice = async (yahooTicker) => {
     try {
       const url5y = `/api/market/v8/finance/chart/${yahooTicker}?interval=1d&range=5y`;
-      const url1d = `/api/market/v8/finance/chart/${yahooTicker}?interval=1d&range=1d`;
+      const url1d = `/api/market/v8/finance/chart/${yahooTicker}?interval=1d&range=1d&includePrePost=true`;
 
       const [r5y, r1d] = await Promise.all([
         fetchWithTimeout(url5y, {}, 8000),
@@ -1793,19 +1827,70 @@ function App() {
       const hist1y = getHistPct(252);
       const hist5y = len > 1000 ? getHistPct(len - 1) : null;
 
-      // Market status:
-      // Primary check: Yahoo's marketState (can sometimes be stale/wrong via proxy)
-      // Secondary check: compare Date.now() against today's trading session window
-      // Both are from Yahoo's own data, so no hardcoded hours needed.
+      // Market status & session windows
       const nowSec = Math.floor(Date.now() / 1000);
-      const tradingPeriod = meta1d?.currentTradingPeriod?.regular;
-      const isInTradingWindow = tradingPeriod
-        ? (nowSec >= tradingPeriod.start && nowSec <= tradingPeriod.end)
-        : false;
-      const isOpen = meta1d?.marketState === 'REGULAR' || isInTradingWindow;
+      const periods = meta1d?.currentTradingPeriod || {};
+      const regPeriod = periods.regular;
+      const prePeriod = periods.pre;
+      const postPeriod = periods.post;
+
+      const isInRegular = regPeriod ? (nowSec >= regPeriod.start && nowSec <= regPeriod.end) : false;
+      const isInPre = prePeriod ? (nowSec >= prePeriod.start && nowSec < prePeriod.end) : false;
+      const isInPost = postPeriod ? (nowSec > postPeriod.start && nowSec <= postPeriod.end) : false;
+
+      let marketSession = 'closed';
+      if (meta1d?.marketState === 'REGULAR' || isInRegular) {
+        marketSession = 'regular';
+      } else if (meta1d?.marketState === 'PRE' || isInPre) {
+        marketSession = 'pre';
+      } else if (meta1d?.marketState === 'POST' || meta1d?.marketState === 'POSTPOST' || isInPost) {
+        marketSession = 'post';
+      }
+
+      const isOpen = marketSession === 'regular';
       const regularMarketTime = meta1d?.regularMarketTime ?? null; // Unix timestamp
 
-      return { price, change, changePct, hist5d, hist1m, hist6m, hist1y, hist5y, isOpen, regularMarketTime, history: closes, timestamps, prevClose };
+      // Extended hours details
+      const hasPrePostMarketData = Boolean(meta1d?.hasPrePostMarketData);
+      const fulldayPrice = meta1d?.fulldayPrice ?? null;
+      const fulldayChange = meta1d?.fulldayChange ?? null;
+      const fulldayChangePercent = meta1d?.fulldayChangePercent ?? null;
+
+      // Extended activity detection:
+      // True if asset supports extended hours, fulldayPrice is present, and either price differs or variation is non-zero
+      const hasExtendedActivity = Boolean(
+        hasPrePostMarketData &&
+        fulldayPrice !== null &&
+        (
+          (fulldayPrice !== price) ||
+          (fulldayChangePercent !== null && Math.abs(fulldayChangePercent) > 0.0001)
+        )
+      );
+
+      const extendedSession = isInPre || marketSession === 'pre' ? 'pre' : (isInPost || marketSession === 'post' ? 'post' : (hasExtendedActivity ? 'post' : null));
+
+      return {
+        price,
+        change,
+        changePct,
+        hist5d,
+        hist1m,
+        hist6m,
+        hist1y,
+        hist5y,
+        isOpen,
+        marketSession,
+        regularMarketTime,
+        history: closes,
+        timestamps,
+        prevClose,
+        hasPrePostMarketData,
+        fulldayPrice,
+        fulldayChange,
+        fulldayChangePercent,
+        hasExtendedActivity,
+        extendedSession
+      };
     } catch (e) {
       console.warn("fetchPrice failed for", yahooTicker, e);
       return null;
@@ -3476,7 +3561,7 @@ function App() {
           rawObjects = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
         } else {
           const text = event.target.result;
-          const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+          const lines = text.split(/\r?\r\n/).map(l => l.trim()).filter(Boolean);
           if (lines.length < 2) return alert('El archivo está vacío o no contiene suficientes filas.');
 
           const delimiter = lines[0].includes(';') ? ';' : ',';
@@ -3768,6 +3853,14 @@ function App() {
     .filter(w => wlSectorFilters.length === 0 || wlSectorFilters.includes(w.sector || ''))
     .filter(w => wlSubsectorFilters.length === 0 || wlSubsectorFilters.includes(w.subsector || ''))
     .filter(w => wlPaisFilters.length === 0 || wlPaisFilters.includes(w.pais || ''));
+
+  const activeExtendedCount = useMemo(() => {
+    return wlVisibleBeforeExclude.filter(w => {
+      const yt = getYahooTicker(w) || w.ticker;
+      const stats = dailyStats[yt];
+      return Boolean(stats?.hasExtendedActivity);
+    }).length;
+  }, [wlVisibleBeforeExclude, dailyStats, getYahooTicker]);
 
   // Sort utility for unified grouping: type then alphabetical
   const typePriority = { 'accion': 1, 'bono': 2, 'cedear': 3, 'stock': 4 };
@@ -5419,6 +5512,52 @@ function App() {
                   selected={wlExcludedTickers}
                   onChange={setWlExcludedTickers}
                 />
+
+                <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.1)', margin: '0 2px' }} />
+
+                <button
+                  className={`btn btn-sm ${showExtendedHours ? 'btn-extended-active' : ''}`}
+                  onClick={toggleExtendedHours}
+                  title="Activar/desactivar cotizaciones de Pre-Market y After-Hours"
+                  style={{
+                    background: showExtendedHours ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(139, 92, 246, 0.22))' : 'rgba(255,255,255,0.05)',
+                    border: showExtendedHours ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid rgba(255,255,255,0.15)',
+                    color: showExtendedHours ? '#fef08a' : 'var(--text-main)',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span>{showExtendedHours ? '🌅/🌙 Pre/Post (ON)' : '🌅 Horario Extendido'}</span>
+                </button>
+
+                {showExtendedHours && (
+                  <button
+                    className={`btn btn-sm ${onlyActiveExtended ? 'btn-primary' : ''}`}
+                    onClick={toggleOnlyActiveExtended}
+                    title="Mostrar exclusivamente los activos que registran operaciones en horario extendido"
+                    style={{
+                      background: onlyActiveExtended ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
+                      border: onlyActiveExtended ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.15)',
+                      color: onlyActiveExtended ? '#fff' : 'var(--text-muted)',
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <span>⚡ Solo con actividad</span>
+                    <span style={{
+                      background: 'rgba(0,0,0,0.3)',
+                      padding: '1px 6px',
+                      borderRadius: '10px',
+                      fontSize: '10px'
+                    }}>
+                      {activeExtendedCount}
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -5426,6 +5565,14 @@ function App() {
               {wlVisibleBeforeExclude.length === 0 ? (
                 <div className="empty-state">
                   {wlPortfolioOnly ? 'No se encontraron activos de tu cartera con cotización internacional.' : 'No estás siguiendo ningún activo.'}
+                </div>
+              ) : showExtendedHours && onlyActiveExtended && activeExtendedCount === 0 ? (
+                <div className="empty-state" style={{ padding: '2.5rem 1rem' }}>
+                  <div style={{ fontSize: '1.75rem', marginBottom: '8px' }}>🌙</div>
+                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>Sin cotizaciones extendidas activas</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', maxWidth: '420px', margin: '0 auto' }}>
+                    Ningún activo de tu lista registra operaciones en Pre-Market o After-Hours en este momento. Desactiva &quot;Solo con actividad&quot; para consultar los cierres regulares.
+                  </div>
                 </div>
               ) : (
                 <table>
@@ -5437,9 +5584,9 @@ function App() {
                       <th>Sector</th>
                       <th>Subsector</th>
                       <th>País</th>
-                      <th>P. Mercado</th>
+                      <th>{showExtendedHours ? 'P. Mercado (Ext.)' : 'P. Mercado'}</th>
                       <th>Últ. Actualización</th>
-                      <th>1 Día</th>
+                      <th>{showExtendedHours ? '1 Día / Ext.' : '1 Día'}</th>
                       <th>5 Días</th>
                       <th>1 Mes</th>
                       <th>6 Meses</th>
@@ -5451,11 +5598,21 @@ function App() {
                   <tbody>
                     {wlVisibleBeforeExclude
                       .filter(w => !wlExcludedTickers.includes(cleanTickerSymbol(w.ticker)))
+                      .filter(w => {
+                        if (!showExtendedHours || !onlyActiveExtended) return true;
+                        const yt = getYahooTicker(w) || w.ticker;
+                        const stats = dailyStats[yt] ?? null;
+                        return Boolean(stats?.hasExtendedActivity);
+                      })
                       .sort((a, b) => {
                         const ytA = getYahooTicker(a) || a.ticker;
                         const ytB = getYahooTicker(b) || b.ticker;
-                        const pctA = dailyStats[ytA]?.changePct ?? null;
-                        const pctB = dailyStats[ytB]?.changePct ?? null;
+                        const pctA = (showExtendedHours && dailyStats[ytA]?.hasExtendedActivity)
+                          ? dailyStats[ytA]?.fulldayChangePercent
+                          : dailyStats[ytA]?.changePct ?? null;
+                        const pctB = (showExtendedHours && dailyStats[ytB]?.hasExtendedActivity)
+                          ? dailyStats[ytB]?.fulldayChangePercent
+                          : dailyStats[ytB]?.changePct ?? null;
                         if (pctA === null && pctB === null) return 0;
                         if (pctA === null) return 1;
                         if (pctB === null) return -1;
@@ -5464,12 +5621,23 @@ function App() {
                         const yt = getYahooTicker(w) || w.ticker;
                         const pc = prices[yt] ?? null;
                         const stats = dailyStats[yt] ?? null;
+                        const isExtendedActive = Boolean(
+                          showExtendedHours &&
+                          !stats?.isOpen &&
+                          stats?.hasExtendedActivity &&
+                          stats?.fulldayPrice !== null
+                        );
 
                         let todayCss = 'neutral';
                         let todayText = '—';
                         if (stats && pc !== null) {
-                          todayCss = stats.change >= 0 ? 'positive' : 'negative';
-                          todayText = fmtPct(stats.changePct);
+                          if (isExtendedActive) {
+                            todayCss = stats.fulldayChangePercent >= 0 ? 'positive' : 'negative';
+                            todayText = fmtPct(stats.fulldayChangePercent);
+                          } else {
+                            todayCss = stats.change >= 0 ? 'positive' : 'negative';
+                            todayText = fmtPct(stats.changePct);
+                          }
                         }
 
                         const fmtHist = (val) => {
@@ -5482,7 +5650,7 @@ function App() {
 
                         return (
                           <React.Fragment key={itemKey}>
-                            <tr className="expandable-row" onClick={() => setExpandedTicker(expandedTicker === itemKey ? null : itemKey)}>
+                            <tr className={`expandable-row ${showExtendedHours && !stats?.hasExtendedActivity ? 'row-extended-dimmed' : ''}`} onClick={() => setExpandedTicker(expandedTicker === itemKey ? null : itemKey)}>
                               <td>
                                 <div className="ticker-name">{w.ticker}</div>
                                 {w.nombre && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{w.nombre}</div>}
@@ -5497,15 +5665,46 @@ function App() {
                               <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.subsector || '—'}</span></td>
                               <td><span style={{ fontSize: '11px', opacity: 0.8 }}>{w.pais || '—'}</span></td>
                               <td>
-                                <strong className={pc !== null && stats && !stats.isOpen ? 'price-stale' : ''}>
-                                  {pc !== null ? `$${fmt(pc)}` : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>}
-                                </strong>
-                                {pc !== null && stats && (
+                                {isExtendedActive ? (
                                   <div>
-                                    <span className={`mkt-price-badge mkt-price-badge--${stats.isOpen ? 'open' : 'closed'}`}>
-                                      <span className="mkt-price-badge__dot" />
-                                      {stats.isOpen ? 'En vivo' : 'Cierre ant.'}
-                                    </span>
+                                    <strong style={{ color: '#fff' }}>
+                                      ${fmt(stats.fulldayPrice)}
+                                    </strong>
+                                    <div>
+                                      <span className={`mkt-price-badge mkt-price-badge--${stats.extendedSession || 'pre'}`}>
+                                        <span className="mkt-price-badge__dot" />
+                                        {stats.extendedSession === 'post' ? 'POST' : 'PRE'} {fmtPct(stats.fulldayChangePercent)}
+                                      </span>
+                                    </div>
+                                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                      Cierre: ${fmt(pc)}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <strong className={pc !== null && stats && !stats.isOpen ? 'price-stale' : ''}>
+                                      {pc !== null ? `${fmt(pc)}` : <span style={{ fontStyle: 'italic', color: '#888' }}>cargando...</span>}
+                                    </strong>
+                                    {pc !== null && stats && (
+                                      <div>
+                                        {showExtendedHours && !stats.hasPrePostMarketData ? (
+                                          <span className="mkt-price-badge mkt-price-badge--closed" title="Este activo opera únicamente en rueda regular BCBA">
+                                            <span className="mkt-price-badge__dot" />
+                                            Solo BCBA
+                                          </span>
+                                        ) : showExtendedHours && stats.hasPrePostMarketData && !stats.hasExtendedActivity ? (
+                                          <span className="mkt-price-badge mkt-price-badge--closed" title="Sin operaciones registradas en horario extendido">
+                                            <span className="mkt-price-badge__dot" />
+                                            Sin vol. ext.
+                                          </span>
+                                        ) : (
+                                          <span className={`mkt-price-badge mkt-price-badge--${stats.isOpen ? 'open' : 'closed'}`}>
+                                            <span className="mkt-price-badge__dot" />
+                                            {stats.isOpen ? 'En vivo' : 'Cierre ant.'}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </td>
@@ -5514,7 +5713,14 @@ function App() {
                                   {formatLastUpdated(stats)}
                                 </span>
                               </td>
-                              <td className={todayCss}><strong>{todayText}</strong></td>
+                              <td className={todayCss}>
+                                <strong>{todayText}</strong>
+                                {isExtendedActive && (
+                                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                    Día: {fmtPct(stats.changePct)}
+                                  </div>
+                                )}
+                              </td>
                               <td>{stats ? fmtHist(stats.hist5d) : '—'}</td>
                               <td>{stats ? fmtHist(stats.hist1m) : '—'}</td>
                               <td>{stats ? fmtHist(stats.hist6m) : '—'}</td>
