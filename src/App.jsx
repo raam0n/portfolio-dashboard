@@ -223,6 +223,7 @@ const SEED_TICKER_CATALOG = {
   'CRWV': { ticker: 'CRWV', nombre: 'CoreWeave Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Infraestructura Cloud', pais: 'USA' },
   'IREN': { ticker: 'IREN', nombre: 'IREN Limited', tipo: 'cedear', mercado: 'BCBA', sector: 'Crypto', subsector: 'Datacenters', pais: 'Australia' },
   'PANW': { ticker: 'PANW', nombre: 'Palo Alto Networks Inc.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Cyberseguridad', pais: 'USA' },
+  'NBIS': { ticker: 'NBIS', nombre: 'Nebius Group N.V.', tipo: 'cedear', mercado: 'BCBA', sector: 'Tech', subsector: 'Infraestructura Cloud', pais: 'Países Bajos' },
 
   // Efectivo
   'ARS': { ticker: 'ARS', nombre: 'Pesos Argentinos', tipo: 'efectivo', mercado: 'BCBA', sector: 'Efectivo', subsector: 'Pesos Argentinos', pais: 'Argentina' },
@@ -268,6 +269,7 @@ const ASSET_SECTOR_FALLBACK_MAP = {
   'PANW': { sector: 'Tech', subsector: 'Cyberseguridad' },
   'FTNT': { sector: 'Tech', subsector: 'Cyberseguridad' },
   'CRWV': { sector: 'Tech', subsector: 'Infraestructura Cloud' },
+  'NBIS': { sector: 'Tech', subsector: 'Infraestructura Cloud' },
 
   // Tech / Internet & E-commerce
   'AMZN': { sector: 'Tech', subsector: 'E-commerce' },
